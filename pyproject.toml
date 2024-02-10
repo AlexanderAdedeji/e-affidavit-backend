@@ -10,6 +10,7 @@ python = "^3.12"
 alembic = "^1.13.1"
 fastapi = {extras = ["all"], version = "^0.109.2"}
 loguru = "^0.7.2"
+pydantic-settings = "^2.1.0"
 
 
 [build-system]

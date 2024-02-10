@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
 from loguru import logger
+from app.core.settings.configurations import settings
 import starlette.responses as _responses
 from starlette.middleware import Middleware
 from fastapi.responses import JSONResponse
@@ -26,7 +27,7 @@ security_middleware = Middleware(
 
 
 def create_application_instance() -> FastAPI:
-    app = FastAPI(title="E-Affidavit",middleware=[security_middleware])
+    app = FastAPI(title=settings.PROJECT_NAME,middleware=[security_middleware])
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
