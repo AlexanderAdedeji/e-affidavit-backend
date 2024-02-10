@@ -1,0 +1,11 @@
+INCORRECT_LOGIN_INPUT = "incorrect email or password"
+UNVERIFIED_USER_ERROR = "this account is not verified"
+INACTIVE_USER_ERROR = "this account is not active"
+ALREADY_EXISTS = "{} already exists"
+NOT_FOUND = "not found"
+SERVER_ERROR = "an error occured"
+DOES_NOT_EXIST = '{} does not exist'
+WRONG_TOKEN_PREFIX = "unsupported authorization type"
+UNAUTHORIZED_ACTION = "you can not perform this action"
+MALFORMED_PAYLOAD = "could not validate credentials"
+AUTHENTICATION_REQUIRED = "authentication required"
