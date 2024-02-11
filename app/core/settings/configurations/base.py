@@ -15,8 +15,8 @@ class CustomSettings(BaseSettings):
     RESET_TOKEN_EXPIRE_MINUTES: int = 60
     PROJECT_NAME: str = "E-Affidavit Server"
     API_URL_PREFIX: str
-
-    
+    POSTGRES_DB_URL:str
+    MONGO_DB_URL:str
     JWT_TOKEN_PREFIX: str 
     # JWT_EXPIRE_MINUTES: int
 

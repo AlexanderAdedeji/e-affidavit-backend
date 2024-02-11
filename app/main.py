@@ -7,9 +7,11 @@ from starlette.middleware import Middleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.database.sessions.session import engine
+from app.database.base import Base
+from app.database.sessions.mongo_client import db_client, client
 
-
-
+Base.metadata.create_all(engine)
 # CORS configuration
 origins = ["https://example.com"]  # Replace with your allowed origins
 methods = ["GET", "POST", "PUT", "DELETE"]  # Specify allowed methods
@@ -71,3 +73,20 @@ app = create_application_instance()
 @app.get("/")
 async def root():
     return _responses.RedirectResponse("/docs")
+
+
+
+
+
+@app.on_event("startup")
+async def startup_db_client():
+    app.mongodb_client = client
+
+    app.mongodb = app.mongodb_client.get_database()
+    print("Hello world")
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    print("bye world")
+    app.mongodb_client.close()
+
