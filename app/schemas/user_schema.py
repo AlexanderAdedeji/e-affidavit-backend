@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, validator
 
-from app.schemas.user_type import UserTypeInDB
+from app.schemas.user_type_schema import UserTypeInDB
 
 
 class User(BaseModel):
@@ -65,5 +65,20 @@ class SlimUserInResponse(BaseModel):
 class ResetPasswordSchema(BaseModel):
     token: str
     password: str
+
+
+class CommissionerCreate(UserCreate):
+    court:str
+
+class HeadOfUnitCreate(UserCreate):
+    jurisdiction:str
+
+
+class InvitePersonel(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    court: Optional[int]
+    state:Optional[int]
 
 

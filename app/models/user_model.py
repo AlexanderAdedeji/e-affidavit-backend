@@ -22,6 +22,9 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=False)
     password = Column(String, nullable=False)
     user_type_id = Column(String, ForeignKey('user_types.id'))
+
+
+    
     user_type = relationship("UserType", back_populates="users")
     commissioner_profile = relationship("CommissionerProfile", back_populates="user", uselist=False)
     head_of_unit = relationship("HeadOfUnit", back_populates="user")

@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database.sessions.session import engine
 from app.database.base import Base
 from app.database.sessions.mongo_client import db_client, client
+from app.api.routes.routes  import router as global_router
 
 Base.metadata.create_all(engine)
 # CORS configuration
@@ -61,7 +62,8 @@ def create_application_instance() -> FastAPI:
             status_code=500,
             content={"detail": f"An unexpected error occurred: {str(exc)}"},
         )
-
+    # Your existing middleware and route includes go here
+    app.include_router(global_router, prefix=settings.API_URL_PREFIX)
 
     return app
 
