@@ -10,17 +10,25 @@ class State(Base):
 
 class Jurisdiction(Base):
     __tablename__ = "jurisdictions"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True)
     state_id = Column(Integer, ForeignKey('states.id'))
     state = relationship("State", back_populates="jurisdictions")
     courts = relationship("Court", back_populates="jurisdiction")
-    head_of_unit = relationship("HeadOfUnit", back_populates="head_of_unit")
+    head_of_unit = relationship("HeadOfUnit", back_populates="jurisdiction")
 
 class Court(Base):
     __tablename__ = "courts"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True)
-    jurisdiction_id = Column(Integer, ForeignKey('jurisdictions.id'))
+    jurisdiction_id = Column(String, ForeignKey('jurisdictions.id'))
     jurisdiction = relationship("Jurisdiction", back_populates="courts")
-    commissioner_profile = relationship("CommissionerProfile", back_populates = "courts")
+    commissioner_profile = relationship("CommissionerProfile", back_populates = "court")
+
+
+
+
+
+
+
+

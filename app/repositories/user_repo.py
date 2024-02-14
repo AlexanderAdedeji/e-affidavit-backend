@@ -15,17 +15,19 @@ class UserRepositories(Base[User]):
         return user
 
     def create(self, db, *, obj_in: UserCreate):
-        user_obj = User(
+        db_obj = User(
             id=uuid4().hex,
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             email=obj_in.email,
-            hashed_password=security.get_password_hash(obj_in.password),
         )
-        db.add(user_obj)
+        db_obj.set_password(obj_in.password)
+        db.add(db_obj)
         db.commit()
-        db.refresh(user_obj)
-        return user_obj
-
+        db.refresh(db_obj)
+        return db_obj
+    def create_verification_token(self, db: Session, *, email):
+        user = db.query(User).filter(User.email == email).first()
+        return user.generate_verification_token(email=email)
 
 user_repo = UserRepositories(User)

@@ -5,13 +5,14 @@ from app.api.routes import (
     user_type_routes,
     court_system_routes,
     commissioner_routes,
-    admin_routes
+    admin_routes,
+    authentication_route
 )
 
 
 router = APIRouter()
 
-
+router.include_router(authentication_route.router, tags=["Authentication"], prefix="/authentication")
 router.include_router(user_routes.router, tags=["Users"], prefix="/users")
 router.include_router(
     user_type_routes.router, tags=["Users Type"], prefix="/users_type"

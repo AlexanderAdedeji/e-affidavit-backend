@@ -5,14 +5,12 @@ from pydantic import BaseModel, EmailStr, validator
 from app.schemas.user_type_schema import UserTypeInDB
 
 
-class User(BaseModel):
+class UserBase(BaseModel):
     first_name: str
     last_name: str
-    address: str
-    phone: str
 
 
-class UserCreate(User):
+class UserCreate(UserBase):
     email: EmailStr
     password: str
     user_type_id: int
@@ -23,7 +21,7 @@ class UserCreate(User):
     #     return phone_validators.validate_phone_number(value)
 
 
-class UserUpdate(User):
+class UserUpdate(UserBase):
     email: Optional[EmailStr]
     first_name: Optional[str]
     last_name: Optional[str]
@@ -43,17 +41,18 @@ class UserWithToken(BaseModel):
     token: str
 
 
-class UserCreateForm(User):
+class UserCreateForm(UserBase):
     email: EmailStr
     password: str
 
 
-class UserInResponse(User):
-    id: int
+class UserInResponse(UserBase):
+    id: str
+    first_name:str
+    last_name:str
     email: EmailStr
-    is_active: bool
     user_type: UserTypeInDB
-    created_by_id: Optional[int]
+    verify_token:str
 
 
 class SlimUserInResponse(BaseModel):

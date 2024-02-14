@@ -7,6 +7,7 @@ from starlette.status import (
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR,
+    HTTP_409_CONFLICT,
 )
 
 
@@ -51,7 +52,7 @@ class DisallowedLoginException(HTTPException):
 class AlreadyExistsException(HTTPException):
     def __init__(
         self,
-        status_code=HTTP_400_BAD_REQUEST,
+        status_code=HTTP_409_CONFLICT,
         detail=error_strings.ALREADY_EXISTS,
         headers=None,
         entity_name="",

@@ -18,8 +18,6 @@ class CustomSettings(BaseSettings):
     POSTGRES_DB_URL: str
     MONGO_DB_URL: str
     JWT_TOKEN_PREFIX: str
-    # JWT_EXPIRE_MINUTES: int
-
     JWT_ALGORITHM: str
     HEADER_KEY: str
     API_KEY_AUTH_ENABLED: bool = True
@@ -32,7 +30,15 @@ class CustomSettings(BaseSettings):
     CREATE_ACCOUNT_TEMPLATE_ID: str
     VERIFY_EMAIL_TEMPLATE_ID: str
     RESET_TOKEN_EXPIRE_MINUTES: str
-    OPERATIONS_INVITE_TEMPLATE_ID: str
+    SUPERUSER_USER_TYPE:str
+    ADMIN_USER_TYPE:str
+    COMMISSIONER_USER_TYPE:str
+    HEAD_OF_UNIT_USER_TYPE:str
+    PUBLIC_USER_TYPE:str
+    
+    JWT_EXPIRE_MINUTES:int
+
+
 
     class Config:
         logger.info("Environment file loaded from %s.", Path(__file__).parent)
