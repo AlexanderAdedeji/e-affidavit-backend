@@ -54,7 +54,11 @@ class UserInResponse(UserBase):
     user_type: UserTypeInDB
     verify_token:str
 
+class UserVerify(BaseModel):
+    token: str
 
+
+    
 class SlimUserInResponse(BaseModel):
     id: int
     email: EmailStr

@@ -25,10 +25,12 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
         )
     # Fetch the user type
     user_type = user_type_repo.get_by_name(name=settings.PUBLIC_USER_TYPE, db=db)
+ 
     if not user_type:
         raise DoesNotExistException(detail="User type not found.")
 
     user_in.user_type_id = user_type.id
+
     try:
         new_user = user_repo.create(obj_in=user_in, db=db)
         verify_token = user_repo.create_verification_token(email=new_user.email, db=db)
@@ -38,7 +40,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while creating the user.",
         )
-
+    
     return UserInResponse(
         id=new_user.id,
         first_name=new_user.first_name,

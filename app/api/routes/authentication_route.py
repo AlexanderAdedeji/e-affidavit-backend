@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.dependencies.db import get_db
 from app.core.errors import error_strings
@@ -8,9 +8,16 @@ from app.core.errors.exceptions import (
     DoesNotExistException,
     IncorrectLoginException,
 )
+from app.core.services.jwt import get_user_email_from_token
 from app.repositories.user_repo import user_repo
 
-from app.schemas.user_schema import UserCreate, UserInLogin, UserWithToken
+from app.schemas.user_schema import (
+    UserCreate,
+    UserInLogin,
+    UserInResponse,
+    UserVerify,
+    UserWithToken,
+)
 from app.schemas.user_type_schema import UserTypeInDB
 
 
@@ -49,8 +56,130 @@ def login(user_login: UserInLogin, db: Session = Depends(get_db)):
     )
 
 
-@router.put("/verify")
-def verify_account(
-    verification_code: str, db: Session = Depends(get_db)):
-    decoded_token = {"user_id": "1"}
-    user = user.get
+@router.post("/verify", status_code=status.HTTP_200_OK)
+def verify_user(token: UserVerify, db: Session = Depends(get_db)):
+    """
+    Verify user route. Expects token sent in the email link.
+    If the token is invalid or expired, raises an exception.
+    """
+    email = get_user_email_from_token(token.token)
+    user = user_repo.get_by_email(db, email=email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
+
+    user = user_repo.activate(db, db_obj=user)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Something went wrong!",
+        )
+    token = user.generate_jwt()
+    return UserInResponse(
+        id=user.id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
+        verify_token=token,
+    )
+
+
+# @router.post("/resend_verification_token", status_code=status.HTTP_200_OK)
+# def resend_token(
+#     email: str, background_task: BackgroundTasks, db: Session = Depends(get_db)
+# ):
+#     """
+#     Resend Verification Token route. Expects email, where the verification link would be sent to.
+#     If the email does not exist, raises exception
+#     """
+#     user = user_repo.get_by_email(db, email=email)
+#     if not user:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
+#         )
+
+#     verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
+#     verification_link = f"{FRONTEND_BASE_URL}{VERIFY_EMAIL_LINK}={verify_jwt_token}"
+#     template_dict = UserverifyTemplateVariables(
+#         name=f"{user.first_name} {user.last_name}", verify_url=verification_link
+#     ).dict()
+#     background_task.add_task(
+#         send_email_with_template,
+#         client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
+#         template_id=VERIFY_EMAIL_TEMPLATE_ID,
+#         template_dict=template_dict,
+#         recipient=user.email,
+#     )
+
+#     return UserReverify(message="Verification link sent successfully")
+
+
+# @router.post("/forgot_password", status_code=status.HTTP_200_OK)
+# def forgot_password(
+#     email: str, background_task: BackgroundTasks, db: Session = Depends(get_db)
+# ):
+#     """
+#     Forgot Password route. Expects email, where the reset password link would be sent to.
+#     If the email does not exist, raises exception.
+#     """
+#     user = user_repo.get_by_email(db, email=email)
+#     if not user:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
+#         )
+
+#     reset_jwt_token = user_repo.create_verification_token(db, email=user.email)
+#     template_dict = ResetPasswordEmailTemplateVariables(
+#         name=f"{user.first_name} {user.last_name}",
+#         reset_link=f"{FRONTEND_BASE_URL}{RESET_PASSWORD_URL}={reset_jwt_token}",
+#     ).dict()
+#     background_task.add_task(
+#         send_email_with_template,
+#         client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
+#         # template_id=RESET_PASSWORD_TEMPLATE_ID,
+#         template_id=VERIFY_EMAIL_TEMPLATE_ID,
+#         template_dict=template_dict,
+#         recipient=user.email,
+#     )
+
+#     return {
+#         "message": "Password reset link sent successfully",
+#     }
+
+
+# @router.post("/reset_password", status_code=status.HTTP_200_OK)
+# def reset_password(
+#     reset_password_data: UserResetPasswordIn, db: Session = Depends(get_db)
+# ):
+#     """
+#     Reset Password route. Expects a token and new password for resetting the user's password.
+#     If the token is invalid or email does not exist, raises an exception.
+#     """
+#     token = reset_password_data.token
+#     password = reset_password_data.new_password
+#     email = get_user_email_from_token(token)
+#     if not email:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+#         )
+#     user = user_repo.get_by_email(db, email=email)
+#     if not user:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
+#         )
+
+#     user = user_repo.update_password(db, user, password)
+#     token = user.generate_jwt()
+#     refresh_token = user.generate_jwt(
+#         expires_delta=timedelta(minutes=settings.REFRESH_EXP_MINS)
+#     )
+
+#     return UserValidated(
+#         id=user.id,
+#         first_name=user.first_name,
+#         last_name=user.last_name,
+#         token=token,
+#         refresh_token=refresh_token,
+#     )

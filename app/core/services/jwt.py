@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from app.core.errors.exceptions import InvalidTokenException
 from app.core.settings.configurations import settings
 from app.core.errors import error_strings
-from app.schemas.jwt_schema import JWTOrganisation
+# from app.schemas.jwt_schema import JWTOrganisation
 
 JWT_ALGORITHM = settings.JWT_ALGORITHM
 SECRET_KEY = settings.SECRET_KEY
@@ -27,7 +27,7 @@ def decode_token(token: str):
 
 def get_user_id_from_token(token: str):
     decode_payload = decode_token(token)
-    return {"user_id": decode_payload["user_id"]}
+    return {"id": decode_payload["id"]}
 
 
 def get_all_details_from_token(token: str):

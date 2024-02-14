@@ -10,9 +10,8 @@ from app.core.settings.security import security
 
 
 class UserRepositories(Base[User]):
-    def get_by_email(self, db: Session, *, email):
-        user = db.query(User).filter(User.email == email).first()
-        return user
+    def get_by_email(self, db: Session, *, email): 
+        return db.query(User).filter(User.email == email).first()
 
     def create(self, db, *, obj_in: UserCreate):
         db_obj = User(
@@ -20,6 +19,7 @@ class UserRepositories(Base[User]):
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             email=obj_in.email,
+            user_type_id = obj_in.user_type_id
         )
         db_obj.set_password(obj_in.password)
         db.add(db_obj)
@@ -28,6 +28,18 @@ class UserRepositories(Base[User]):
         return db_obj
     def create_verification_token(self, db: Session, *, email):
         user = db.query(User).filter(User.email == email).first()
-        return user.generate_verification_token(email=email)
+        return user.generate_verification_token()
+    def activate(self, db: Session, *, db_obj: User) -> User:
+        return self._set_activation_status(db=db, db_obj=db_obj, status=True)
+
+    def deactivate(self, db: Session, *, db_obj: User) -> User:
+        return self._set_activation_status(db=db, db_obj=db_obj, status=False)
+
+    def _set_activation_status(
+        self, db: Session, *, db_obj: User, status: bool
+    ) -> User:
+        if db_obj.is_active == status:
+            return db_obj
+        return super().update(db, db_obj=db_obj, obj_in={"is_active": status})
 
 user_repo = UserRepositories(User)

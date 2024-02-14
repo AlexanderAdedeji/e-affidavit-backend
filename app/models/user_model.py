@@ -1,10 +1,11 @@
 import jwt
 from datetime import datetime, timedelta
 from uuid import uuid4
+from loguru import logger
 from sqlalchemy import Integer, Column, Boolean, String, ForeignKey
 from sqlalchemy.orm import relationship
 from commonLib.models.base_class import Base
-from app.schemas.jwt_schema import JWTUser
+from app.schemas.jwt_schema import JWTEMAIL, JWTUser
 from app.core.settings.configurations import settings
 from app.core.settings.security import security
 
@@ -33,6 +34,8 @@ class User(Base):
         back_populates="user",
         uselist=False,
     )
+
+    
     # Add more relationships as
     head_of_unit = relationship(
         "HeadOfUnit", foreign_keys="[HeadOfUnit.user_id]", back_populates="user"
@@ -65,7 +68,7 @@ class User(Base):
         encoded_token = jwt.encode(
             payload=jwt_content, key=str(SECRET_KEY), algorithm=JWT_ALGORITHM
         )
-        return encoded_token.decode()
+        return encoded_token
 
     def generate_verification_token(
         self, expires_delta: timedelta = None, **kwargs
@@ -76,13 +79,16 @@ class User(Base):
             expires_delta = timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
         now = datetime.now()
         expires_at = now + expires_delta
-        jwt_content = JWTUser(id=self.id).dict()
+        jwt_content = JWTEMAIL(email=self.email).dict()
         jwt_content.update(kwargs)
         jwt_content.update({"exp": expires_at.timestamp(), "iat": now.timestamp()})
+        logger.info(jwt_content)
         encoded_token = jwt.encode(
             payload=jwt_content, key=str(SECRET_KEY), algorithm=JWT_ALGORITHM
         )
         return encoded_token
+    
+
 
     # def generate_password_reset_token(
     #     self, db: Session, expires_delta: timedelta = None
