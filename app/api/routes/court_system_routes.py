@@ -9,7 +9,7 @@ from app.repositories.court_system_repo import (
     court_repo,
     jurisdiction_repo,
 )
-
+from app.api.dependencies.authentication import admin_permission_dependency
 from app.models.court_system_models import Court, Jurisdiction, State
 from app.schemas.court_system import (
     CourtSystemInDB,
@@ -112,7 +112,7 @@ def populate_court_system(db: Session = Depends(get_db)):
     populate_data(db)
 
 
-@router.get("/states")
+@router.get("/states", dependencies=[Depends(admin_permission_dependency)])
 def get_all_states(db: Session = Depends(get_db)):
     """Return a list of all states"""
     try:
@@ -126,7 +126,7 @@ def get_all_states(db: Session = Depends(get_db)):
         logger.error(e)
 
 
-@router.get("/state/{id}")
+@router.get("/state/{id}", dependencies=[Depends(admin_permission_dependency)])
 def get_state(id: int, db: Session = Depends(get_db)):
     """Get information on a specific state by its ID."""
     state = state_repo.get(db, id=id)
@@ -137,7 +137,7 @@ def get_state(id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/jurisdictions")
+@router.get("/jurisdictions", dependencies=[Depends(admin_permission_dependency)])
 def get_all_jurisdictions(db: Session = Depends(get_db)):
     """Return a list of all jurisdictions"""
     try:
@@ -168,7 +168,7 @@ def get_all_courts(db: Session = Depends(get_db)):
         logger.error(e)
 
 
-@router.post("/create_court", status_code=status.HTTP_201_CREATED)
+@router.post("/create_court", status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_permission_dependency)])
 def create_court(court: CreateCourt, db: Session = Depends(get_db)):
     if not state_repo.exist(db=db, id=court.state_id):
         raise DoesNotExistException(

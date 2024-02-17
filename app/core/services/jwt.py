@@ -1,14 +1,16 @@
 import jwt
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import ValidationError
 from app.core.errors.exceptions import InvalidTokenException
 from app.core.settings.configurations import settings
 from app.core.errors import error_strings
+from app.schemas.jwt_schema import JWTUser
 # from app.schemas.jwt_schema import JWTOrganisation
 
 JWT_ALGORITHM = settings.JWT_ALGORITHM
 SECRET_KEY = settings.SECRET_KEY
+JWT_EXPIRE_MINUTES = settings.JWT_EXPIRE_MINUTES
 
 
 def decode_token(token: str):
@@ -38,3 +40,20 @@ def get_all_details_from_token(token: str):
 def get_user_email_from_token(token: str):
     decode_payload = decode_token(token)
     return decode_payload["email"]
+
+def generate_invitation_token(id, expires_delta: timedelta = None):
+        jwt_content = JWTUser(id=id).dict()
+        if expires_delta is None:
+            expires_delta = timedelta(minutes=JWT_EXPIRE_MINUTES)
+
+        now = datetime.now()
+        expires_at = now + expires_delta
+
+        jwt_content["exp"] = expires_at.timestamp()
+        jwt_content["iat"] = now.timestamp()
+
+        encoded_token = jwt.encode(
+            payload=jwt_content, key=str(SECRET_KEY), algorithm=JWT_ALGORITHM
+        )
+        return encoded_token
+

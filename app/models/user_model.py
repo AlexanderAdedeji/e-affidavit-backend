@@ -40,6 +40,10 @@ class User(Base):
     head_of_unit = relationship(
         "HeadOfUnit", foreign_keys="[HeadOfUnit.user_id]", back_populates="user"
     )
+    invited_by = relationship(
+        "UserInvite", foreign_keys="[UserInvite.invited_by_id]", back_populates="user"
+    )
+
 
     @property
     def is_superuser(self):

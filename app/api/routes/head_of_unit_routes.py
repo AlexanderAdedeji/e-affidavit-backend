@@ -3,7 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from sqlalchemy.orm import Session
-from app.api.dependencies.authentication import get_currently_authenticated_user,commissioner_permission_dependency
+from app.api.dependencies.authentication import (
+    get_currently_authenticated_user,
+    head_of_unit_permission_dependency,
+    admin_permission_dependency,
+)
 from app.api.dependencies.db import get_db
 from app.core.errors.exceptions import (
     AlreadyExistsException,
@@ -24,14 +28,14 @@ from app.repositories.commissioner_profile_repo import comm_profile_repo
 router = APIRouter()
 
 
-@router.post("/create_commissioner")
-async def create_commissioner(
-    commissioner_in: CommissionerCreate,
+@router.post("/create_head_of_unit")
+async def create_head_of_unit(
+    unit_head_in: CommissionerCreate,
     db: Session = Depends(get_db),
 ):
     # Validate the invitation
     invite_data = user_repo.get_user_invite_info(
-        db=db, invite_id=commissioner_in.invite_id
+        db=db, invite_id=unit_head_in.invite_id
     )
     if not invite_data:
         raise HTTPException(
@@ -40,21 +44,21 @@ async def create_commissioner(
 
     # Ensure the invite is for a commissioner
     user_type = user_type_repo.get(db=db, id=invite_data["user_type_id"])
-    if user_type.name != settings.COMMISSIONER_USER_TYPE:
+    if user_type.name != settings.HEAD_OF_UNIT_USER_TYPE:
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to access this endpoint.",
         )
 
     # Check if the email is already used
-    if user_repo.get_by_email(db=db, email=commissioner_in.email):
+    if user_repo.get_by_email(db=db, email=unit_head_in.email):
         raise HTTPException(
             status_code=409,
-            detail=f"User with email {commissioner_in.email} already exists.",
+            detail=f"User with email {unit_head_in.email} already exists.",
         )
 
     # Create the commissioner
-    commissioner_data = commissioner_in.dict(exclude_unset=True)
+    commissioner_data = unit_head_in.dict(exclude_unset=True)
     commissioner_data.update({"id": str(uuid.uuid4()), "user_type_id": user_type.id})
     new_commissioner = user_repo.create(db=db, obj_in=commissioner_data)
 
@@ -72,9 +76,9 @@ async def create_commissioner(
     return new_commissioner
 
 
-@router.get("/commissioner")
-def get_commissioner(commissioner_id: str, db: Session = Depends(get_db)):
-    commissioner = user_repo.get(db=db, id=commissioner_id)
+@router.get("/head_of_unit", dependencies=[Depends(admin_permission_dependency)])
+def get_unit_head(unit_head_id: str, db: Session = Depends(get_db)):
+    commissioner = user_repo.get(db=db, id=unit_head_id)
     if (
         commissioner is None
         or commissioner.user_type_id != settings.COMMISSIONER_USER_TYPE
@@ -83,8 +87,8 @@ def get_commissioner(commissioner_id: str, db: Session = Depends(get_db)):
     return commissioner
 
 
-@router.get("/commissioners")
-def get_commissioners(db: Session = Depends(get_db)):
+@router.get("/head_of_units", dependencies=[Depends(admin_permission_dependency)])
+def get_unit_heads(db: Session = Depends(get_db)):
     user_type = user_type_repo.get_by_name(db=db, name=settings.COMMISSIONER_USER_TYPE)
     if user_type is None:
         raise HTTPException(status_code=500)
@@ -92,12 +96,13 @@ def get_commissioners(db: Session = Depends(get_db)):
     return commissioners
 
 
-@router.get("/me", dependencies=[Depends(commissioner_permission_dependency)])
-def get_current_commissioner(
+@router.get("/me", dependencies=[Depends(head_of_unit_permission_dependency)])
+def retrieve_current_unit_head(
     db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)
 ):
     return user_repo.get(db, id=user.id)
 
-@router.put("/create_attestation", dependencies=[Depends(commissioner_permission_dependency)])
-def create_attestation(db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)):
-    return  {"notice": "Attestations are now being automatically created."}
+
+@router.put("/create_attestation")
+def create_attestation(db: Session = Depends(get_db)):
+    return {"notice": "Attestations are now being automatically created."}

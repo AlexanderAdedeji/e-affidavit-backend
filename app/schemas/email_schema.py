@@ -25,7 +25,7 @@ class EmailTemplateVariables(BaseModel):
 
 class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
     reset_link: str
-    valid_for: Optional[int] = settings.RESET_TOKEN_EXPIRE_MINUTES // 60
+    valid_for: Optional[int] = settings.RESET_TOKEN_EXPIRE_MINUTES
 
 
 

@@ -14,7 +14,6 @@ from postmarker.core import PostmarkClient
 from pydantic import EmailStr
 
 
-
 class EmailService:
     def __init__(self, db: Session):
         self.db = db
@@ -40,7 +39,9 @@ class EmailService:
             self._send_email_with_template, email=email, template_dict=template_dict
         )
 
-    async def _send_email_with_template(self, email: Email, template_dict: Dict[str, Any]):
+    async def _send_email_with_template(
+        self, email: Email, template_dict: Dict[str, Any]
+    ):
         try:
             response = self.client.emails.send_with_template(
                 TemplateId=email.template_id,
@@ -61,3 +62,6 @@ class EmailService:
                 db_obj=email,
                 obj_in=EmailUpdate(delivered=False, extra_data=str(e)),
             )
+
+
+email_service = EmailService(db=Depends(get_db))

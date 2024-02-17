@@ -13,12 +13,19 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     email: EmailStr
     password: str
-    user_type_id: int
-    created_by_id: Optional[int]
 
     # @validator("phone")
     # def validate_phone(cls, value: str) -> str:
     #     return phone_validators.validate_phone_number(value)
+
+
+class CommissionerCreate(UserCreate):
+    invite_id: str
+    court_id: str
+
+
+class HeadOfUnitCreate(UserCreate):
+    jurisdiction: str
 
 
 class UserUpdate(UserBase):
@@ -41,24 +48,19 @@ class UserWithToken(BaseModel):
     token: str
 
 
-class UserCreateForm(UserBase):
-    email: EmailStr
-    password: str
-
-
 class UserInResponse(UserBase):
     id: str
-    first_name:str
-    last_name:str
+    first_name: str
+    last_name: str
     email: EmailStr
     user_type: UserTypeInDB
-    verify_token:str
+    verify_token: str
+
 
 class UserVerify(BaseModel):
     token: str
 
 
-    
 class SlimUserInResponse(BaseModel):
     id: int
     email: EmailStr
@@ -70,18 +72,28 @@ class ResetPasswordSchema(BaseModel):
     password: str
 
 
-class CommissionerCreate(UserCreate):
-    court:str
-
-class HeadOfUnitCreate(UserCreate):
-    jurisdiction:str
-
-
 class InvitePersonel(BaseModel):
     first_name: str
     last_name: str
     email: str
     court: Optional[int]
-    state:Optional[int]
+    state: Optional[int]
 
 
+class InviteTokenData(BaseModel):
+    invite_id: str
+
+
+class UserInvitation(InvitePersonel):
+    pass
+
+
+class CommissionerProfileBase(BaseModel):
+    commissioner_id: str
+    court_id: str
+    created_by_id: str
+
+
+class CommissionerAttestation:
+    signature: str
+    stamp: str

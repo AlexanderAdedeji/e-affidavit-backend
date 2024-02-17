@@ -4,6 +4,7 @@ from commonLib.repositories.relational_repository import Base, ModelType
 
 
 class CourtSystemRepositories(Base[ModelType]):
+    
     pass
 
 state_repo = CourtSystemRepositories[State](State)

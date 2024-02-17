@@ -19,7 +19,7 @@ class CommissionerProfile(Base):
 
     # Specify the foreign_keys for clarity
 
-
+ 
 
     user = relationship(
         "User", foreign_keys=[user_id], back_populates="commissioner_profile"

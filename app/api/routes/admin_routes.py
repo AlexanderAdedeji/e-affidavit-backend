@@ -8,16 +8,22 @@ from app.core.errors.exceptions import (
     AlreadyExistsException,
     DoesNotExistException,
 )
+from app.core.services.jwt import generate_invitation_token, get_all_details_from_token
+from app.models.user_invite_models import UserInvite
+from app.models.user_model import User
+from app.core.settings.configurations import settings
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
-
-from app.schemas.user_schema import CommissionerCreate, InvitePersonel
+from app.api.dependencies.authentication import admin_permission_dependency
+from app.schemas.user_schema import  InvitePersonel, UserCreate, UserInvitation
+from app.api.dependencies.authentication import get_currently_authenticated_user
+from app.core.services.email import email_service
 
 
 router = APIRouter()
 
 
-@router.post("/invite_personel")
+@router.post("/invite_personel", dependencies=[Depends(admin_permission_dependency)])
 def invite_personel(personel: List[InvitePersonel], db: Session = Depends(get_db)):
     user_already_exist = []
     for user in personel:
@@ -45,23 +51,69 @@ def invite_personel(personel: List[InvitePersonel], db: Session = Depends(get_db
     return {"msg": "Invitations sent successfully"}
 
 
-@router.get("/create_commissioner")
-def create_commissioner(
-    commissioner_in: CommissionerCreate, db: Session = Depends(get_db)
+@router.post("/invite-users")
+async def invite_users(
+    users: List[UserInvitation],
+    current_admin: User = Depends(get_currently_authenticated_user),
+    db: Session = Depends(get_db),
 ):
-    commissioner_exists = user_repo.get_by_email(db, email=commissioner_in.email)
-    if commissioner_exists:
-        raise AlreadyExistsException(
-            detail=f"User with email {commissioner_in.email} already exists."
+    for user in users:
+        token = generate_invitation_token(user)
+        # Store token and user info in database
+        # Assume db_session to be a dependency that provides a session to interact with your DB
+
+        # Save the invitation in your DB with user details and the generated token
+        # Send invitation email
+        email_service.send_email_with_template(user.email, token)
+    return {"message": "Invitations sent successfully"}
+
+
+@router.get("/accept-invite/{token}")
+async def accept_invite(token: str, db: Session = Depends(get_db)):
+    # Step 1: Validate the JWT token and extract invite_id
+    try:
+        invite_info = get_all_details_from_token(token)
+        invite_id = invite_info.get("inv_id")
+    except Exception as e:  # Consider catching more specific exceptions
+        raise HTTPException(status_code=400, detail=f"Token validation error: {str(e)}")
+
+    # Step 2: Retrieve and validate the invite
+    invite: UserInvite = user_repo.get_invite_by_id(db, invite_id=invite_id)
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found or invalid.")
+    if invite.is_accepted:
+        raise HTTPException(
+            status_code=400, detail="This invitation has already been accepted."
         )
-    commissioner_in = commissioner_in.dict()
-    user_type = user_type_repo.get(db, id=commissioner_in.role)
-    if not user_type:
-        raise DoesNotExistException(detail=f"usertype does not exist")
-    commissioner_in.dict({"id": uuid.uuid4(), "user_type_id": commissioner_in.role})
-    new_commissioner = user_repo.create(db, obj_in=commissioner_in)
+
+    # Optionally, here you could update the invite to mark it as accepted to prevent reuse
+    # user_repo.mark_invite_as_accepted(db, invite_id=invite_id)
+
+    # Return a response or redirect the user to account creation page
+    # Since FastAPI is backend, consider how you handle this in your frontend application
+    return {
+        "message": "Invite validated, proceed to account creation.",
+        "invite_details": invite_info,
+    }
 
 
+@router.get("/admins")
+def get_all_admins(db: Session = Depends(get_db)):
+    """Get all admin users"""
+    user_type = user_type_repo.get_by_name(db, name=settings.ADMIN_USER_TYPE)
+    admins = user_repo.get_users_by_user_type(db, user_type.id)
+    return admins
 
 
+@router.get("/get_admin")
+def get_admin(id:str, db:Session = Depends(get_db)) :
+    """Get an admin by ID"""
+    admin = user_repo.get(db, id=id)
+    return admin
 
+@router.get("/me", dependencies=[Depends(admin_permission_dependency)])
+def retrieve_current_admin(
+    db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)
+):
+    return user_repo.get(db, id=user.id)
+    
