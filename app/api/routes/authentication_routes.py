@@ -22,6 +22,11 @@ from app.schemas.user_schema import (
     UserWithToken,
 )
 from app.schemas.user_type_schema import UserTypeInDB
+from commonLib.response.response_schema import (
+    DataModel,
+    GenericResponse,
+    response_model,
+)
 
 
 router = APIRouter()
@@ -42,8 +47,12 @@ def check_if_user_exist(db: Session, user_in: UserCreate):
     return user_exist
 
 
-@router.post("/login")
-def login(user_login: UserInLogin, db: Session = Depends(get_db)):
+@router.post("/login", response_model=GenericResponse[UserWithToken])
+def login(
+    user_login: UserInLogin,
+    db: Session = Depends(get_db),
+    response: GenericResponse[DataModel] = Depends(response_model(DataModel)),
+):
     user = check_if_user_exist(db, user_in=user_login)
 
     if user is None or not user.verify_password(user_login.password):
@@ -52,10 +61,14 @@ def login(user_login: UserInLogin, db: Session = Depends(get_db)):
         raise DisallowedLoginException(detail=error_strings.INACTIVE_USER_ERROR)
 
     token = user.generate_jwt()
-    return UserWithToken(
-        email=user.email,
-        token=token,
-        user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
+    return response(
+        data=UserWithToken(
+            email=user.email,
+            token=token,
+            user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
+        ),
+        message="Login successfully",
+        status=status.HTTP_202_ACCEPTED,
     )
 
 

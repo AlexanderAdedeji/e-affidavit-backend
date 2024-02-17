@@ -1,7 +1,9 @@
 import logging
 
 from loguru import logger
+from app.api.dependencies.db import get_db
 import namegenerator
+from sqlalchemy.orm import Session
 from bson import ObjectId
 from app.api.dependencies.authentication import admin_permission_dependency
 from fastapi import Depends, HTTPException, APIRouter
@@ -134,3 +136,22 @@ async def create_template(template_in: TemplateBase):
 
     new_template = await template_collection.find_one({"_id": result.inserted_id})
     return template_individual_serialiser(new_template)
+
+
+@router.post("/create_template_category")
+def create_category(name: str, db:Session = Depends(get_db)):
+    return ""
+
+@router.get("/get_all_templates_category")
+def  get_all_category(db: Session = Depends(get_db)):
+    return []
+
+
+@router.get("/categories/{category_id}/templates/")
+def get_templates_by_category(category: str, db: Session = Depends(get_db)):
+    return []
+
+@router.get("/templates/{template_id}/documents")
+def get_documents_by_templates(template_id: str, db: Session = Depends(get_db)):
+    return []
+

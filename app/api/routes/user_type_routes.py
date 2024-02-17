@@ -16,15 +16,15 @@ from app.repositories.user_type_repo import user_type_repo
 
 from app.schemas.user_type_schema import UserTypeBase
 from app.models.user_type_model import UserType
-from commonLib.response.response_schema import ResponseModel, create_response
+
 
 router = APIRouter()
 
 
-@router.get("/user_types", response_model=ResponseModel[List[UserTypeBase]])
+@router.get("/user_types", response_model=List[UserTypeBase])
 def get_all_user_types(db: Session = Depends(get_db)):
     user_types = user_type_repo.get_all(db)
-    response = create_response(
+    response = dict(
         data=[
             UserType(id=user_type.id, name=user_type.name) for user_type in user_types
         ],
@@ -34,10 +34,10 @@ def get_all_user_types(db: Session = Depends(get_db)):
     return response
 
 
-@router.get("/user_type/{id}", response_model=ResponseModel[UserTypeBase])
+@router.get("/user_type/{id}", response_model=UserTypeBase)
 async def get_single_user_type(*, id: str, db: Session = Depends(get_db)):
     user_type = user_type_repo.get(db, id)
-    return create_response(
+    return dict(
         status_code=status.HTTP_200_OK,
         message="usertype found",
         data=UserType(id=user_type.id, name=user_type.name),
@@ -46,17 +46,17 @@ async def get_single_user_type(*, id: str, db: Session = Depends(get_db)):
 
 @router.delete(
     "/user_type/{id}",
-    #    response_model=GenericResponse
+
 )
 async def delete_user_type(*, id: str, db: Session = Depends(get_db)):
     if not user_type_repo.exist(db, id):
-        return create_response(
+        return dict(
             status_code=status.HTTP_404_NOT_FOUND,
             message="No such usertype exists.",
         )
     else:
         user_type_repo.remove(db=db, id=id)
-        return create_response(
+        return dict(
             status_code=status.HTTP_204_NO_CONTENT,
             message="User type deleted successfully.",
         )
@@ -64,7 +64,7 @@ async def delete_user_type(*, id: str, db: Session = Depends(get_db)):
 
 @router.put(
     "/user_type/{id}",
-    #  response_model=GenericResponse,
+
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def edit_user_type(*, id: str, user_type: str, db: Session = Depends(get_db)):
@@ -80,7 +80,7 @@ async def edit_user_type(*, id: str, user_type: str, db: Session = Depends(get_d
                 db=db, obj_in=user_type, db_obj=user_type_exist
             )
 
-        return create_response(
+        return dict(
             status_code=status.HTTP_204_NO_CONTENT,
             message="User type edited successfully.",
             data=UserType(id=updated_user_type.id, name=updated_user_type.name),
@@ -93,7 +93,7 @@ async def edit_user_type(*, id: str, user_type: str, db: Session = Depends(get_d
 
 @router.post(
     "user_type",
-    response_model=ResponseModel[UserType],
+
     status_code=status.HTTP_201_CREATED,
 )
 def create_user_type(
@@ -105,7 +105,7 @@ def create_user_type(
         user_type_repo.create(
             db=db, obj_in=UserType(name=user_type.upper(), id=uuid.uuid4())
         )
-        return create_response(
+        return dict(
             status_code=status.HTTP_201_CREATED,
             message=f"{user_type.upper() } created successfully",
         )

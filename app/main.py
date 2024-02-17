@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
 from loguru import logger
 from app.core.settings.configurations import settings
@@ -10,7 +10,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database.sessions.session import engine
 from app.database.base import Base
 from app.database.sessions.mongo_client import db_client, client
-from app.api.routes.routes  import router as global_router
+from app.api.routes.routes import router as global_router
+from commonLib.response.response_schema import (
+    DataModel,
+    GenericResponse,
+    response_model,
+)
 
 Base.metadata.create_all(engine)
 # CORS configuration
@@ -28,9 +33,8 @@ security_middleware = Middleware(
 )
 
 
-
 def create_application_instance() -> FastAPI:
-    app = FastAPI(title=settings.PROJECT_NAME,middleware=[security_middleware])
+    app = FastAPI(title=settings.PROJECT_NAME, middleware=[security_middleware])
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -38,9 +42,8 @@ def create_application_instance() -> FastAPI:
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": f"HTTP error occurred: {exc.detail}"},
-
-
         )
+
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         logger.info(f"Request: {request.method} {request.url}")
@@ -62,6 +65,7 @@ def create_application_instance() -> FastAPI:
             status_code=500,
             content={"detail": f"An unexpected error occurred: {str(exc)}"},
         )
+
     # Your existing middleware and route includes go here
     app.include_router(global_router, prefix=settings.API_URL_PREFIX)
 
@@ -71,13 +75,9 @@ def create_application_instance() -> FastAPI:
 app = create_application_instance()
 
 
-
 @app.get("/")
 async def root():
     return _responses.RedirectResponse("/docs")
-
-
-
 
 
 @app.on_event("startup")
@@ -87,8 +87,18 @@ async def startup_db_client():
     app.mongodb = app.mongodb_client.get_database()
     print("Hello world")
 
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     print("bye world")
     app.mongodb_client.close()
 
+
+# Example endpoint using the generic response model with DataModel as the data schema
+@app.get("/items/", response_model=GenericResponse[DataModel])
+def read_items(
+    response: GenericResponse[DataModel] = Depends(response_model(DataModel)),
+):
+    # Mock data fetching/creation
+    data = DataModel(name="Item1", value=123)
+    return response(data=data, message="Data fetched successfully", status="Success")

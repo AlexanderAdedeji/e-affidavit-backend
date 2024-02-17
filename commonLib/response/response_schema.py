@@ -1,56 +1,23 @@
-# from typing import Generic, TypeVar, Optional, Dict
-# from pydantic import BaseModel, ValidationError
-# from fastapi.responses import JSONResponse
-# from starlette.status import HTTP_200_OK
 
-# T = TypeVar ("T",BaseModel)
-
-
-# class BaseResponseModel(BaseModel):
-#     status_code: int
-#     message: str
-
-
-# class ResponseModel(Generic[T], BaseResponseModel):
-#     data: Optional[T]
-
-# # 
-# class GenericResponse(Generic[T], BaseModel):
-#     def __init__(self, ResponseModel):
-#         try:
-#             content = {"message": ResponseModel.message, "data": ResponseModel.data.dict() if ResponseModel.data else None}
-#         except ValidationError as e:
-#             content = {"message": "Data validation error", "errors": e.errors()}
-#             status_code = 422
-#         super().__init__(content=content, status_code=status_code)
-
-
-# def create_response(
-#     data: Optional[BaseModel] = None, message: str = "", status_code: int = HTTP_200_OK
-# ) -> GenericResponse:
-#     return GenericResponse(data=data, message=message, status_code=status_code)
-
-
-from typing import Generic, TypeVar, Optional
+from typing import Type, TypeVar, Generic, Optional
+from pydantic.generics import GenericModel
+from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel, ValidationError
-from fastapi.responses import JSONResponse
 from starlette.status import HTTP_200_OK
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar('T')
 
-class BaseResponseModel(BaseModel):
-    status_code: int
+# Generic response model that can be used with any data type
+class GenericResponse(GenericModel, Generic[T]):
     message: str
-
-class ResponseModel(Generic[T], BaseResponseModel):
+    status: str
     data: Optional[T]
 
 
-
-
-
-    data: Optional[T] = None
-
-def create_response(data: Optional[BaseModel] = None, message: str = "", status_code: int = HTTP_200_OK) -> JSONResponse:
-    response_model = BaseResponseModel(status_code=status_code, message=message, data=data)
-    return JSONResponse(content=response_model.dict(), status_code=status_code)
+# Dependency to dynamically create a response model based on the endpoint's return type
+def response_model(data_model: Type[BaseModel]):
+    def wrapper():
+        return lambda message="", status="Success", data=None: GenericResponse[data_model](
+            message=message, status=status, data=data
+        )
+    return wrapper

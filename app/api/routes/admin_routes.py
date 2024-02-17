@@ -105,7 +105,7 @@ def get_all_admins(db: Session = Depends(get_db)):
     return admins
 
 
-@router.get("/get_admin")
+@router.get("/get_admin/{id}")
 def get_admin(id:str, db:Session = Depends(get_db)) :
     """Get an admin by ID"""
     admin = user_repo.get(db, id=id)

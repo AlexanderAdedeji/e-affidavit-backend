@@ -16,7 +16,8 @@ from app.schemas.court_system import (
     CreateCourt,
     FullCourtInDB,
 )
-from commonLib.response.response_schema import create_response
+
+# from commonLib.response.response_schema import create_response
 
 
 router = APIRouter()
@@ -117,7 +118,7 @@ def get_all_states(db: Session = Depends(get_db)):
     """Return a list of all states"""
     try:
         states = state_repo.get_all(db)
-        return create_response(
+        return dict(
             status_code=status.HTTP_200_OK,
             message="Successful",
             data=[CourtSystemInDB(id=state.id, name=state.name) for state in states],
@@ -130,7 +131,7 @@ def get_all_states(db: Session = Depends(get_db)):
 def get_state(id: int, db: Session = Depends(get_db)):
     """Get information on a specific state by its ID."""
     state = state_repo.get(db, id=id)
-    return create_response(
+    return dict(
         status_code=status.HTTP_200_OK,
         message="Successful",
         data=CourtSystemInDB(id=state.id, name=state.name),
@@ -142,7 +143,7 @@ def get_all_jurisdictions(db: Session = Depends(get_db)):
     """Return a list of all jurisdictions"""
     try:
         jurisdictions = jurisdiction_repo.get_all(db)
-        return create_response(
+        return dict(
             status_code=status.HTTP_200_OK,
             message="Successful",
             data=[
@@ -159,7 +160,7 @@ def get_all_courts(db: Session = Depends(get_db)):
     """Return a list of all courts"""
     try:
         courts = court_repo.get_all(db)
-        return create_response(
+        return dict(
             status_code=status.HTTP_200_OK,
             message="Successful",
             data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
@@ -168,7 +169,11 @@ def get_all_courts(db: Session = Depends(get_db)):
         logger.error(e)
 
 
-@router.post("/create_court", status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_permission_dependency)])
+@router.post(
+    "/create_court",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(admin_permission_dependency)],
+)
 def create_court(court: CreateCourt, db: Session = Depends(get_db)):
     if not state_repo.exist(db=db, id=court.state_id):
         raise DoesNotExistException(
@@ -180,7 +185,27 @@ def create_court(court: CreateCourt, db: Session = Depends(get_db)):
         )
 
     new_court = court_repo.create(db, obj_in=court)
-    return create_response(
+    return dict(
         message=f"{new_court.name} created successfully",
         data=FullCourtInDB(**new_court.__dict__),
     )
+
+
+@router.get("/courts/{court_id}/commissioners")
+def get_commissioners_by_court(db: Session = Depends(get_db)):
+    return {}
+
+
+@router.get("/jurisdictions/{jurisdiction_id}/courts")
+def get_courts_by_jurisdiction(db: Session = Depends(get_db)):
+    return {}
+
+
+@router.get("/jurisdictions/{jurisdiction_id}/head_of_units")
+def get_head_of_unit_by_jurisdiction(db: Session = Depends(get_db)):
+    return {}
+
+
+@router.get("/states/{state_id}/jurisdiction")
+def get_jurisdictions_by_state(db: Session = Depends(get_db)):
+    return {}
