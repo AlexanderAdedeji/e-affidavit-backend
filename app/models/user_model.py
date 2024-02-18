@@ -35,7 +35,6 @@ class User(Base):
         uselist=False,
     )
 
-    
     # Add more relationships as
     head_of_unit = relationship(
         "HeadOfUnit", foreign_keys="[HeadOfUnit.user_id]", back_populates="user"
@@ -43,7 +42,6 @@ class User(Base):
     invited_by = relationship(
         "UserInvite", foreign_keys="[UserInvite.invited_by_id]", back_populates="user"
     )
-
 
     @property
     def is_superuser(self):
@@ -91,8 +89,6 @@ class User(Base):
             payload=jwt_content, key=str(SECRET_KEY), algorithm=JWT_ALGORITHM
         )
         return encoded_token
-    
-
 
     # def generate_password_reset_token(
     #     self, db: Session, expires_delta: timedelta = None
@@ -109,6 +105,3 @@ class User(Base):
     #     )
 
     #     return reset_token
-
-
-

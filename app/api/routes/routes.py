@@ -19,11 +19,13 @@ router = APIRouter()
 # Including authentication-related routes
 router.include_router(authentication_routes.router, tags=["Authentication"], prefix="/auth")
 
+# Routes for managing user types or roles
+router.include_router(user_type_routes.router, tags=["User Types"], prefix="/user_types")
+
+
 # Routes for managing user entities
 router.include_router(user_routes.router, tags=["Users"], prefix="/users")
 
-# Routes for managing user types or roles
-router.include_router(user_type_routes.router, tags=["User Types"], prefix="/user_types")
 
 # Routes for court system-related operations
 router.include_router(court_system_routes.router, tags=["Court System"], prefix="/court_system")
