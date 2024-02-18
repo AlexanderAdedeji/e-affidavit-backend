@@ -10,9 +10,13 @@ class UserBase(BaseModel):
     last_name: str
 
 
-class UserCreate(UserBase):
+class UserCreateForm(UserBase):
     email: EmailStr
     password: str
+
+
+class UserCreate(UserCreateForm):
+    user_type_id: str
 
     # @validator("phone")
     # def validate_phone(cls, value: str) -> str:
@@ -94,6 +98,14 @@ class CommissionerProfileBase(BaseModel):
     created_by_id: str
 
 
-class CommissionerAttestation:
+class CommissionerAttestation(BaseModel):
     signature: str
     stamp: str
+
+
+class FullCommissionerInResponse(UserBase):
+    email: EmailStr
+    is_active: bool
+    attestation: CommissionerAttestation
+    court: str
+    user_type: UserTypeInDB

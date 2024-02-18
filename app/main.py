@@ -11,11 +11,7 @@ from app.database.sessions.session import engine
 from app.database.base import Base
 from app.database.sessions.mongo_client import db_client, client
 from app.api.routes.routes import router as global_router
-from commonLib.response.response_schema import (
-    DataModel,
-    GenericResponse,
-    response_model,
-)
+
 
 Base.metadata.create_all(engine)
 # CORS configuration
@@ -35,7 +31,6 @@ security_middleware = Middleware(
 
 def create_application_instance() -> FastAPI:
     app = FastAPI(title=settings.PROJECT_NAME, middleware=[security_middleware])
-
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         logger.info(f"Request: {request.method} {request.url}")
@@ -72,6 +67,8 @@ def create_application_instance() -> FastAPI:
     return app
 
 
+
+
 app = create_application_instance()
 
 
@@ -92,13 +89,3 @@ async def startup_db_client():
 async def shutdown_db_client():
     print("bye world")
     app.mongodb_client.close()
-
-
-# Example endpoint using the generic response model with DataModel as the data schema
-@app.get("/items/", response_model=GenericResponse[DataModel])
-def read_items(
-    response: GenericResponse[DataModel] = Depends(response_model(DataModel)),
-):
-    # Mock data fetching/creation
-    data = DataModel(name="Item1", value=123)
-    return response(data=data, message="Data fetched successfully", status="Success")

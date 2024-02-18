@@ -13,15 +13,21 @@ from app.core.errors.exceptions import (
 )
 from app.repositories.user_type_repo import user_type_repo
 
-
+from app.api.dependencies.authentication import admin_permission_dependency
 from app.schemas.user_type_schema import UserTypeBase
 from app.models.user_type_model import UserType
+from commonLib.response.response_schema import GenericResponse, create_response
 
 
 router = APIRouter()
 
 
-@router.get("/user_types", response_model=List[UserTypeBase])
+@router.get(
+    "/user_types",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[List[UserTypeBase]],
+    # dependencies=[Depends(admin_permission_dependency)],
+)
 def get_all_user_types(db: Session = Depends(get_db)):
     user_types = user_type_repo.get_all(db)
     response = dict(
@@ -29,15 +35,20 @@ def get_all_user_types(db: Session = Depends(get_db)):
             UserType(id=user_type.id, name=user_type.name) for user_type in user_types
         ],
         message="Onboarding successful",
-        status_code=status.HTTP_200_OK,
+        status=status.HTTP_200_OK,
     )
     return response
 
 
-@router.get("/user_type/{id}", response_model=UserTypeBase)
+@router.get(
+    "/user_type/{id}",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[UserTypeBase],
+    dependencies=[Depends(admin_permission_dependency)],
+)
 async def get_single_user_type(*, id: str, db: Session = Depends(get_db)):
     user_type = user_type_repo.get(db, id)
-    return dict(
+    return create_reponse(
         status_code=status.HTTP_200_OK,
         message="usertype found",
         data=UserType(id=user_type.id, name=user_type.name),
@@ -46,17 +57,15 @@ async def get_single_user_type(*, id: str, db: Session = Depends(get_db)):
 
 @router.delete(
     "/user_type/{id}",
-
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(admin_permission_dependency)],
 )
 async def delete_user_type(*, id: str, db: Session = Depends(get_db)):
     if not user_type_repo.exist(db, id):
-        return dict(
-            status_code=status.HTTP_404_NOT_FOUND,
-            message="No such usertype exists.",
-        )
+        raise DoesNotExistException(detail="No such usertype exists.")
     else:
         user_type_repo.remove(db=db, id=id)
-        return dict(
+        return create_reponse(
             status_code=status.HTTP_204_NO_CONTENT,
             message="User type deleted successfully.",
         )
@@ -64,8 +73,9 @@ async def delete_user_type(*, id: str, db: Session = Depends(get_db)):
 
 @router.put(
     "/user_type/{id}",
-
     status_code=status.HTTP_202_ACCEPTED,
+    response_model=GenericResponse[UserTypeBase],
+    dependencies=[Depends(admin_permission_dependency)],
 )
 async def edit_user_type(*, id: str, user_type: str, db: Session = Depends(get_db)):
     logger.info(type(id))
@@ -80,7 +90,7 @@ async def edit_user_type(*, id: str, user_type: str, db: Session = Depends(get_d
                 db=db, obj_in=user_type, db_obj=user_type_exist
             )
 
-        return dict(
+        return create_reponse(
             status_code=status.HTTP_204_NO_CONTENT,
             message="User type edited successfully.",
             data=UserType(id=updated_user_type.id, name=updated_user_type.name),
@@ -93,8 +103,9 @@ async def edit_user_type(*, id: str, user_type: str, db: Session = Depends(get_d
 
 @router.post(
     "user_type",
-
     status_code=status.HTTP_201_CREATED,
+    response_model=GenericResponse[UserTypeBase],
+    # dependencies=[Depends(admin_permission_dependency)],
 )
 def create_user_type(
     user_type: str,
@@ -102,12 +113,13 @@ def create_user_type(
 ):
     """Create a new user type."""
     try:
-        user_type_repo.create(
+        new_user = user_type_repo.create(
             db=db, obj_in=UserType(name=user_type.upper(), id=uuid.uuid4())
         )
-        return dict(
-            status_code=status.HTTP_201_CREATED,
+        return create_reponse(
+            status=status.HTTP_201_CREATED,
             message=f"{user_type.upper() } created successfully",
+            data=UserType(id=new_user.id, name=new_user.name),
         )
     except IntegrityError:
         db.rollback()

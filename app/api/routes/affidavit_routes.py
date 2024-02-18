@@ -7,15 +7,26 @@ from sqlalchemy.orm import Session
 from bson import ObjectId
 from app.api.dependencies.authentication import admin_permission_dependency
 from fastapi import Depends, HTTPException, APIRouter
-from app.schemas.affidavit_schema import DocumentBase, TemplateBase, document_individual_serialiser, document_list_serialiser, template_individual_serialiser, template_list_serialiser
+from app.schemas.affidavit_schema import (
+    DocumentBase,
+    TemplateBase,
+    document_individual_serialiser,
+    document_list_serialiser,
+    template_individual_serialiser,
+    template_list_serialiser,
+)
 from app.database.sessions.mongo_client import template_collection, document_collection
 
 
 router = APIRouter()
+
+
 @router.get("/get_templates")
 async def get_templates():
     try:
-        templates = await template_collection.find().to_list(length=100)  # Set a reasonable limit
+        templates = await template_collection.find().to_list(
+            length=100
+        )  # Set a reasonable limit
         if not templates:
             logger.info("No templates found")
             return []
@@ -23,7 +34,6 @@ async def get_templates():
     except Exception as e:
         logger.error(f"Error fetching templates: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching templates")
-
 
 
 @router.get("/get_single_template/{template_id}")
@@ -59,7 +69,9 @@ async def get_single_template(template_id: str):
 @router.get("/get_documents")
 async def get_documents():
     try:
-        documents = await document_collection.find().to_list(length=100)  # Set a reasonable limit
+        documents = await document_collection.find().to_list(
+            length=100
+        )  # Set a reasonable limit
         if not documents:
             logger.info("No documents found")
             return []
@@ -69,7 +81,6 @@ async def get_documents():
         raise HTTPException(status_code=500, detail="Error fetching documents")
 
 
-
 @router.get("/get_single_document/{document_id}")
 async def get_single_document(document_id: str):
     try:
@@ -77,19 +88,20 @@ async def get_single_document(document_id: str):
     except Exception as e:
         logger.error(f"Invalid ID format for document: {document_id} - {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid document ID format")
-    
+
     document_obj = await document_collection.find_one({"_id": object_id})
     if not document_obj:
         logger.info(f"No document found with ID: {object_id}")
         raise HTTPException(status_code=404, detail="Document not found")
 
-    template = await get_single_template(document_obj['templateId'])  # Ensure this is correctly handled
+    template = await get_single_template(
+        document_obj["templateId"]
+    )  # Ensure this is correctly handled
     return {
-        "name": document_obj['name'],
-        "template": {"content": template['content'], "id": document_obj['templateId']},
-        "documentFields": document_obj['documentFields']
+        "name": document_obj["name"],
+        "template": {"content": template["content"], "id": document_obj["templateId"]},
+        "documentFields": document_obj["documentFields"],
     }
-
 
 
 @router.post("/create_document")
@@ -102,12 +114,13 @@ async def create_document(document_in: DocumentBase):
         if not result.acknowledged:
             logger.error("Failed to insert document")
             raise HTTPException(status_code=500, detail="Failed to create document")
-        
+
         new_document = await document_collection.find_one({"_id": result.inserted_id})
         return document_individual_serialiser(new_document)
     except Exception as e:
         logger.error(f"Error creating document: {str(e)}")
         raise HTTPException(status_code=500, detail="Error creating document")
+
 
 @router.get("/get_single_template/{template_id}")
 async def get_single_template(template_id: str):
@@ -124,11 +137,12 @@ async def get_single_template(template_id: str):
 
     return template_individual_serialiser(template_obj)
 
+
 @router.post("/create_template", dependencies=[Depends(admin_permission_dependency)])
 async def create_template(template_in: TemplateBase):
     template_dict = template_in.dict()
     template_dict["name"] = namegenerator.gen()
-    
+
     result = await template_collection.insert_one(template_dict)
     if not result.acknowledged:
         logger.error("Failed to insert template")
@@ -139,11 +153,12 @@ async def create_template(template_in: TemplateBase):
 
 
 @router.post("/create_template_category")
-def create_category(name: str, db:Session = Depends(get_db)):
+def create_category(name: str, db: Session = Depends(get_db)):
     return ""
 
+
 @router.get("/get_all_templates_category")
-def  get_all_category(db: Session = Depends(get_db)):
+def get_all_category(db: Session = Depends(get_db)):
     return []
 
 
@@ -151,7 +166,7 @@ def  get_all_category(db: Session = Depends(get_db)):
 def get_templates_by_category(category: str, db: Session = Depends(get_db)):
     return []
 
+
 @router.get("/templates/{template_id}/documents")
 def get_documents_by_templates(template_id: str, db: Session = Depends(get_db)):
     return []
-

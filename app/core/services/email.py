@@ -14,11 +14,14 @@ from postmarker.core import PostmarkClient
 from pydantic import EmailStr
 
 
+
 class EmailService:
     def __init__(self, db: Session):
         self.db = db
         self.email_repo = EmailRepository(db)
         self.client = PostmarkClient(server_token=settings.POSTMARK_API_TOKEN)
+        logger.info("email")
+
 
     async def send_email_with_template(
         self,
@@ -35,6 +38,7 @@ class EmailService:
                 sender=settings.DEFAULT_EMAIL_SENDER,
             )
         )
+        
         background_tasks.add_task(
             self._send_email_with_template, email=email, template_dict=template_dict
         )

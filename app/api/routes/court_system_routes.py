@@ -1,3 +1,4 @@
+from uuid import uuid4
 from fastapi import APIRouter, Depends, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -63,6 +64,7 @@ def populate_data(session):
     # Populate jurisdictions
     for jurisdiction_name in jurisdictions:
         jurisdiction = Jurisdiction(
+            id=uuid4().hex,
             name=jurisdiction_name,
             state_id=session.query(State.id).filter(State.name == "Abuja").first()[0],
         )
@@ -73,6 +75,7 @@ def populate_data(session):
     # Populate courts
     for jurisdiction_name, court_name in courts:
         court = Court(
+            id=uuid4().hex,
             name=court_name,
             jurisdiction_id=session.query(Jurisdiction.id)
             .filter(Jurisdiction.name == jurisdiction_name)
@@ -105,6 +108,8 @@ def populate_data(session):
 
 # Close the session
 # session.close()
+
+
 
 
 @router.get("/populate_court_system")

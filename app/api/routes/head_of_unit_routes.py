@@ -15,11 +15,13 @@ from app.core.errors.exceptions import (
     UnauthorizedEndpointException,
 )
 from app.repositories.user_repo import UserRepositories, user_repo
+from app.repositories.head_of_unit_repo import head_of_unit_repo
 from app.repositories.user_type_repo import UserTypeRepositories, user_type_repo
 from app.core.settings.configurations import settings
 from app.schemas.user_schema import (
     CommissionerCreate,
     CommissionerProfileBase,
+    HeadOfUnitCreate,
     InvitePersonel,
 )
 from app.repositories.commissioner_profile_repo import comm_profile_repo
@@ -30,12 +32,12 @@ router = APIRouter()
 
 @router.post("/create_head_of_unit")
 async def create_head_of_unit(
-    unit_head_in: CommissionerCreate,
+    head_of_unit_in: HeadOfUnitCreate,
     db: Session = Depends(get_db),
 ):
     # Validate the invitation
     invite_data = user_repo.get_user_invite_info(
-        db=db, invite_id=unit_head_in.invite_id
+        db=db, invite_id=head_of_unit_in.invite_id
     )
     if not invite_data:
         raise HTTPException(
@@ -51,29 +53,29 @@ async def create_head_of_unit(
         )
 
     # Check if the email is already used
-    if user_repo.get_by_email(db=db, email=unit_head_in.email):
+    if user_repo.get_by_email(db=db, email=head_of_unit_in.email):
         raise HTTPException(
             status_code=409,
-            detail=f"User with email {unit_head_in.email} already exists.",
+            detail=f"User with email {head_of_unit_in.email} already exists.",
         )
 
     # Create the commissioner
-    commissioner_data = unit_head_in.dict(exclude_unset=True)
-    commissioner_data.update({"id": str(uuid.uuid4()), "user_type_id": user_type.id})
-    new_commissioner = user_repo.create(db=db, obj_in=commissioner_data)
+    head_of_unit_data = head_of_unit_in.dict(exclude_unset=True)
+    head_of_unit_data.update({"id": str(uuid.uuid4()), "user_type_id": user_type.id})
+    new_head_of_unit = user_repo.create(db=db, obj_in=head_of_unit_data)
 
     # Create Commissioner Profile
-    if new_commissioner:
-        commissioner_profile_data = CommissionerProfileBase(
-            court_id=invite_data["court_id"],  # Assuming invite_data contains court_id
+    if new_head_of_unit:
+        unit_head_data = CommissionerProfileBase(
+            jurisdiction_id=invite_data["jurisdiction_id"],  # Assuming invite_data contains court_id
             created_by_id=invite_data[
                 "invited_by"
             ],  # Assuming invite_data contains invited_by
-            user_id=new_commissioner.id,
+            user_id=new_head_of_unit.id,
         )
-        comm_profile_repo.create(db=db, obj_in=commissioner_profile_data.dict())
+        head_of_unit_repo.create(db=db, obj_in=unit_head_data.dict())
 
-    return new_commissioner
+    return new_head_of_unit
 
 
 @router.get("/head_of_unit", dependencies=[Depends(admin_permission_dependency)])

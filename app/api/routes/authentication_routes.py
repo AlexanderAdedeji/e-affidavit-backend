@@ -1,4 +1,6 @@
 from datetime import timedelta
+from typing import List
+from postmarker import core
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from app.core.settings.configurations import settings
 from sqlalchemy.orm import Session
@@ -12,6 +14,7 @@ from app.core.errors.exceptions import (
 )
 from app.core.services.jwt import get_user_email_from_token
 from app.repositories.user_repo import user_repo
+from app.schemas.email_schema import UserCreationTemplateVariables
 
 from app.schemas.user_schema import (
     ResetPasswordSchema,
@@ -22,11 +25,8 @@ from app.schemas.user_schema import (
     UserWithToken,
 )
 from app.schemas.user_type_schema import UserTypeInDB
-from commonLib.response.response_schema import (
-    DataModel,
-    GenericResponse,
-    response_model,
-)
+from commonLib.response.response_schema import GenericResponse, create_response
+from app.core.services.email import email_service
 
 
 router = APIRouter()
@@ -50,8 +50,8 @@ def check_if_user_exist(db: Session, user_in: UserCreate):
 @router.post("/login", response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    response: GenericResponse[DataModel] = Depends(response_model(DataModel)),
 ):
     user = check_if_user_exist(db, user_in=user_login)
 
@@ -60,19 +60,31 @@ def login(
     if not user.is_active:
         raise DisallowedLoginException(detail=error_strings.INACTIVE_USER_ERROR)
 
+    template_dict = UserCreationTemplateVariables(
+        name=f"{user.first_name} {user.last_name}",
+    ).dict()
+
+    background_tasks.add_task(
+        email_service.send_email_with_template,
+        client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
+        template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
+        template_dict=template_dict,
+        recipient=user.email,
+    )
+
     token = user.generate_jwt()
-    return response(
+    return create_response(
         data=UserWithToken(
             email=user.email,
             token=token,
             user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
         ),
         message="Login successfully",
-        status=status.HTTP_202_ACCEPTED,
+        status=str(status.HTTP_202_ACCEPTED),
     )
 
 
-@router.post("/verify", status_code=status.HTTP_200_OK)
+@router.post("/verify", status_code=status.HTTP_200_OK, response_model=GenericResponse)
 def verify_user(token: UserVerify, db: Session = Depends(get_db)):
     """
     Verify user route. Expects token sent in the email link.
@@ -92,13 +104,19 @@ def verify_user(token: UserVerify, db: Session = Depends(get_db)):
             detail="Something went wrong!",
         )
     token = user.generate_jwt()
-    return UserInResponse(
-        id=user.id,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        email=user.email,
-        user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
-        verify_token=token,
+    verification_link = ""
+
+    return create_response(
+        message="Verification Successful",
+        status=status.HTTP_202_ACCEPTED,
+        data=UserInResponse(
+            id=user.id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
+            verify_token=token,
+        ),
     )
 
 
@@ -129,8 +147,10 @@ def resend_token(
     #     recipient=user.email,
     # )
 
-    return dict(
-        message="Verification link sent successfully", verify_token=verify_jwt_token
+    return create_response(
+        message="Verification link sent successfully",
+        data=verify_jwt_token,
+        status=status.HTTP_200_OK,
     )
 
 
@@ -164,6 +184,7 @@ def forgot_password(
 
     return {
         "message": "Password reset link sent successfully",
+        "token":reset_jwt_token
     }
 
 
@@ -176,7 +197,7 @@ def reset_password(
     If the token is invalid or email does not exist, raises an exception.
     """
     token = reset_password_data.token
-    password = reset_password_data.new_password
+    password = reset_password_data.password
     email = get_user_email_from_token(token)
     if not email:
         raise HTTPException(
@@ -191,4 +212,4 @@ def reset_password(
     user = user_repo.update_password(db, user, password)
     token = user.generate_jwt()
 
-    return {}
+    return token

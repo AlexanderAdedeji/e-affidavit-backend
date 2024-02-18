@@ -20,7 +20,10 @@ class UserInvite(Base):
     accepted_at = Column(DateTime(timezone=True), nullable=True)
     invited_by_id = Column(String, ForeignKey("users.id"), nullable=False)
 
-    user = relationship("User", back_populates="invited_by_id")
+    user = relationship("User", back_populates="invited_by")
 
     def __repr__(self):
         return f"<UserInvite email={self.email} token={self.token} is_accepted={self.is_accepted}>"
+
+
+

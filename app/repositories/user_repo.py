@@ -51,5 +51,11 @@ class UserRepositories(Base[User]):
     def get_users_by_user_type(db: Session, *, user_type_id: str) -> List[User]:
         return db.query(User).filter(User.user_type_id == user_type_id).all()
 
-
+    def update_password(self, db: Session,db_obj:User, password: str) -> User:
+        user = user_repo.update(
+            db=db,
+            db_obj=db_obj,
+            obj_in={"hashed_password": security.get_password_hash(password)},
+        )
+        return user
 user_repo = UserRepositories(User)
