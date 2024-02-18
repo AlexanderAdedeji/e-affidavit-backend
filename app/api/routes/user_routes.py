@@ -75,4 +75,5 @@ def retrieve_current_user(
             id=current_user.user_type.id,
             name=current_user.user_type.name,
         ),
+        verify_token=""
     )

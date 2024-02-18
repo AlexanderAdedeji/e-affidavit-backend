@@ -106,7 +106,7 @@ def get_currently_authenticated_user(
 class PermissionChecker:
     def __init__(self, *, allowed_user_types: List[str]):
         self.allowed_user_types = allowed_user_types + [SUPERUSER_USER_TYPE]
-
+        logger.info(self.allowed_user_types)
     def __call__(self, user: User = Depends(get_currently_authenticated_user)):
         current_user_type: UserType = user.user_type
         if current_user_type.name not in self.allowed_user_types:

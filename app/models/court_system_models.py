@@ -15,7 +15,7 @@ class Jurisdiction(Base):
     state_id = Column(Integer, ForeignKey('states.id'))
     state = relationship("State", back_populates="jurisdictions")
     courts = relationship("Court", back_populates="jurisdiction")
-    head_of_unit = relationship("HeadOfUnit", back_populates="jurisdiction")
+    head_of_units = relationship("HeadOfUnit", back_populates="jurisdiction")
 
 class Court(Base):
     __tablename__ = "courts"
@@ -24,6 +24,9 @@ class Court(Base):
     jurisdiction_id = Column(String, ForeignKey('jurisdictions.id'))
     jurisdiction = relationship("Jurisdiction", back_populates="courts")
     commissioner_profile = relationship("CommissionerProfile", back_populates = "court")
+
+
+
 
 
 

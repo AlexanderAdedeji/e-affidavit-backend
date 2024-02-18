@@ -58,17 +58,22 @@ class UserInResponse(UserBase):
     last_name: str
     email: EmailStr
     user_type: UserTypeInDB
-    verify_token: str
+    verify_token: Optional[str]
 
 
 class UserVerify(BaseModel):
     token: str
 
 
-class SlimUserInResponse(BaseModel):
-    id: int
+class SlimUserInResponse(UserBase):
+    id: str
     email: EmailStr
-    user_type: UserTypeInDB
+
+
+
+class UsersWithSharedType(BaseModel):
+    users: List[SlimUserInResponse]
+    user_type: Optional[UserTypeInDB] 
 
 
 class ResetPasswordSchema(BaseModel):
@@ -92,6 +97,8 @@ class UserInvitation(InvitePersonel):
     pass
 
 
+
+
 class CommissionerProfileBase(BaseModel):
     commissioner_id: str
     court_id: str
@@ -109,3 +116,6 @@ class FullCommissionerInResponse(UserBase):
     attestation: CommissionerAttestation
     court: str
     user_type: UserTypeInDB
+
+
+

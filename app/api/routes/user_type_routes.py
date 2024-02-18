@@ -50,7 +50,7 @@ def get_all_user_types(db: Session = Depends(get_db)):
             if user_type.name.lower() != settings.SUPERUSER_USER_TYPE.lower()
         ],
         message="successful",
-        status=status.HTTP_200_OK,
+        status_code=status.HTTP_200_OK,
     )
     return response
 
@@ -64,7 +64,7 @@ def get_all_user_types(db: Session = Depends(get_db)):
 async def get_single_user_type(*, user_type_id: str, db: Session = Depends(get_db)):
     user_type = user_type_repo.get(db, id)
     return create_response(
-        status=status.HTTP_200_OK,
+        status_code=status.HTTP_200_OK,
         message="usertype found",
         data=UserType(id=user_type.id, name=user_type.name),
     )
@@ -81,7 +81,7 @@ async def delete_user_type(*, user_type_id: str, db: Session = Depends(get_db)):
     else:
         user_type_repo.remove(db=db, id=user_type_id)
         return create_response(
-            status=status.HTTP_204_NO_CONTENT,
+            status_code=status.HTTP_204_NO_CONTENT,
             message="User type deleted successfully.",
         )
 
@@ -115,7 +115,7 @@ async def edit_user_type(
         )
 
         return create_response(
-            status=status.HTTP_204_NO_CONTENT,
+            status_code=status.HTTP_204_NO_CONTENT,
             message="User type edited successfully.",
             data=UserTypeInDB(id=updated_user_type.id, name=updated_user_type.name),
         )
@@ -147,7 +147,7 @@ def create_user_type(
             db=db, obj_in=UserType(name=user_type_in.name.upper(), id=uuid.uuid4())
         )
         return create_response(
-            status=status.HTTP_201_CREATED,
+            status_code=status.HTTP_201_CREATED,
             message=f"{user_type_in.name.upper() } created successfully",
             data=UserType(id=new_user_type.id, name=new_user_type.name),
         )
@@ -181,7 +181,7 @@ def get_all_users_of_user_type(
 
     return create_response(
         message="Successful",
-        status=status.HTTP_200_OK,
+        status_code=status.HTTP_200_OK,
         data=[
             UserInResponse(
                 id=user.id,
@@ -190,7 +190,7 @@ def get_all_users_of_user_type(
                 email=user.email,
                 is_active=user.is_active,
                 user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
-                verify_token="kjdhakjshjkasd",
+                verify_token="",
             )
             for user in target_user_type.users
         ],

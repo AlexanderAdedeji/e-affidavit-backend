@@ -1,4 +1,8 @@
+from typing import Any, List
 from pydantic import BaseModel
+from datetime import datetime
+
+from app.schemas.user_schema import SlimUserInResponse, UserInResponse, UsersWithSharedType
 
 
 class CourtSystemBase(BaseModel):
@@ -6,7 +10,7 @@ class CourtSystemBase(BaseModel):
 
 
 class CreateCourt(CourtSystemBase):
-    jurisdiction_id: int
+    jurisdiction_id: str
 
 
 class CreateJurisdiction(CourtSystemBase):
@@ -18,12 +22,28 @@ class CreateState(CourtSystemBase):
 
 
 class CourtSystemInDB(CourtSystemBase):
-    id: int
+    id: Any
 
 
 class FullCourtInDB(CourtSystemBase):
-    id:int
+    id: str
     state: str
     jurisdiction: str
 
+
+class Jurisdiction(CourtSystemBase):
+    id: str
+    date_created: datetime
+    state: CourtSystemInDB
+    head_of_units: UsersWithSharedType
+    courts: List[CourtSystemInDB]
+
+
+class Court(CourtSystemBase):
+    id: str
+    date_created: datetime
+    state: CourtSystemInDB
+    Jurisdiction:CourtSystemInDB
+    head_of_unit: SlimUserInResponse
+    commissioners: List[UsersWithSharedType]
 

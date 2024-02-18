@@ -54,6 +54,7 @@ def login(
     db: Session = Depends(get_db),
 ):
     user = check_if_user_exist(db, user_in=user_login)
+    
 
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
@@ -80,7 +81,7 @@ def login(
             user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
         ),
         message="Login successfully",
-        status=str(status.HTTP_202_ACCEPTED),
+        status_code=status.HTTP_202_ACCEPTED,
     )
 
 
@@ -108,7 +109,7 @@ def verify_user(token: UserVerify, db: Session = Depends(get_db)):
 
     return create_response(
         message="Verification Successful",
-        status=status.HTTP_202_ACCEPTED,
+        status_code=status.HTTP_202_ACCEPTED,
         data=UserInResponse(
             id=user.id,
             first_name=user.first_name,
@@ -150,7 +151,7 @@ def resend_token(
     return create_response(
         message="Verification link sent successfully",
         data=verify_jwt_token,
-        status=status.HTTP_200_OK,
+        status_code=status.HTTP_200_OK,
     )
 
 

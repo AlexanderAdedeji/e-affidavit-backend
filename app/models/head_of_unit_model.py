@@ -21,7 +21,7 @@ class HeadOfUnit(Base):
     # Relationship to link back to the User model
     user = relationship("User", foreign_keys=[user_id], back_populates="head_of_unit")
     created_by = relationship("User", foreign_keys=[created_by_id])
-    jurisdiction = relationship("Jurisdiction", back_populates="head_of_unit")
+    jurisdiction = relationship("Jurisdiction", back_populates="head_of_units")
 
 
 
