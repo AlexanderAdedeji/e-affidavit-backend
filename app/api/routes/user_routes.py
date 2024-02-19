@@ -10,7 +10,12 @@ from app.core.errors.exceptions import AlreadyExistsException, DoesNotExistExcep
 from app.models.user_model import User
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
-from app.schemas.user_schema import UserCreate, UserCreateForm, UserInResponse, UserWithToken
+from app.schemas.user_schema import (
+    UserCreate,
+    UserCreateForm,
+    UserInResponse,
+    UserWithToken,
+)
 from app.core.settings.configurations import settings
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse
@@ -19,9 +24,10 @@ from commonLib.response.response_schema import GenericResponse
 router = APIRouter()
 
 
-@router.post("/user", 
-            #  response_model=GenericResponse[UserInResponse]
-             )
+@router.post(
+    "/user",
+    #  response_model=GenericResponse[UserInResponse]
+)
 def create_user(user_in: UserCreateForm, db: Session = Depends(get_db)):
     user_exist = user_repo.get_by_email(email=user_in.email, db=db)
     if user_exist:
@@ -34,7 +40,7 @@ def create_user(user_in: UserCreateForm, db: Session = Depends(get_db)):
     if not user_type:
         raise DoesNotExistException(detail="User type not found.")
 
-    user_in = UserCreate(**user_in.dict(),  user_type_id=user_type.id)
+    user_in = UserCreate(**user_in.dict(), user_type_id=user_type.id)
     try:
         new_user = user_repo.create(obj_in=user_in, db=db)
         verify_token = user_repo.create_verification_token(email=new_user.email, db=db)
@@ -75,5 +81,5 @@ def retrieve_current_user(
             id=current_user.user_type.id,
             name=current_user.user_type.name,
         ),
-        verify_token=""
+        verify_token="",
     )

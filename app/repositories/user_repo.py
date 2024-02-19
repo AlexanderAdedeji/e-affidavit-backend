@@ -45,8 +45,6 @@ class UserRepositories(Base[User]):
             return db_obj
         return super().update(db, db_obj=db_obj, obj_in={"is_active": status})
 
-    def get_user_invite_info(db: Session, *, invite_id: str):
-        return db.query(UserInvite).filter(UserInvite.id == invite_id).first()
 
     def get_users_by_user_type(db: Session, *, user_type_id: str) -> List[User]:
         return db.query(User).filter(User.user_type_id == user_type_id).all()

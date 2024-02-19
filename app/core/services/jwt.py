@@ -1,6 +1,7 @@
 import jwt
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
+from loguru import logger
 from pydantic import ValidationError
 from app.core.errors.exceptions import InvalidTokenException
 from app.core.settings.configurations import settings
@@ -51,7 +52,7 @@ def generate_invitation_token(id, expires_delta: timedelta = None):
 
         jwt_content["exp"] = expires_at.timestamp()
         jwt_content["iat"] = now.timestamp()
-
+        logger.debug({"jwt_content":jwt_content})
         encoded_token = jwt.encode(
             payload=jwt_content, key=str(SECRET_KEY), algorithm=JWT_ALGORITHM
         )

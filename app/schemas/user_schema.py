@@ -18,10 +18,6 @@ class UserCreateForm(UserBase):
 class UserCreate(UserCreateForm):
     user_type_id: str
 
-    # @validator("phone")
-    # def validate_phone(cls, value: str) -> str:
-    #     return phone_validators.validate_phone_number(value)
-
 
 class CommissionerCreate(UserCreate):
     invite_id: str
@@ -79,6 +75,11 @@ class UsersWithSharedType(BaseModel):
 class ResetPasswordSchema(BaseModel):
     token: str
     password: str
+
+
+class OperationsCreateForm(BaseModel):
+    invite_id:str
+    password:str
 
 
 
