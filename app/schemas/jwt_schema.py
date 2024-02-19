@@ -11,6 +11,9 @@ class JWTEMAIL(BaseModel):
     email:EmailStr
 
 
+class JWTInvite(JWTUser):
+    pass
+
 class JWTMeta(BaseModel):
     exp: datetime
     sub: str

@@ -1,5 +1,5 @@
 from typing import List, Optional
-
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, validator
 
 from app.schemas.user_type_schema import UserTypeInDB
@@ -81,21 +81,24 @@ class ResetPasswordSchema(BaseModel):
     password: str
 
 
-class InvitePersonel(BaseModel):
-    first_name: str
-    last_name: str
-    email: str
-    court: Optional[int]
-    state: Optional[int]
 
 
 class InviteTokenData(BaseModel):
     invite_id: str
 
 
-class UserInvitation(InvitePersonel):
-    pass
+class InviteOperationsForm(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    user_type_id: str
+    court_id: Optional[str] = None
+    jurisdiction_id: Optional[str] = None
 
+class CreateInvite(InviteOperationsForm):
+    id:str
+    invited_by_id:str
+    token:str
 
 
 

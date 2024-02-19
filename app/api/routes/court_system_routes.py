@@ -269,32 +269,26 @@ def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
             )
 
         return (
-            create_response(
-                status_code=status.HTTP_200_OK,
-                message="Jurisdictions Retrieved Successfully",
-                data=Jurisdiction(
-                    id=jurisdiction.id,
-                    date_created=jurisdiction.CreatedAt,
-                    name=jurisdiction.name,
-                    state=CourtSystemInDB(
-                        id=jurisdiction.state.id, name=jurisdiction.state.name
-                    ),
-                    courts=[
-                        CourtSystemInDB(id=court.id, name=court.name)
-                        for court in jurisdiction.courts
-                    ],
-                    head_of_units=UsersWithSharedType(
-                        users=[
-                            SlimUserInResponse(
-                                id=head_of_unit.id,
-                                first_name=head_of_unit.first_name,
-                                last_name=head_of_unit.last_name,
-                                email=head_of_unit.email,
-                            )
-                            for head_of_unit in jurisdiction.head_of_units
+            (
+                create_response(
+                    status_code=status.HTTP_200_OK,
+                    message="Jurisdictions Retrieved Successfully",
+                    data=Jurisdiction(
+                        id=jurisdiction.id,
+                        date_created=jurisdiction.CreatedAt,
+                        name=jurisdiction.name,
+                        state=CourtSystemInDB(
+                            id=jurisdiction.state.id, name=jurisdiction.state.name
+                        ),
+                        courts=[
+                            CourtSystemInDB(id=court.id, name=court.name)
+                            for court in jurisdiction.courts
                         ],
-                        user_type=UserTypeInDB(
-                            id="user_type_id", name="user_type_name"
+                        head_of_units=SlimUserInResponse(
+                            id=jurisdiction.head_of_unit.id,
+                            first_name=jurisdiction.head_of_unit.first_name,
+                            last_name=jurisdiction.head_of_unit.last_name,
+                            email=jurisdiction.head_of_unit.email,
                         ),
                     ),
                 ),
@@ -370,8 +364,6 @@ def get__court(court_id: str, db: Session = Depends(get_db)):
             ),
         ),
     )
-
-
 
 
 # @router.get("/courts/{court_id}/commissioners")

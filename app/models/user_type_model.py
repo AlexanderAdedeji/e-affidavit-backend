@@ -13,3 +13,4 @@ class UserType(Base):
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False, unique=True)
     users = relationship("User", back_populates="user_type")
+    invite_user_type = relationship("UserInvite", back_populates="user_type")

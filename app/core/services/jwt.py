@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from app.core.errors.exceptions import InvalidTokenException
 from app.core.settings.configurations import settings
 from app.core.errors import error_strings
-from app.schemas.jwt_schema import JWTUser
+from app.schemas.jwt_schema import JWTInvite, JWTUser
 # from app.schemas.jwt_schema import JWTOrganisation
 
 JWT_ALGORITHM = settings.JWT_ALGORITHM
@@ -42,7 +42,7 @@ def get_user_email_from_token(token: str):
     return decode_payload["email"]
 
 def generate_invitation_token(id, expires_delta: timedelta = None):
-        jwt_content = JWTUser(id=id).dict()
+        jwt_content = JWTInvite(id=id).dict()
         if expires_delta is None:
             expires_delta = timedelta(minutes=JWT_EXPIRE_MINUTES)
 

@@ -12,10 +12,11 @@ from app.core.services.jwt import generate_invitation_token, get_all_details_fro
 from app.models.user_invite_models import UserInvite
 from app.models.user_model import User
 from app.core.settings.configurations import settings
+from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.api.dependencies.authentication import admin_permission_dependency
-from app.schemas.user_schema import  InvitePersonel, UserCreate, UserInvitation
+from app.schemas.user_schema import  CreateInvite, InviteOperationsForm,  UserCreate
 from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.core.services.email import email_service
 
@@ -23,49 +24,71 @@ from app.core.services.email import email_service
 router = APIRouter()
 
 
-@router.post("/invite_personel", dependencies=[Depends(admin_permission_dependency)])
-def invite_personel(personel: List[InvitePersonel], db: Session = Depends(get_db)):
-    user_already_exist = []
-    for user in personel:
-        if user_repo.get_by_email(db, email=user.email):
-            user_already_exist.append(user.email)
-            continue
-        url_params = (
-            f"firstname={user.first_name}&lastname={user.last_name}&role={user.role}"
-        )
-        if user.role.lower() != "admin":
-            url_params += f"&court={user.court}"
-        invite_url = f"https://your-react-app.com/invite?{url_params}"
+# @router.post("/invite_personel", dependencies=[Depends(admin_permission_dependency)])
+# def invite_personel(personel: List[InvitePersonel], db: Session = Depends(get_db)):
+#     user_already_exist = []
+#     for user in personel:
+#         if user_repo.get_by_email(db, email=user.email):
+#             user_already_exist.append(user.email)
+#             continue
+#         url_params = (
+#             f"firstname={user.first_name}&lastname={user.last_name}&role={user.role}"
+#         )
+#         if user.role.lower() != "admin":
+#             url_params += f"&court={user.court}"
+#         invite_url = f"https://your-react-app.com/invite?{url_params}"
 
-        logger.info(
-            f"Sending invite to {user.first_name} {user.last_name} as a {user.role}"
-        )
-        # send_invite_email(email=user.email, invite_url=invite_url)
+#         logger.info(
+#             f"Sending invite to {user.first_name} {user.last_name} as a {user.role}"
+#         )
+#         # send_invite_email(email=user.email, invite_url=invite_url)
 
-    if user_already_exist:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Emails already registered: {', '.join(user_already_exist)}",
-        )
+#     if user_already_exist:
+#         raise HTTPException(
+#             status_code=409,
+#             detail=f"Emails already registered: {', '.join(user_already_exist)}",
+#         )
 
-    return {"msg": "Invitations sent successfully"}
+#     return {"msg": "Invitations sent successfully"}
 
 
-@router.post("/invite-users")
+@router.post("/invite_personel")
 async def invite_users(
-    users: List[UserInvitation],
-    current_admin: User = Depends(get_currently_authenticated_user),
+    users: List[InviteOperationsForm],
+    current_user: User = Depends(get_currently_authenticated_user),
     db: Session = Depends(get_db),
 ):
+    tokens=[]
     for user in users:
-        token = generate_invitation_token(user)
+        invite_id = str(uuid.uuid4())
+        token = generate_invitation_token(id=invite_id)
+        tokens.append({"email":user.email, "token":token })
+        invite_in = CreateInvite(
+            id=invite_id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            user_type_id=user.user_type_id,
+            email=user.email,
+            court_id=user.court_id,
+            jurisdiction_id=user.jurisdiction_id,
+            invited_by_id=current_user.id,
+            token=token
+            
+        )
+
+        # try:
+        new_invite =user_invite_repo.create(db, obj_in= invite_in)
+        return new_invite
+        # except Exception as e:
+        #     logger.error(e)
+    
         # Store token and user info in database
         # Assume db_session to be a dependency that provides a session to interact with your DB
 
         # Save the invitation in your DB with user details and the generated token
         # Send invitation email
-        email_service.send_email_with_template(user.email, token)
-    return {"message": "Invitations sent successfully"}
+        # email_service.send_email_with_template(user.email, token)
+    return tokens
 
 
 @router.get("/accept-invite/{token}")

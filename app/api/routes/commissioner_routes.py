@@ -21,7 +21,7 @@ from app.schemas.user_schema import (
     CommissionerCreate,
     CommissionerProfileBase,
     FullCommissionerInResponse,
-    InvitePersonel,
+    
 )
 from app.repositories.commissioner_profile_repo import comm_profile_repo
 from commonLib.response.response_schema import GenericResponse, create_response

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.head_of_unit_model import HeadOfUnit
 from app.schemas.user_schema import CommissionerProfileBase, HeadOfUnitCreate
 
-from commonLib.repositories.relational_repository import Base, ModelType
+from commonLib.repositories.relational_repository import Base
 
 
 class HeadOfUnitRepositories(Base[HeadOfUnit]):

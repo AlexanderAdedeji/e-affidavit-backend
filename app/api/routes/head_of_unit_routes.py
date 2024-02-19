@@ -22,7 +22,7 @@ from app.schemas.user_schema import (
     CommissionerCreate,
     CommissionerProfileBase,
     HeadOfUnitCreate,
-    InvitePersonel,
+    
 )
 from app.repositories.commissioner_profile_repo import comm_profile_repo
 
@@ -30,7 +30,7 @@ from app.repositories.commissioner_profile_repo import comm_profile_repo
 router = APIRouter()
 
 
-@router.post("/create_head_of_unit")
+@router.post("/")
 async def create_head_of_unit(
     head_of_unit_in: HeadOfUnitCreate,
     db: Session = Depends(get_db),
@@ -78,7 +78,7 @@ async def create_head_of_unit(
     return new_head_of_unit
 
 
-@router.get("/head_of_unit", dependencies=[Depends(admin_permission_dependency)])
+@router.get("/{head_of_unit_id}", dependencies=[Depends(admin_permission_dependency)])
 def get_unit_head(unit_head_id: str, db: Session = Depends(get_db)):
     commissioner = user_repo.get(db=db, id=unit_head_id)
     if (
@@ -89,7 +89,7 @@ def get_unit_head(unit_head_id: str, db: Session = Depends(get_db)):
     return commissioner
 
 
-@router.get("/head_of_units", dependencies=[Depends(admin_permission_dependency)])
+@router.get("/", dependencies=[Depends(admin_permission_dependency)])
 def get_unit_heads(db: Session = Depends(get_db)):
     user_type = user_type_repo.get_by_name(db=db, name=settings.COMMISSIONER_USER_TYPE)
     if user_type is None:
@@ -105,6 +105,4 @@ def retrieve_current_unit_head(
     return user_repo.get(db, id=user.id)
 
 
-@router.put("/create_attestation")
-def create_attestation(db: Session = Depends(get_db)):
-    return {"notice": "Attestations are now being automatically created."}
+
