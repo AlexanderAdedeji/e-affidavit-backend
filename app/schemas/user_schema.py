@@ -1,6 +1,7 @@
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, validator
+from app.schemas.court_system import CourtSystemInDB
 
 from app.schemas.user_type_schema import UserTypeInDB
 
@@ -19,13 +20,9 @@ class UserCreate(UserCreateForm):
     user_type_id: str
 
 
-class CommissionerCreate(UserCreate):
-    invite_id: str
-    court_id: str
 
 
-class HeadOfUnitCreate(UserCreate):
-    jurisdiction: str
+
 
 
 class UserUpdate(UserBase):
@@ -61,27 +58,20 @@ class UserVerify(BaseModel):
     token: str
 
 
-class SlimUserInResponse(UserBase):
-    id: str
-    email: EmailStr
-
-
-
-class UsersWithSharedType(BaseModel):
-    users: List[SlimUserInResponse]
-    user_type: Optional[UserTypeInDB] 
-
-
 class ResetPasswordSchema(BaseModel):
     token: str
     password: str
 
-
+###Operations Create
 class OperationsCreateForm(BaseModel):
     invite_id:str
     password:str
 
+class CommissionerCreate(OperationsCreateForm):
+    court_id: str
 
+class HeadOfUnitCreate(OperationsCreateForm):
+    jurisdiction_id: str
 
 
 class InviteTokenData(BaseModel):
@@ -104,6 +94,7 @@ class CreateInvite(InviteOperationsForm):
 
 
 class CommissionerProfileBase(BaseModel):
+
     commissioner_id: str
     court_id: str
     created_by_id: str
@@ -118,7 +109,7 @@ class FullCommissionerInResponse(UserBase):
     email: EmailStr
     is_active: bool
     attestation: CommissionerAttestation
-    court: str
+    court: CourtSystemInDB
     user_type: UserTypeInDB
 
 

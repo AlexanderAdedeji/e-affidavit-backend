@@ -2,7 +2,7 @@ from typing import Any, List
 from pydantic import BaseModel
 from datetime import datetime
 
-from app.schemas.user_schema import SlimUserInResponse, UserInResponse, UsersWithSharedType
+from app.schemas.shared_schema import SlimUserInResponse, UsersWithSharedType
 
 
 class CourtSystemBase(BaseModel):

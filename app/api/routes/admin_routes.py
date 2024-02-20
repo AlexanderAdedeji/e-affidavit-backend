@@ -80,7 +80,11 @@ async def invite_users(
             )
 
 
-@router.get("/accept-invite/{token}", status_code=status.HTTP_200_OK, response_model=GenericResponse)
+@router.get(
+    "/accept-invite/{token}",
+    status_code=status.HTTP_200_OK,
+    # response_model=GenericResponse,
+)
 async def accept_invite(token: str, db: Session = Depends(get_db)):
 
     invite_info = get_token_details(token, get_all_details_from_token)
@@ -101,11 +105,11 @@ async def accept_invite(token: str, db: Session = Depends(get_db)):
         )
 
     user_invite_repo.mark_invite_as_accepted(db, db_obj=db_invite)
-
+    return db_invite
     return create_response(
         message="Invite accepted successfully",
         status_code=status.HTTP_200_OK,
-        data=db_invite,
+        data=dict(db_invite),
     )
 
 
@@ -170,14 +174,17 @@ def get_admin(id: str, db: Session = Depends(get_db)):
 def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
     db_invite = user_invite_repo.get(db, id=admin_in.invite_id)
     if not db_invite:
-        raise DoesNotExistException(detail=f"The specified invite does not exist.")
+        raise DoesNotExistException(   detail="Invitation does not exist or is invalid.")
     if not db_invite.is_accepted:
         raise HTTPException(
             status_code=403,
             detail="Cannot use un-accepted invites for creating new accounts.",
         )
-    if db_invite.user_type.name == settings.ADMIN_USER_TYPE:
-        raise UnauthorizedEndpointException(detail="You do not have access to this")
+    if db_invite.user_type.name != settings.ADMIN_USER_TYPE:
+        raise UnauthorizedEndpointException(
+  
+            detail="You do not have permission to access this endpoint.",
+        )
     if user_repo.get_by_email(db, email=db_invite.email):
         raise AlreadyExistsException(detail="This email address already exists.")
     admin_obj = UserCreate(

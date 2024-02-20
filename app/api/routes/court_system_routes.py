@@ -29,11 +29,14 @@ from app.schemas.court_system import (
     Jurisdiction,
     Court,
 )
+from app.schemas.shared_schema import SlimUserInResponse
 from app.schemas.user_schema import (
-    SlimUserInResponse,
+  
     UserInResponse,
-    UsersWithSharedType,
+
 )
+
+  
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
 

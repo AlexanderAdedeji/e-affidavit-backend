@@ -12,17 +12,19 @@ class CommissionerProfile(Base):
     __tablename__ = "commissioner_profiles"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
     court_id = Column(String, ForeignKey("courts.id"), nullable=False)  # Adjust as necessary
-    signature = Column(String, nullable=False)  # Path to signature image
-    stamp = Column(String, nullable=False)  # Path to stamp image
-    user_id = Column(String, ForeignKey("users.id"), unique=True)
+    signature = Column(String, nullable=True)  # Path to signature image
+    stamp = Column(String, nullable=True)  # Path to stamp image
+    commissioner_id = Column(String, ForeignKey("users.id"), unique=True)
     created_by_id = Column(String, ForeignKey("users.id"))
 
     # Specify the foreign_keys for clarity
 
  
 
+
+
     user = relationship(
-        "User", foreign_keys=[user_id], back_populates="commissioner_profile"
+        "User", foreign_keys=[commissioner_id], back_populates="commissioner_profile"
     )
     created_by = relationship("User", foreign_keys=[created_by_id])
     court = relationship("Court", back_populates="commissioner_profile")

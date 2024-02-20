@@ -30,7 +30,7 @@ class User(Base):
     # This will link to the `user_id` in CommissionerProfile
     commissioner_profile = relationship(
         "CommissionerProfile",
-        foreign_keys="[CommissionerProfile.user_id]",
+        foreign_keys="[CommissionerProfile.commissioner_id]",
         back_populates="user",
         uselist=False,
     )

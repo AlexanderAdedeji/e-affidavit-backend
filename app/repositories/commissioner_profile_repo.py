@@ -8,8 +8,11 @@ from commonLib.repositories.relational_repository import Base, ModelType
 
 class CommissionerRepositiories(Base[CommissionerProfile]):
     def create(self, db, *, obj_in: CommissionerProfileBase):
-        db_obj = CommissionerProfile(id=uuid4().hex, **obj_in)
-        db_obj.set_password(obj_in.password)
+        db_obj = CommissionerProfile(
+            commissioner_id = obj_in.commissioner_id,
+            court_id = obj_in.court_id,
+            created_by_id = obj_in.created_by_id
+        )
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
