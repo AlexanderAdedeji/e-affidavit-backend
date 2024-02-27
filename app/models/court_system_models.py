@@ -15,8 +15,10 @@ class Jurisdiction(Base):
     state_id = Column(Integer, ForeignKey('states.id'))
     state = relationship("State", back_populates="jurisdictions")
     courts = relationship("Court", back_populates="jurisdiction")
-    head_of_unit = relationship("HeadOfUnit", back_populates="jurisdiction")
+    head_of_unit = relationship("HeadOfUnit", back_populates="jurisdiction", uselist=False)
     user_invite= relationship("UserInvite", back_populates="jurisdiction")
+
+    
 
 class Court(Base):
     __tablename__ = "courts"

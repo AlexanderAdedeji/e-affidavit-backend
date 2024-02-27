@@ -4,8 +4,11 @@ from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from app.schemas.user_type_schema import UserTypeInDB
 
+
 class SlimUserInResponse(BaseModel):
     id: str
+    first_name:str
+    last_name:str
     email: EmailStr
 
 class UsersWithSharedType(BaseModel):

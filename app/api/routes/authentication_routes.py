@@ -115,6 +115,7 @@ def verify_user(token: UserVerify, db: Session = Depends(get_db)):
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
+            is_active=user.is_active,
             user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
             verify_token=token,
         ),

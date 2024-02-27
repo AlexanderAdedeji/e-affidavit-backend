@@ -31,19 +31,19 @@ class FullCourtInDB(CourtSystemBase):
     jurisdiction: str
 
 
-class Jurisdiction(CourtSystemBase):
+class JurisdictionBase(CourtSystemBase):
     id: str
     date_created: datetime
     state: CourtSystemInDB
-    head_of_units: UsersWithSharedType
+    head_of_unit: SlimUserInResponse
     courts: List[CourtSystemInDB]
 
 
-class Court(CourtSystemBase):
+class CourtBase(CourtSystemBase):
     id: str
     date_created: datetime
     state: CourtSystemInDB
     Jurisdiction:CourtSystemInDB
     head_of_unit: SlimUserInResponse
-    commissioners: List[UsersWithSharedType]
+    commissioners: List[SlimUserInResponse]
 

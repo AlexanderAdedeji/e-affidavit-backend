@@ -15,16 +15,18 @@ class HeadOfUnit(Base):
         String,  ForeignKey("jurisdictions.id"), nullable=False
       
     )  # Assuming court ID is a string; adjust as necessary
-    user_id = Column(String, ForeignKey("users.id"))
+    head_of_unit_id = Column(String, ForeignKey("users.id"))
     created_by_id = Column(String, ForeignKey("users.id"))
 
     # Relationship to link back to the User model
-    user = relationship("User", foreign_keys=[user_id], back_populates="head_of_unit")
+    user = relationship("User", foreign_keys=head_of_unit_id, back_populates="head_of_unit", uselist=False)
     created_by = relationship("User", foreign_keys=[created_by_id])
     jurisdiction = relationship("Jurisdiction", back_populates="head_of_unit")
 
 
 
-# Update the User model to include a reverse relationship
+
+
+
 
 

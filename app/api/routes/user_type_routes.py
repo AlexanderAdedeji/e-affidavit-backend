@@ -191,6 +191,7 @@ def get_all_users_of_user_type(
                 is_active=user.is_active,
                 user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
                 verify_token="",
+    
             )
             for user in target_user_type.users
         ],

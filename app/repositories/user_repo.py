@@ -46,7 +46,7 @@ class UserRepositories(Base[User]):
         return super().update(db, db_obj=db_obj, obj_in={"is_active": status})
 
 
-    def get_users_by_user_type(db: Session, *, user_type_id: str) -> List[User]:
+    def get_users_by_user_type(self, db: Session, *, user_type_id: str) -> List[User]:
         return db.query(User).filter(User.user_type_id == user_type_id).all()
 
     def update_password(self, db: Session,db_obj:User, password: str) -> User:

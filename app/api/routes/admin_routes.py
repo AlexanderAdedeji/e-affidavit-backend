@@ -26,6 +26,7 @@ from app.api.dependencies.authentication import (
     get_token_details,
 )
 from app.schemas.user_schema import (
+    AcceptedInviteResponse,
     CreateInvite,
     InviteOperationsForm,
     OperationsCreateForm,
@@ -68,22 +69,21 @@ async def invite_users(
             # Send invitation email
             # email_service.send_email_with_template(user.email, token)
 
-            return create_response(
-                status_code=status.HTTP_200_OK,
-                message="Users Invited  Successfully.",
-            )
-
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Data intergrity Error: Please check the data you are passing",
             )
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Users Invited  Successfully.",
+    )
 
 
 @router.get(
     "/accept-invite/{token}",
     status_code=status.HTTP_200_OK,
-    # response_model=GenericResponse,
+    response_model=GenericResponse[AcceptedInviteResponse],
 )
 async def accept_invite(token: str, db: Session = Depends(get_db)):
 
@@ -105,11 +105,20 @@ async def accept_invite(token: str, db: Session = Depends(get_db)):
         )
 
     user_invite_repo.mark_invite_as_accepted(db, db_obj=db_invite)
-    return db_invite
+
     return create_response(
         message="Invite accepted successfully",
         status_code=status.HTTP_200_OK,
-        data=dict(db_invite),
+        data=AcceptedInviteResponse(
+            first_name=db_invite.first_name,
+            last_name=db_invite.last_name,
+            email=db_invite.email,
+            is_accepted=db_invite.is_accepted,
+            invite_id=db_invite.id,
+            user_type=UserTypeInDB(
+                id=db_invite.user_type.id, name=db_invite.user_type.name
+            ),
+        ),
     )
 
 
@@ -137,6 +146,7 @@ def get_all_admins(db: Session = Depends(get_db)):
                     name=admin.user_type.name,
                 ),
                 verify_token="",
+           
             )
             for admin in admins
         ],
@@ -162,6 +172,7 @@ def get_admin(id: str, db: Session = Depends(get_db)):
             id=admin.user_type.id,
             name=admin.user_type.name,
         ),
+
         verify_token="",
     )
 
@@ -174,7 +185,7 @@ def get_admin(id: str, db: Session = Depends(get_db)):
 def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
     db_invite = user_invite_repo.get(db, id=admin_in.invite_id)
     if not db_invite:
-        raise DoesNotExistException(   detail="Invitation does not exist or is invalid.")
+        raise DoesNotExistException(detail="Invitation does not exist or is invalid.")
     if not db_invite.is_accepted:
         raise HTTPException(
             status_code=403,
@@ -182,7 +193,6 @@ def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
         )
     if db_invite.user_type.name != settings.ADMIN_USER_TYPE:
         raise UnauthorizedEndpointException(
-  
             detail="You do not have permission to access this endpoint.",
         )
     if user_repo.get_by_email(db, email=db_invite.email):
@@ -210,6 +220,7 @@ def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
                 user_type=UserTypeInDB(
                     name=new_admin.user_type.name, id=new_admin.user_type.id
                 ),
+                               is_active=new_admin.is_active,
             ),
         )
     except Exception as e:
