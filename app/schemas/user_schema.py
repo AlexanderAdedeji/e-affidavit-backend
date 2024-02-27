@@ -47,9 +47,7 @@ class UserWithToken(BaseModel):
 
 class UserInResponse(UserBase):
     id: str
-    first_name: str
     is_active:bool
-    last_name: str
     email: EmailStr
     user_type: UserTypeInDB
     verify_token: Optional[str]
@@ -100,10 +98,11 @@ class AcceptedInviteResponse(BaseModel):
     is_accepted:bool
     user_type:UserTypeInDB
 
-class CommissionerProfileBase(BaseModel):
-    commissioner_id: str
-    court_id: str
-    created_by_id: str
+class CommissionerProfileBase(UserBase):
+    id: str
+    email: EmailStr
+    court: str
+ 
 
 
 class HeadOfUnitBase(BaseModel):
@@ -119,11 +118,13 @@ class CommissionerAttestation(BaseModel):
 class FullCommissionerInResponse(UserBase):
     email: EmailStr
     is_active: bool
-    attestation: CommissionerAttestation
+
     court: CourtSystemInDB
+
+
+class FullCommissionerProfile(FullCommissionerInResponse):
+    attestation: CommissionerAttestation
     user_type: UserTypeInDB
-
-
 class FullHeadOfUniteInResponse(UserBase):
     email:EmailStr
     is_active:bool
