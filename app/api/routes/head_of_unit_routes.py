@@ -111,6 +111,14 @@ async def create_head_of_unit(
         logger.error(e)
 
 
+@router.get("/me", dependencies=[Depends(head_of_unit_permission_dependency)])
+def retrieve_current_unit_head(
+    db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)
+):
+    return user_repo.get(db, id=user.id)
+
+
+
 @router.get("/{head_of_unit_id}", dependencies=[Depends(admin_permission_dependency)])
 def get_unit_head(head_of_unit_id: str, db: Session = Depends(get_db)):
     db_head_of_unit = user_repo.get(db=db, id=head_of_unit_id)
@@ -164,8 +172,3 @@ def get_unit_heads(db: Session = Depends(get_db)):
     )
 
 
-@router.get("/me", dependencies=[Depends(head_of_unit_permission_dependency)])
-def retrieve_current_unit_head(
-    db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)
-):
-    return user_repo.get(db, id=user.id)

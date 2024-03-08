@@ -173,6 +173,7 @@ def get_commissioners(
                 last_name=commissioner.last_name,
                 email=commissioner.email,
                 court=commissioner.commissioner_profile.court.name,
+                is_active=commissioner.is_active,
             )
             for commissioner in commissioners
         ],
@@ -233,3 +234,23 @@ def create_attestation(
     db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)
 ):
     return {"notice": "Attestations are now being automatically created."}
+
+
+@router.put(
+    "/activate_commissioner/{commissioner_id}",
+    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)]
+)
+def activate_user(
+    commissioner_id:str,
+    db:Session = Depends(get_db)
+    
+    
+):
+    commissioner = user_repo.get(db, id=commissioner_id)
+    if not commissioner:
+        raise DoesNotExistException(detail="Commissioner does not exist")
+    if commissioner.is_active:
+        raise  HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account is already active.")
+    user_repo.activate(db, user=commissioner)
+
+    return  {"message":"The account has been reactivated"}

@@ -76,6 +76,8 @@ def login(
     token = user.generate_jwt()
     return create_response(
         data=UserWithToken(
+            first_name=user.first_name,
+            last_name= user.last_name,
             email=user.email,
             token=token,
             user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),

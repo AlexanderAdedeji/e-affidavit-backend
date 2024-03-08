@@ -39,7 +39,7 @@ class UserInLogin(BaseModel):
     password: str
 
 
-class UserWithToken(BaseModel):
+class UserWithToken(UserBase):
     email: EmailStr
     user_type: UserTypeInDB
     token: str
@@ -101,6 +101,7 @@ class AcceptedInviteResponse(BaseModel):
 class CommissionerProfileBase(UserBase):
     id: str
     email: EmailStr
+    is_active:bool
     court: str
  
 
