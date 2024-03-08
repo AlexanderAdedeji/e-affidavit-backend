@@ -1,15 +1,24 @@
+from datetime import datetime
 import logging
+from uuid import uuid4
 
 from loguru import logger
 from app.api.dependencies.db import get_db
+from app.models.user_model import User
+from commonLib.response.response_schema import GenericResponse, create_response
 import namegenerator
 from sqlalchemy.orm import Session
 from bson import ObjectId
-from app.api.dependencies.authentication import admin_permission_dependency
-from fastapi import Depends, HTTPException, APIRouter
+from app.api.dependencies.authentication import (
+    admin_permission_dependency,
+    get_currently_authenticated_user,
+)
+from fastapi import Depends, HTTPException, APIRouter, status
 from app.schemas.affidavit_schema import (
     DocumentBase,
     TemplateBase,
+    TemplateCreate,
+    TemplateCreateForm,
     document_individual_serialiser,
     document_list_serialiser,
     template_individual_serialiser,
@@ -19,6 +28,82 @@ from app.database.sessions.mongo_client import template_collection, document_col
 
 
 router = APIRouter()
+
+
+@router.post(
+    "/create_template",
+    dependencies=[Depends(admin_permission_dependency)],
+    status_code=status.HTTP_201_CREATED,
+    response_model=GenericResponse[TemplateBase]
+)
+async def create_template(
+    template_in: TemplateCreateForm,
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    template_dict = template_in.dict()
+    existing_template = await template_collection.find_one(
+        {"name": template_dict["name"]}
+    )
+    if existing_template:
+
+        raise HTTPException(
+            status_code=400, detail="Template with the given name already exists"
+        )
+    # template_dict = TemplateCreate(
+    #     **template_dict, created_by_id=current_user.id
+    # ).dict()
+    template_dict = TemplateCreate(
+        **template_dict, created_by_id=uuid4()
+    ).dict()
+    result = await template_collection.insert_one(template_dict)
+    if not result.acknowledged:
+        logger.error("Failed to insert template")
+        raise HTTPException(status_code=500, detail="Failed to create template")
+
+    new_template = await template_collection.find_one({"_id": result.inserted_id})
+    return create_response(
+        status_code=status.HTTP_201_CREATED,
+        message=f"{new_template['name']} template Created Successfully",
+        data=template_individual_serialiser(new_template),
+    )
+
+
+@router.put(
+    "/update_template/{template_id}",
+    # dependencies=[Depends(admin_permission_dependency)],
+    status_code=status.HTTP_200_OK,
+response_model=GenericResponse[TemplateBase]
+)
+async def update_template(
+    template_in: TemplateBase,
+    # current_user: User = Depends(get_currently_authenticated_user),
+):
+    template_dict ={ **template_in.dict(),'updated_at': datetime.utcnow()}
+    existing_template = await template_collection.find_one(
+        {"_id": template_dict["_id"]}
+    )
+    if not existing_template:
+
+        raise HTTPException(
+            status_code=400, detail="Template with the given name already exists"
+        )
+    # If a template with the same name exists, update it
+    update_result = await template_collection.update_one(
+        {"_id": existing_template["_id"]}, {"$set": template_dict}
+    )
+    if not update_result.modified_count:
+        logger.error("Failed to update template")
+        raise HTTPException(status_code=500, detail="Failed to update template")
+
+    updated_template = await template_collection.find_one(
+        {"_id": existing_template["_id"]}
+    )
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{updated_template['name']} template updated successfully",
+        data=template_individual_serialiser(updated_template),
+    )
+
 
 
 @router.get("/get_templates")
@@ -136,20 +221,6 @@ async def get_single_template(template_id: str):
         raise HTTPException(status_code=404, detail="Template not found")
 
     return template_individual_serialiser(template_obj)
-
-
-@router.post("/create_template", dependencies=[Depends(admin_permission_dependency)])
-async def create_template(template_in: TemplateBase):
-    template_dict = template_in.dict()
-    template_dict["name"] = namegenerator.gen()
-
-    result = await template_collection.insert_one(template_dict)
-    if not result.acknowledged:
-        logger.error("Failed to insert template")
-        raise HTTPException(status_code=500, detail="Failed to create template")
-
-    new_template = await template_collection.find_one({"_id": result.inserted_id})
-    return template_individual_serialiser(new_template)
 
 
 @router.post("/create_template_category")
