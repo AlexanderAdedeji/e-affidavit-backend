@@ -22,7 +22,7 @@ methods = ["GET", "POST", "PUT", "DELETE"]  # Specify allowed methods
 # Security middleware (example)
 security_middleware = Middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=methods,
     allow_headers=["*"],
