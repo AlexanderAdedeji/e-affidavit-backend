@@ -82,7 +82,7 @@ async def root():
 async def startup_db_client():
     app.mongodb_client = client
 
-    app.mongodb = app.mongodb_client.get_database()
+    app.mongodb = app.mongodb_client.get_database("E-affidavit-dev")
     print("Hello world")
 
 
