@@ -16,7 +16,7 @@ from app.api.routes.routes import router as global_router
 
 Base.metadata.create_all(engine)
 # CORS configuration
-origins = ["https://example.com"]  # Replace with your allowed origins
+origins = ["http://localhost:5173/", "http://localhost:5174/","http://localhost:5175/"]  # Replace with your allowed origins
 methods = ["GET", "POST", "PUT", "DELETE"]  # Specify allowed methods
 
 # Security middleware (example)
