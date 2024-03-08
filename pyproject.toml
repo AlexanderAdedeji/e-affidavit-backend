@@ -6,7 +6,7 @@ authors = ["AlexAdedeji <alex.adedeji@identikosolutions.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 alembic = "^1.13.1"
 fastapi = {extras = ["all"], version = "^0.109.2"}
 loguru = "^0.7.2"
