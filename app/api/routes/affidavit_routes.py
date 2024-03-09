@@ -6,6 +6,7 @@ from uuid import uuid4
 from loguru import logger
 from app.api.dependencies.db import get_db
 from app.models.user_model import User
+from app.repositories.user_repo import user_repo
 from commonLib.response.response_schema import GenericResponse, create_response
 import namegenerator
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from bson import ObjectId
 from app.api.dependencies.authentication import (
     admin_permission_dependency,
     get_currently_authenticated_user,
+    authenticated_user_dependecies,
 )
 from fastapi import Depends, HTTPException, APIRouter, status
 from app.schemas.affidavit_schema import (
@@ -20,6 +22,7 @@ from app.schemas.affidavit_schema import (
     TemplateBase,
     TemplateCreate,
     TemplateCreateForm,
+    TemplateInResponse,
     document_individual_serialiser,
     document_list_serialiser,
     template_individual_serializer,
@@ -69,13 +72,13 @@ async def create_template(
 
 @router.patch(
     "/update_template/{template_id}",
-    # dependencies=[Depends(admin_permission_dependency)],
+    dependencies=[Depends(admin_permission_dependency)],
     status_code=status.HTTP_200_OK,
     response_model=GenericResponse[TemplateBase],
 )
 async def update_template(
     template_in: TemplateBase,
-    # current_user: User = Depends(get_currently_authenticated_user),
+    current_user: User = Depends(get_currently_authenticated_user),
 ):
     template_dict = {**template_in.dict(), "updated_at": datetime.utcnow()}
     existing_template = await template_collection.find_one(
@@ -111,9 +114,7 @@ async def update_template(
 )
 async def get_templates():
     try:
-        templates = await template_collection.find().to_list(
-            length=100
-        ) 
+        templates = await template_collection.find().to_list(length=100)
         if not templates:
             logger.info("No templates found")
             return create_response(
@@ -133,15 +134,12 @@ async def get_templates():
         raise HTTPException(status_code=500, detail="Error fetching templates")
 
 
-
-
-
-
-
-
-
-@router.get("/get_single_template/{template_id}")
-async def get_single_template(template_id: str):
+@router.get(
+    "/get_template/{template_id}",
+    response_model=GenericResponse[TemplateBase],
+    dependencies=[Depends(admin_permission_dependency)],
+)
+async def get_template(template_id: str):
     try:
         # Convert the string ID to ObjectId
         object_id = ObjectId(template_id)
@@ -167,7 +165,62 @@ async def get_single_template(template_id: str):
 
     # Assuming individual_serialiser is a valid function
     template_obj = template_individual_serializer(template_obj)
-    return template_obj
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{template_obj['name']} retrieved successfully",
+        data=template_obj,
+    )
+
+
+@router.get(
+    "/get_template_for_document_creation/{template_id}",
+    response_model=GenericResponse[TemplateBase],
+    dependencies=[Depends(authenticated_user_dependecies)],
+)
+async def get_template_for_document_creation(
+    template_id: str,
+):
+    try:
+        # Convert the string ID to ObjectId
+        object_id = ObjectId(template_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid ID format: {template_id}")
+
+    # Log the ObjectId
+    logging.info(f"Fetching template with ID: {object_id}")
+
+    template_obj = await template_collection.find_one({"_id": object_id})
+    if template_obj["is_disabled"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template is not available at the moment",
+        )
+
+    # Log the result of the query
+    if template_obj:
+        logging.info(f"Found template: {template_obj}")
+    else:
+        logging.info("No template found")
+
+    if not template_obj:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Template with ID {template_id} does not exist",
+        )
+
+    # Assuming individual_serialiser is a valid function
+    template_obj = template_individual_serializer(template_obj)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{template_obj['name']} retrieved successfully",
+        data=TemplateInResponse(
+            id=template_obj["id"],
+            name=template_obj["name"],
+            description=template_obj["description"],
+            content=template_obj["content"],
+            price=template_obj["price"],
+        ),
+    )
 
 
 @router.get("/get_documents")
@@ -226,20 +279,7 @@ async def create_document(document_in: DocumentBase):
         raise HTTPException(status_code=500, detail="Error creating document")
 
 
-@router.get("/get_single_template/{template_id}")
-async def get_single_template(template_id: str):
-    try:
-        object_id = ObjectId(template_id)
-    except Exception as e:
-        logger.error(f"Invalid ID format: {template_id} - {str(e)}")
-        raise HTTPException(status_code=400, detail="Invalid ID format")
 
-    template_obj = await template_collection.find_one({"_id": object_id})
-    if not template_obj:
-        logger.info(f"No template found with ID: {object_id}")
-        raise HTTPException(status_code=404, detail="Template not found")
-
-    return template_individual_serializer(template_obj)
 
 
 @router.post("/create_template_category")

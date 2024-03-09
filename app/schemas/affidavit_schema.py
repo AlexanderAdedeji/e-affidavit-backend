@@ -18,13 +18,17 @@ class TemplateContent(BaseModel):
     template_data: Optional[List[dict]]
 
 
-class TemplateBase(BaseModel):
+class TemplateInResponse(BaseModel):
     id: str
     name: str
     price: int
     description: str
-    category: str
     content: TemplateContent
+    category: str
+
+
+class TemplateBase(TemplateInResponse):
+
     is_disabled: bool
     created_by_id: str
     created_at: datetime
@@ -54,14 +58,11 @@ class DocumentBase(BaseModel):
     name: str
     template_id: str
     date: str
-    document: dict
     id: str
-    template_id: str
-    document: list
+    content: TemplateContent
     user_id: str
     commissioner_id: int
     court_id: int
-
 
 
 def safe_parse_datetime(datetime_string):
@@ -69,6 +70,7 @@ def safe_parse_datetime(datetime_string):
         return datetime.fromisoformat(datetime_string)
     except (TypeError, ValueError):
         return None
+
 
 def template_individual_serializer(data) -> dict:
     try:

@@ -35,15 +35,20 @@ class User(Base):
         uselist=False,
     )
 
-
-
     # Add more relationships as
     head_of_unit = relationship(
-        "HeadOfUnit", foreign_keys="HeadOfUnit.head_of_unit_id", back_populates="user",
+        "HeadOfUnit",
+        foreign_keys="HeadOfUnit.head_of_unit_id",
+        back_populates="user",
         uselist=False,
     )
     invited_by = relationship(
         "UserInvite", foreign_keys="[UserInvite.invited_by_id]", back_populates="user"
+    )
+    category_created_by = relationship(
+        "AffidavitCategory",
+        foreign_keys="AffidavitCategory.created_by_id",
+        back_populates="user",
     )
 
     @property

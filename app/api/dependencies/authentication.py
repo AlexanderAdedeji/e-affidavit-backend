@@ -35,6 +35,7 @@ ADMIN_USER_TYPE = settings.ADMIN_USER_TYPE
 SUPERUSER_USER_TYPE = settings.SUPERUSER_USER_TYPE
 HEAD_OF_UNIT_USER_TYPE = settings.HEAD_OF_UNIT_USER_TYPE
 COMMISSIONER_USER_TYPE = settings.COMMISSIONER_USER_TYPE
+PUBLIC_USER_TYPE = settings.PUBLIC_USER_TYPE
 
 
 class JWTHEADER(DefaultAPIKeyHeader):
@@ -107,6 +108,7 @@ class PermissionChecker:
     def __init__(self, *, allowed_user_types: List[str]):
         self.allowed_user_types = allowed_user_types + [SUPERUSER_USER_TYPE]
         logger.info(self.allowed_user_types)
+
     def __call__(self, user: User = Depends(get_currently_authenticated_user)):
         current_user_type: UserType = user.user_type
         if current_user_type.name not in self.allowed_user_types:
@@ -118,9 +120,7 @@ class PermissionChecker:
             )
 
 
-admin_permission_dependency = PermissionChecker(
-    allowed_user_types=[ADMIN_USER_TYPE]
-)
+admin_permission_dependency = PermissionChecker(allowed_user_types=[ADMIN_USER_TYPE])
 
 head_of_unit_permission_dependency = PermissionChecker(
     allowed_user_types=[HEAD_OF_UNIT_USER_TYPE]
@@ -135,6 +135,15 @@ commissioner_permission_dependency = PermissionChecker(
     allowed_user_types=[COMMISSIONER_USER_TYPE]
 )
 
+
+authenticated_user_dependecies = PermissionChecker(
+    allowed_user_types=[
+        COMMISSIONER_USER_TYPE,
+        ADMIN_USER_TYPE,
+        HEAD_OF_UNIT_USER_TYPE,
+        PUBLIC_USER_TYPE,
+    ]
+)
 
 superuser_permission_dependency = PermissionChecker(
     allowed_user_types=[SUPERUSER_USER_TYPE]
