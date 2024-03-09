@@ -82,7 +82,7 @@ async def update_template(
 ):
     template_dict = {**template_in.dict(), "updated_at": datetime.utcnow()}
     existing_template = await template_collection.find_one(
-        {"_id": template_dict["_id"]}
+        {"_id": template_dict["id"]}
     )
     if not existing_template:
 
