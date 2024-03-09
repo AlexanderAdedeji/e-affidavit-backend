@@ -81,14 +81,17 @@ async def update_template(
     current_user: User = Depends(get_currently_authenticated_user),
 ):
     template_dict = {**template_in.dict(), "updated_at": datetime.utcnow()}
+    object_id = ObjectId(template_dict["id"])
     existing_template = await template_collection.find_one(
-        {"id": template_dict["id"]}
+        {"_id": object_id}
     )
+
     if not existing_template:
 
         raise HTTPException(
             status_code=404, detail="Template does not exist"
         )
+    
     # If a template with the same name exists, update it
     update_result = await template_collection.update_one(
         {"_id": existing_template["_id"]}, {"$set": template_dict}
