@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+from typing import List
 from uuid import uuid4
 
 from loguru import logger
@@ -21,7 +22,7 @@ from app.schemas.affidavit_schema import (
     TemplateCreateForm,
     document_individual_serialiser,
     document_list_serialiser,
-    template_individual_serialiser,
+    template_individual_serializer,
     template_list_serialiser,
 )
 from app.database.sessions.mongo_client import template_collection, document_collection
@@ -49,10 +50,10 @@ async def create_template(
         raise HTTPException(
             status_code=400, detail="Template with the given name already exists"
         )
-    # template_dict = TemplateCreate(
-    #     **template_dict, created_by_id=current_user.id
-    # ).dict()
-    template_dict = TemplateCreate(**template_dict, created_by_id=uuid4()).dict()
+    template_dict = TemplateCreate(
+        **template_dict, created_by_id=current_user.id
+    ).dict()
+
     result = await template_collection.insert_one(template_dict)
     if not result.acknowledged:
         logger.error("Failed to insert template")
@@ -62,7 +63,7 @@ async def create_template(
     return create_response(
         status_code=status.HTTP_201_CREATED,
         message=f"{new_template['name']} template Created Successfully",
-        data=template_individual_serialiser(new_template),
+        data=template_individual_serializer(new_template),
     )
 
 
@@ -99,23 +100,44 @@ async def update_template(
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{updated_template['name']} template updated successfully",
-        data=template_individual_serialiser(updated_template),
+        data=template_individual_serializer(updated_template),
     )
 
 
-@router.get("/get_templates")
+@router.get(
+    "/get_templates",
+    dependencies=[Depends(admin_permission_dependency)],
+    response_model=GenericResponse[List[TemplateBase]],
+)
 async def get_templates():
     try:
         templates = await template_collection.find().to_list(
             length=100
-        )  # Set a reasonable limit
+        ) 
         if not templates:
             logger.info("No templates found")
-            return []
-        return template_list_serialiser(templates)
+            return create_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="No templates found",
+                data=[],
+            )
+
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Templates retrieved successfully",
+            data=template_list_serialiser(templates),
+        )
+
     except Exception as e:
         logger.error(f"Error fetching templates: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching templates")
+
+
+
+
+
+
+
 
 
 @router.get("/get_single_template/{template_id}")
@@ -144,7 +166,7 @@ async def get_single_template(template_id: str):
         )
 
     # Assuming individual_serialiser is a valid function
-    template_obj = template_individual_serialiser(template_obj)
+    template_obj = template_individual_serializer(template_obj)
     return template_obj
 
 
@@ -217,7 +239,7 @@ async def get_single_template(template_id: str):
         logger.info(f"No template found with ID: {object_id}")
         raise HTTPException(status_code=404, detail="Template not found")
 
-    return template_individual_serialiser(template_obj)
+    return template_individual_serializer(template_obj)
 
 
 @router.post("/create_template_category")

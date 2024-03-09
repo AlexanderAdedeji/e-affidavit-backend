@@ -36,7 +36,7 @@ class TemplateBase(BaseModel):
 
 class TemplateCreateForm(BaseModel):
     name: str
-    content:TemplateContent
+    content: TemplateContent
     price: int
     description: str
     category: str
@@ -63,24 +63,48 @@ class DocumentBase(BaseModel):
     court_id: int
 
 
-def template_individual_serialiser(data) -> dict:
+
+def safe_parse_datetime(datetime_string):
     try:
+        return datetime.fromisoformat(datetime_string)
+    except (TypeError, ValueError):
+        return None
+
+def template_individual_serializer(data) -> dict:
+    try:
+        # Convert timestamps to datetime objects
+        created_at = data.get("created_at")
+        updated_at = data.get("updated_at")
+        # if created_at:
+        #     created_at = datetime.fromisoformat(created_at)
+        # if updated_at:
+        #     updated_at = datetime.fromisoformat(updated_at)
+
+        # Serialize TemplateContent
+        content_data = data.get("content", {})
+        template_content = {
+            "fields": [
+                Field(**field).dict() for field in content_data.get("fields", [])
+            ],
+            "template_data": content_data.get("template_data", []),
+        }
+
+        # Complete serialization
         return {
             "id": str(data["_id"]),
             "name": data.get("name", ""),
             "price": data.get("price", 0),
             "category": data.get("category", ""),
             "description": data.get("description", ""),
+            "content": template_content,  # Updated to match TemplateContent structure
             "is_disabled": data.get("is_disabled", False),
-            "fields": [Field(**field).dict() for field in data.get("fields", [])],
-            "created_at": data.get("created_at", ""),
-            "updated_at": data.get("updated_at", ""),
+            "created_at": created_at,
+            "updated_at": updated_at,
             "created_by_id": data.get("created_by_id", ""),
-            "content": data.get("content", ""),
         }
     except KeyError as e:
         logging.error(f"Missing key in template data: {e}")
-        raise ServerException()
+        raise
 
 
 def document_individual_serialiser(data) -> dict:
@@ -97,9 +121,9 @@ def document_individual_serialiser(data) -> dict:
         return {}
 
 
-def template_list_serialiser(data) -> list:
-    return [template_individual_serialiser(item) for item in data]
+def template_list_serialiser(templates) -> list:
+    return [template_individual_serializer(template) for template in templates]
 
 
-def document_list_serialiser(data) -> list:
-    return [document_individual_serialiser(item) for item in data]
+def document_list_serialiser(documents) -> list:
+    return [document_individual_serialiser(document) for document in documents]
