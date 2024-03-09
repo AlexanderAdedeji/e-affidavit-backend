@@ -34,7 +34,7 @@ router = APIRouter()
     "/create_template",
     dependencies=[Depends(admin_permission_dependency)],
     status_code=status.HTTP_201_CREATED,
-    response_model=GenericResponse[TemplateBase]
+    response_model=GenericResponse[TemplateBase],
 )
 async def create_template(
     template_in: TemplateCreateForm,
@@ -52,9 +52,7 @@ async def create_template(
     # template_dict = TemplateCreate(
     #     **template_dict, created_by_id=current_user.id
     # ).dict()
-    template_dict = TemplateCreate(
-        **template_dict, created_by_id=uuid4()
-    ).dict()
+    template_dict = TemplateCreate(**template_dict, created_by_id=uuid4()).dict()
     result = await template_collection.insert_one(template_dict)
     if not result.acknowledged:
         logger.error("Failed to insert template")
@@ -68,17 +66,17 @@ async def create_template(
     )
 
 
-@router.put(
+@router.patch(
     "/update_template/{template_id}",
     # dependencies=[Depends(admin_permission_dependency)],
     status_code=status.HTTP_200_OK,
-response_model=GenericResponse[TemplateBase]
+    response_model=GenericResponse[TemplateBase],
 )
 async def update_template(
     template_in: TemplateBase,
     # current_user: User = Depends(get_currently_authenticated_user),
 ):
-    template_dict ={ **template_in.dict(),'updated_at': datetime.utcnow()}
+    template_dict = {**template_in.dict(), "updated_at": datetime.utcnow()}
     existing_template = await template_collection.find_one(
         {"_id": template_dict["_id"]}
     )
@@ -103,7 +101,6 @@ async def update_template(
         message=f"{updated_template['name']} template updated successfully",
         data=template_individual_serialiser(updated_template),
     )
-
 
 
 @router.get("/get_templates")
@@ -241,3 +238,12 @@ def get_templates_by_category(category: str, db: Session = Depends(get_db)):
 @router.get("/templates/{template_id}/documents")
 def get_documents_by_templates(template_id: str, db: Session = Depends(get_db)):
     return []
+
+
+@router.get("/get_attested_affidavit_counts_by_court")
+def get_attested_affidavit_counts_by_court(
+    month: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    return {"hello": "World"}

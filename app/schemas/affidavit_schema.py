@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel
 
@@ -9,8 +9,13 @@ from app.core.errors.exceptions import ServerException
 
 class Field(BaseModel):
     name: str
-    feield_type: str
+    field_type: str
     required: bool
+
+
+class TemplateContent(BaseModel):
+    fields: List[Field]
+    template_data: Optional[List[dict]]
 
 
 class TemplateBase(BaseModel):
@@ -19,26 +24,28 @@ class TemplateBase(BaseModel):
     price: int
     description: str
     category: str
-    fields: List[Field]
-    template_data: list
+    content: TemplateContent
     is_disabled: bool
     created_by_id: str
-    created_at: datetime 
+    created_at: datetime
     updated_at: datetime
+
     class Config:
         arbitrary_types_allowed = True
 
 
 class TemplateCreateForm(BaseModel):
-    name:str
-    fields:List[Field]
-    price:int
-    description:str
-    category:str
+    name: str
+    content:TemplateContent
+    price: int
+    description: str
+    category: str
+
 
 class TemplateCreate(TemplateCreateForm):
-    created_by_id:str
-    created_at:datetime = datetime.datetime.now(datetime.timezone.utc)
+    created_by_id: str
+    created_at: datetime = datetime.datetime.now(datetime.timezone.utc)
+
     class Config:
         arbitrary_types_allowed = True
 
@@ -62,13 +69,13 @@ def template_individual_serialiser(data) -> dict:
             "id": str(data["_id"]),
             "name": data.get("name", ""),
             "price": data.get("price", 0),
-            "category":data.get("category",""),
-            "description":data.get("description", ""),
-            "is_disabled":data.get("is_disabled", False),
-            "fields": [Field(**field).dict() for field in data.get('fields',[])],
+            "category": data.get("category", ""),
+            "description": data.get("description", ""),
+            "is_disabled": data.get("is_disabled", False),
+            "fields": [Field(**field).dict() for field in data.get("fields", [])],
             "created_at": data.get("created_at", ""),
             "updated_at": data.get("updated_at", ""),
-            "created_by_id":data.get("created_by_id",""),
+            "created_by_id": data.get("created_by_id", ""),
             "content": data.get("content", ""),
         }
     except KeyError as e:
