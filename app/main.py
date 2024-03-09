@@ -17,7 +17,7 @@ from app.api.routes.routes import router as global_router
 Base.metadata.create_all(engine)
 # CORS configuration
 origins = ["*"]  # Replace with your allowed origins
-methods = ["GET", "POST", "PUT", "DELETE"]  # Specify allowed methods
+methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  # Specify allowed methods
 
 # Security middleware (example)
 security_middleware = Middleware(
