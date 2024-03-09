@@ -23,6 +23,7 @@ from app.api.dependencies.authentication import (
     get_currently_authenticated_user,
 )
 from app.models.court_system_models import Court, Jurisdiction, State
+from app.repositories.head_of_unit_repo import head_of_unit_repo
 from app.schemas.court_system_schema import (
     CourtSystemBase,
     CourtSystemInDB,
@@ -318,10 +319,19 @@ def get_jurisdiction(
     response_model=GenericResponse[List[CourtSystemInDB]],
     dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
 )
-def get_all_courts(db: Session = Depends(get_db)):
+def get_all_courts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
     """Return a list of all courts"""
     try:
-        courts = court_repo.get_all(db)
+        courts = []
+        if current_user.user_type.name == settings.HEAD_OF_UNIT_USER_TYPE:
+            courts = head_of_unit_repo.get_courts_under_jurisdiction(
+                db=db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+            )
+        else:
+            courts = court_repo.get_all(db)
         return create_response(
             status_code=status.HTTP_200_OK,
             message="Courts Retrieved Successfully",
@@ -384,8 +394,9 @@ def get__court(
             state=CourtSystemInDB(
                 id=court.jurisdiction.state.id, name=court.jurisdiction.state.name
             ),
-            Jurisdiction=CourtSystemInDB(id=court.jurisdiction.id, name=court.jurisdiction.name)
-            ,
+            Jurisdiction=CourtSystemInDB(
+                id=court.jurisdiction.id, name=court.jurisdiction.name
+            ),
             head_of_unit=SlimUserInResponse(
                 id=court.jurisdiction.head_of_unit.id,
                 first_name=court.jurisdiction.head_of_unit.user.first_name,

@@ -28,4 +28,7 @@ class HeadOfUnitRepositories(Base[HeadOfUnit]):
         commissioner_profiles = db.query(CommissionerProfile).filter(CommissionerProfile.court_id.in_(court_ids)).all()
 
         return commissioner_profiles
+    def get_courts_under_jurisdiction(self, db: Session, jurisdiction_id: str) -> List[CommissionerProfile]:
+        courts = db.query(Court).filter(Court.jurisdiction_id == jurisdiction_id).all()
+        return courts
 head_of_unit_repo = HeadOfUnitRepositories(HeadOfUnit)
