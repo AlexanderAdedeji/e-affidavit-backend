@@ -8,8 +8,9 @@ from app.core.errors.exceptions import ServerException
 
 
 class Field(BaseModel):
+    id:str
     name: str
-    field_type: str
+    type: str
     required: bool
 
 
