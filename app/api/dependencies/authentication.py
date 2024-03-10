@@ -145,6 +145,8 @@ authenticated_user_dependecies = PermissionChecker(
     ]
 )
 
+
+
 superuser_permission_dependency = PermissionChecker(
     allowed_user_types=[SUPERUSER_USER_TYPE]
 )

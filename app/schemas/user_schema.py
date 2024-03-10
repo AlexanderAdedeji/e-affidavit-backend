@@ -104,6 +104,10 @@ class CommissionerProfileBase(UserBase):
     is_active:bool
     court: str
  
+class CommissionerProfileCreate(BaseModel):
+    court_id:str
+    commissioner_id:str
+    created_by_id:str
 
 
 class HeadOfUnitBase(BaseModel):

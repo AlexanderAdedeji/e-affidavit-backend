@@ -24,6 +24,7 @@ from app.schemas.user_schema import (
     CommissionerAttestation,
     CommissionerCreate,
     CommissionerProfileBase,
+    CommissionerProfileCreate,
     FullCommissionerInResponse,
     FullCommissionerProfile,
     OperationsCreateForm,
@@ -39,6 +40,79 @@ from commonLib.response.response_schema import GenericResponse, create_response
 
 
 router = APIRouter()
+
+
+
+
+@router.get(
+    "/",
+    status_code=status.HTTP_200_OK,
+    # response_model=GenericResponse[List[CommissionerProfileBase]],
+    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
+)
+def get_commissioners(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    commissioners = []
+    if current_user.user_type.name == settings.HEAD_OF_UNIT_USER_TYPE:
+
+        commissioner_profiles = head_of_unit_repo.get_commissioners_under_jurisdiction(
+            db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+        )
+        commissioners = [commissioner.user for commissioner in commissioner_profiles]
+    else:
+        user_type = user_type_repo.get_by_name(
+            db=db, name=settings.COMMISSIONER_USER_TYPE
+        )
+        if user_type is None:
+            raise HTTPException(status_code=500)
+        commissioners = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Commissioners retireved successfully",
+        data=[
+            CommissionerProfileBase(
+                id=commissioner.id,
+                first_name=commissioner.first_name,
+                last_name=commissioner.last_name,
+                email=commissioner.email,
+                court=commissioner.commissioner_profile.court.name,
+                is_active=commissioner.is_active,
+            )
+            for commissioner in commissioners
+        ],
+    )
+
+@router.get(
+    "/{commissioner_id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
+    response_model=GenericResponse[FullCommissionerInResponse],
+)
+def get_commissioner(commissioner_id: str, db: Session = Depends(get_db)):
+    db_commissioner = user_repo.get(db=db, id=commissioner_id)
+    if (
+        db_commissioner is None
+        or db_commissioner.user_type.name != settings.COMMISSIONER_USER_TYPE
+    ):
+        raise HTTPException(status_code=404, detail="Commissioner not found.")
+    
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Profile retrieved successfully",
+        data=FullCommissionerInResponse(
+            first_name=db_commissioner.first_name,
+            last_name=db_commissioner.last_name,
+            email=db_commissioner.email,
+            is_active=db_commissioner.is_active,
+            court=CourtSystemInDB(
+                id=db_commissioner.commissioner_profile.court.id,
+                name=db_commissioner.commissioner_profile.court.name,
+            ),
+        ),
+    )
+
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -81,7 +155,7 @@ async def create_commissioner(
     try:
         db_commissioner = user_repo.create(db=db, obj_in=commissioner_obj)
         if db_commissioner:
-            commissioner_profile_in = CommissionerProfileBase(
+            commissioner_profile_in = CommissionerProfileCreate(
                 commissioner_id=db_commissioner.id,
                 court_id=db_invite.court_id,
                 created_by_id=db_invite.invited_by_id,
@@ -109,75 +183,6 @@ async def create_commissioner(
         logger.error(e)
 
 
-@router.get(
-    "/{commissioner_id}",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
-    response_model=GenericResponse[FullCommissionerInResponse],
-)
-def get_commissioner(commissioner_id: str, db: Session = Depends(get_db)):
-    db_commissioner = user_repo.get(db=db, id=commissioner_id)
-    if (
-        db_commissioner is None
-        or db_commissioner.user_type.name != settings.COMMISSIONER_USER_TYPE
-    ):
-        raise HTTPException(status_code=404, detail="Commissioner not found.")
-    
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message="Profile retrieved successfully",
-        data=FullCommissionerInResponse(
-            first_name=db_commissioner.first_name,
-            last_name=db_commissioner.last_name,
-            email=db_commissioner.email,
-            is_active=db_commissioner.is_active,
-            court=CourtSystemInDB(
-                id=db_commissioner.commissioner_profile.court.id,
-                name=db_commissioner.commissioner_profile.court.name,
-            ),
-        ),
-    )
-
-
-@router.get(
-    "/",
-    status_code=status.HTTP_200_OK,
-    response_model=GenericResponse[List[CommissionerProfileBase]],
-    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
-)
-def get_commissioners(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_currently_authenticated_user),
-):
-    commissioners = []
-    if current_user.user_type.name == settings.HEAD_OF_UNIT_USER_TYPE:
-
-        commissioner_profiles = head_of_unit_repo.get_commissioners_under_jurisdiction(
-            db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
-        )
-        commissioners = [commissioner.user for commissioner in commissioner_profiles]
-    else:
-        user_type = user_type_repo.get_by_name(
-            db=db, name=settings.COMMISSIONER_USER_TYPE
-        )
-        if user_type is None:
-            raise HTTPException(status_code=500)
-        commissioners = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message="Commissioners retireved successfully",
-        data=[
-            CommissionerProfileBase(
-                id=commissioner.id,
-                first_name=commissioner.first_name,
-                last_name=commissioner.last_name,
-                email=commissioner.email,
-                court=commissioner.commissioner_profile.court.name,
-                is_active=commissioner.is_active,
-            )
-            for commissioner in commissioners
-        ],
-    )
 
 
 @router.get(
