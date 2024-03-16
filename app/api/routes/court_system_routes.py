@@ -316,7 +316,7 @@ def get_jurisdiction(
 @router.get(
     "/courts",
     status_code=status.HTTP_200_OK,
-    response_model=GenericResponse[List[CourtSystemInDB]],
+    response_model=GenericResponse[List[CourtBase]],
     dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
 )
 def get_all_courts(
@@ -335,8 +335,39 @@ def get_all_courts(
         return create_response(
             status_code=status.HTTP_200_OK,
             message="Courts Retrieved Successfully",
-            data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
+            # data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
+            data=[
+                CourtBase(
+                    id=court.id,
+                    date_created=court.CreatedAt,
+                    name=court.name,
+                    state=CourtSystemInDB(
+                        id=court.jurisdiction.state.id,
+                        name=court.jurisdiction.state.name,
+                    ),
+                    Jurisdiction=CourtSystemInDB(
+                        id=court.jurisdiction.id, name=court.jurisdiction.name
+                    ),
+                    head_of_unit=SlimUserInResponse(
+                        id=court.jurisdiction.head_of_unit.id,
+                        first_name=court.jurisdiction.head_of_unit.user.first_name,
+                        last_name=court.jurisdiction.head_of_unit.user.last_name,
+                        email=court.jurisdiction.head_of_unit.user.email,
+                    ),
+                    commissioners=[
+                        SlimUserInResponse(
+                            id=commissioner.user.id,
+                            first_name=commissioner.user.first_name,
+                            last_name=commissioner.user.last_name,
+                            email=commissioner.user.email,
+                        )
+                        for commissioner in court.commissioner_profile
+                    ],
+                )
+                for court in courts
+            ],
         )
+
     except Exception as e:
         logger.error(e)
 

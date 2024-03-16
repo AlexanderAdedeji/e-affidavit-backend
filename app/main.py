@@ -37,7 +37,7 @@ def create_application_instance() -> FastAPI:
         logger.info(f"Request: {request.method} {request.url}")
         return JSONResponse(
             status_code=exc.status_code,
-            content={"detail": f"HTTP error occurred: {exc.detail}"},
+            content={"detail": f"{exc.detail}"},
         )
 
     @app.middleware("http")

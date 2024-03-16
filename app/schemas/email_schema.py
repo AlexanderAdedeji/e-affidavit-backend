@@ -40,3 +40,10 @@ class UserDeactivationTemplateVariables(EmailTemplateVariables):
 
 class UserCreationTemplateVariables(EmailTemplateVariables):
     pass
+
+
+class OperationsInviteTemplateVariables():
+    invite_url:str
+    name:str
+    organisation:str
+    user_role:str

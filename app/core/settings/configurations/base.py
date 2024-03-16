@@ -30,26 +30,19 @@ class CustomSettings(BaseSettings):
     CREATE_ACCOUNT_TEMPLATE_ID: str
     VERIFY_EMAIL_TEMPLATE_ID: str
     RESET_TOKEN_EXPIRE_MINUTES: str
-    SUPERUSER_USER_TYPE:str
-    ADMIN_USER_TYPE:str
-    COMMISSIONER_USER_TYPE:str
-    HEAD_OF_UNIT_USER_TYPE:str
-    PUBLIC_USER_TYPE:str
-    
-    JWT_EXPIRE_MINUTES:int
-
-
+    SUPERUSER_USER_TYPE: str
+    ADMIN_USER_TYPE: str
+    COMMISSIONER_USER_TYPE: str
+    HEAD_OF_UNIT_USER_TYPE: str
+    PUBLIC_USER_TYPE: str
+    PUBLIC_FRONTEND_BASE_URL: str
+    COURT_SYSTEM_FRONTEND_BASE_URL: str
+    ADMIN_FRONTEND_BASE_URL: str
+    VERIFY_EMAIL_LINK: str
+    OPERATIONS_INVITE_TEMPLATE_ID: str
+    JWT_EXPIRE_MINUTES: int
 
     class Config:
-        logger.info("Environment file loaded from %s.", Path(__file__).parent)
-        # Calculate the path to the .env file relative to the current file
-        base_dir = os.path.dirname(
-            os.path.dirname(__file__)
-        )  # This goes up two levels from the current file
+        base_dir = os.path.dirname(os.path.dirname(__file__))
         env_file = os.path.join(base_dir, "env_files", ".env")
         env_file_encoding = "utf-8"
-
-        print(base_dir, env_file)
-
-
-# To access the settings, you can use `CustomSettings().<setting>` like this

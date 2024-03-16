@@ -8,7 +8,7 @@ from app.core.errors.exceptions import ServerException
 
 
 class Field(BaseModel):
-    id:str
+    id: str
     name: str
     type: str
     required: bool
@@ -62,8 +62,15 @@ class DocumentBase(BaseModel):
     id: str
     content: TemplateContent
     user_id: str
-    commissioner_id: int
-    court_id: int
+    commissioner_id: str
+    court_id: str
+    is_attested: bool
+    attestation_date: Optional[datetime.datetime]
+    status: str
+    payment_ref:str
+    price:str
+    created_at:str
+    updated_at:str
 
 
 def safe_parse_datetime(datetime_string):

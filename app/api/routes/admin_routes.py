@@ -1,7 +1,10 @@
 from typing import List
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
+from app.core.services.invitation import process_user_invite
+from app.schemas.stats_schema import AdminDashboardStat
+from postmarker import core
 from sqlalchemy.orm import Session
 from app.api.dependencies.db import get_db
 from app.core.errors.exceptions import (
@@ -25,9 +28,12 @@ from app.api.dependencies.authentication import (
     admin_permission_dependency,
     get_token_details,
 )
+from app.schemas.court_system_schema import CourtSystemInDB
+from app.schemas.email_schema import OperationsInviteTemplateVariables
 from app.schemas.user_schema import (
     AcceptedInviteResponse,
     CreateInvite,
+    FullCommissionerInResponse,
     InviteOperationsForm,
     OperationsCreateForm,
     UserCreate,
@@ -42,42 +48,71 @@ from commonLib.response.response_schema import create_response, GenericResponse
 router = APIRouter()
 
 
+@router.get("/get_dashboard_stats", dependencies=[Depends(admin_permission_dependency)])
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    """
+    This endpoint returns the number of users and invites in the system."""
+    total_affidavits = 10
+    total_users = 10
+    total_commissioner = 10
+    total_revenue = 10
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Dashboard Stats fetched successfully.",
+        data=AdminDashboardStat(
+            total_affidavits=total_affidavits,
+            total_users=total_users,
+            total_commissioners=total_commissioner,
+            total_revenue=total_revenue,
+        ),
+    )
+
+
 @router.post("/invite_personel")
 async def invite_users(
     users: List[InviteOperationsForm],
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_currently_authenticated_user),
     db: Session = Depends(get_db),
 ):
-
     for user in users:
-        invite_id = str(uuid.uuid4())
-        token = generate_invitation_token(id=invite_id)
-        invite_in = CreateInvite(
-            id=invite_id,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            user_type_id=user.user_type_id,
-            email=user.email,
-            court_id=user.court_id if user.court_id else None,
-            jurisdiction_id=user.jurisdiction_id if user.jurisdiction_id else None,
-            invited_by_id=current_user.id,
-            token=token,
-        )
+        await process_user_invite(user, current_user, db, background_tasks)
 
-        try:
-            new_invite = user_invite_repo.create(db, obj_in=invite_in)
-            # Send invitation email
-            # email_service.send_email_with_template(user.email, token)
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Data intergrity Error: Please check the data you are passing",
-            )
     return create_response(
         status_code=status.HTTP_200_OK,
-        message="Users Invited  Successfully.",
+        message="Users invited successfully.",
     )
+
+
+# @router.get(
+#     "/{commissioner_id}",
+#     status_code=status.HTTP_200_OK,
+#     dependencies=[Depends(admin_permission_dependency)],
+#     response_model=GenericResponse[FullCommissionerInResponse],
+# )
+# def get_commissioner(commissioner_id: str, db: Session = Depends(get_db)):
+#     db_commissioner = user_repo.get(db=db, id=commissioner_id)
+#     if (
+#         db_commissioner is None
+#         or db_commissioner.user_type.name != settings.COMMISSIONER_USER_TYPE
+#     ):
+#         raise HTTPException(status_code=404, detail="Commissioner not found.")
+
+#     return create_response(
+#         status_code=status.HTTP_200_OK,
+#         message="Profile retrieved successfully",
+#         data=FullCommissionerInResponse(
+#             first_name=db_commissioner.first_name,
+#             last_name=db_commissioner.last_name,
+#             email=db_commissioner.email,
+#             is_active=db_commissioner.is_active,
+#             court=CourtSystemInDB(
+#                 id=db_commissioner.commissioner_profile.court.id,
+#                 name=db_commissioner.commissioner_profile.court.name,
+#             ),
+#         ),
+#     )
 
 
 @router.get(
@@ -87,7 +122,7 @@ async def invite_users(
 )
 async def accept_invite(token: str, db: Session = Depends(get_db)):
 
-    invite_info = get_token_details(token, get_all_details_from_token)
+    # invite_info = get_token_details(token, get_all_details_from_token)
 
     try:
 
@@ -146,7 +181,6 @@ def get_all_admins(db: Session = Depends(get_db)):
                     name=admin.user_type.name,
                 ),
                 verify_token="",
-           
             )
             for admin in admins
         ],
@@ -172,7 +206,6 @@ def get_admin(id: str, db: Session = Depends(get_db)):
             id=admin.user_type.id,
             name=admin.user_type.name,
         ),
-
         verify_token="",
     )
 
@@ -220,7 +253,7 @@ def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
                 user_type=UserTypeInDB(
                     name=new_admin.user_type.name, id=new_admin.user_type.id
                 ),
-                               is_active=new_admin.is_active,
+                is_active=new_admin.is_active,
             ),
         )
     except Exception as e:

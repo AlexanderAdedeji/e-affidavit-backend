@@ -42,8 +42,6 @@ from commonLib.response.response_schema import GenericResponse, create_response
 router = APIRouter()
 
 
-
-
 @router.get(
     "/",
     status_code=status.HTTP_200_OK,
@@ -83,36 +81,6 @@ def get_commissioners(
             for commissioner in commissioners
         ],
     )
-
-@router.get(
-    "/{commissioner_id}",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
-    response_model=GenericResponse[FullCommissionerInResponse],
-)
-def get_commissioner(commissioner_id: str, db: Session = Depends(get_db)):
-    db_commissioner = user_repo.get(db=db, id=commissioner_id)
-    if (
-        db_commissioner is None
-        or db_commissioner.user_type.name != settings.COMMISSIONER_USER_TYPE
-    ):
-        raise HTTPException(status_code=404, detail="Commissioner not found.")
-    
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message="Profile retrieved successfully",
-        data=FullCommissionerInResponse(
-            first_name=db_commissioner.first_name,
-            last_name=db_commissioner.last_name,
-            email=db_commissioner.email,
-            is_active=db_commissioner.is_active,
-            court=CourtSystemInDB(
-                id=db_commissioner.commissioner_profile.court.id,
-                name=db_commissioner.commissioner_profile.court.name,
-            ),
-        ),
-    )
-
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -183,8 +151,6 @@ async def create_commissioner(
         logger.error(e)
 
 
-
-
 @router.get(
     "/me",
     status_code=status.HTTP_200_OK,
@@ -200,6 +166,9 @@ def get_current_commissioner(
     You send the token in as a header of the form \n
     <b>Authorization</b> : 'Token <b> {JWT} </b>'
     """
+
+    if current_user.user_type.name is not settings.COMMISSIONER_USER_TYPE:
+        raise UnauthorizedEndpointException(detail=f"You do not have access")
 
     return create_response(
         status_code=status.HTTP_200_OK,
@@ -243,19 +212,89 @@ def create_attestation(
 
 @router.put(
     "/activate_commissioner/{commissioner_id}",
-    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)]
+    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
 )
-def activate_user(
-    commissioner_id:str,
-    db:Session = Depends(get_db)
-    
-    
-):
+def activate_user(commissioner_id: str, db: Session = Depends(get_db)):
     commissioner = user_repo.get(db, id=commissioner_id)
     if not commissioner:
         raise DoesNotExistException(detail="Commissioner does not exist")
     if commissioner.is_active:
-        raise  HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account is already active.")
-    user_repo.activate(db, user=commissioner)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account is already active.",
+        )
+    user_repo.activate(db, db_obj=commissioner)
 
-    return  {"message":"The account has been reactivated"}
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{commissioner.first_name } {commissioner.last_name} activated successfully",
+    )
+
+
+@router.put(
+    "/deactivate_commissioner/{commissioner_id}",
+    dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
+)
+def deactivate_user(commissioner_id: str, db: Session = Depends(get_db)):
+    commissioner = user_repo.get(db, id=commissioner_id)
+    if not commissioner:
+        raise DoesNotExistException(detail="Commissioner does not exist")
+    if not commissioner.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account is already in-active.",
+        )
+    user_repo.deactivate(db, db_obj=commissioner)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{commissioner.first_name } {commissioner.last_name} de-activated successfully",
+    )
+
+
+@router.get("/search_document")
+def search_document(
+    current_user: User = Depends(get_currently_authenticated_user),
+) -> UserInResponse:
+    """
+    This is used to retrieve the currently logged-in user's profile.
+    You need to send a token in and it returns a full profile of the currently logged in user.
+    You send the token in as a header of the form \n
+    <b>Authorization</b> : 'Token <b> {JWT} </b>'
+    """
+    return UserInResponse(
+        id=current_user.id,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        email=current_user.email,
+        is_active=current_user.is_active,
+        user_type=UserTypeInDB(
+            id=current_user.user_type.id,
+            name=current_user.user_type.name,
+        ),
+        verify_token="",
+    )
+
+
+@router.get("/attest_document")
+def attest_document(
+    current_user: User = Depends(get_currently_authenticated_user),
+) -> UserInResponse:
+    """
+    This is used to retrieve the currently logged-in user's profile.
+    You need to send a token in and it returns a full profile of the currently logged in user.
+    You send the token in as a header of the form \n
+    <b>Authorization</b> : 'Token <b> {JWT} </b>'
+    """
+    return UserInResponse(
+        id=current_user.id,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        email=current_user.email,
+        is_active=current_user.is_active,
+        user_type=UserTypeInDB(
+            id=current_user.user_type.id,
+            name=current_user.user_type.name,
+        ),
+        verify_token="",
+    )

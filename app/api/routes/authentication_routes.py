@@ -14,7 +14,7 @@ from app.core.errors.exceptions import (
 )
 from app.core.services.jwt import get_user_email_from_token
 from app.repositories.user_repo import user_repo
-from app.schemas.email_schema import UserCreationTemplateVariables
+from app.schemas.email_schema import ResetPasswordEmailTemplateVariables, UserCreationTemplateVariables
 
 from app.schemas.user_schema import (
     ResetPasswordSchema,
@@ -54,30 +54,29 @@ def login(
     db: Session = Depends(get_db),
 ):
     user = check_if_user_exist(db, user_in=user_login)
-    
 
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
     if not user.is_active:
-        raise DisallowedLoginException(detail=error_strings.INACTIVE_USER_ERROR)
+        raise HTTPException(detail=error_strings.INACTIVE_USER_ERROR)
 
     template_dict = UserCreationTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
     ).dict()
 
-    background_tasks.add_task(
-        email_service.send_email_with_template,
-        client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
+    email_service.send_email_with_template(
+        db=db,
         template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
         template_dict=template_dict,
         recipient=user.email,
+        background_tasks=background_tasks
     )
 
     token = user.generate_jwt()
     return create_response(
         data=UserWithToken(
             first_name=user.first_name,
-            last_name= user.last_name,
+            last_name=user.last_name,
             email=user.email,
             token=token,
             user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
@@ -173,22 +172,22 @@ def forgot_password(
         )
 
     reset_jwt_token = user_repo.create_verification_token(db, email=user.email)
-    # template_dict = ResetPasswordEmailTemplateVariables(
-    #     name=f"{user.first_name} {user.last_name}",
-    #     reset_link=f"{FRONTEND_BASE_URL}{RESET_PASSWORD_URL}={reset_jwt_token}",
-    # ).dict()
-    # background_task.add_task(
-    #     send_email_with_template,
-    #     client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
-    #     # template_id=RESET_PASSWORD_TEMPLATE_ID,
-    #     template_id=VERIFY_EMAIL_TEMPLATE_ID,
-    #     template_dict=template_dict,
-    #     recipient=user.email,
-    # )
+    template_dict = ResetPasswordEmailTemplateVariables(
+        name=f"{user.first_name} {user.last_name}",
+        reset_link=f"{"FRONTEND_BASE_URL"}{"RESET_PASSWORD_URL"}={reset_jwt_token}",
+    ).dict()
+    email_service.send_email_with_template(
+        # template_id=RESET_PASSWORD_TEMPLATE_ID,
+        template_id="VERIFY_EMAIL_TEMPLATE_ID",
+        template_dict=template_dict,
+        recipient=user.email,
+    )
+
+  
 
     return {
         "message": "Password reset link sent successfully",
-        "token":reset_jwt_token
+        "token": reset_jwt_token,
     }
 
 
