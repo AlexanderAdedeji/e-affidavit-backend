@@ -39,9 +39,9 @@ class EmailService:
             ),
         )
 
-        background_tasks.add_task(
-            self._send_email_with_template, email=email, template_dict=template_dict
-        )
+        # background_tasks.add_task(
+        #     self._send_email_with_template, email=email, template_dict=template_dict
+        # )
 
     async def _send_email_with_template(
         self, email: Email, template_dict: Dict[str, Any]

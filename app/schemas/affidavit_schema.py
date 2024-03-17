@@ -3,6 +3,7 @@ import logging
 from typing import List, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel
+from bson import ObjectId
 
 from app.core.errors.exceptions import ServerException
 
@@ -58,19 +59,42 @@ class TemplateCreate(TemplateCreateForm):
 class DocumentBase(BaseModel):
     name: str
     template_id: str
-    date: str
     id: str
-    content: TemplateContent
     user_id: str
     commissioner_id: str
-    court_id: str
     is_attested: bool
     attestation_date: Optional[datetime.datetime]
     status: str
-    payment_ref:str
-    price:str
-    created_at:str
-    updated_at:str
+    payment_ref: str
+    created_at: str
+    updated_at: str
+
+
+class DocumentCreateForm(BaseModel):
+    document_data: dict
+
+    template_id: str
+    court_id: str
+
+
+class SlimDocumentInResponse(BaseModel):
+    id: str
+    name: str
+    court: str
+    status: str
+    created_at: datetime.datetime
+    template: str
+
+
+class DocumentCreate(DocumentCreateForm):
+    created_by_id: str
+    name: str
+    qr_code: str
+    created_at: datetime = datetime.datetime.now(datetime.timezone.utc)
+    status: str
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 def safe_parse_datetime(datetime_string):
@@ -82,15 +106,8 @@ def safe_parse_datetime(datetime_string):
 
 def template_individual_serializer(data) -> dict:
     try:
-        # Convert timestamps to datetime objects
         created_at = data.get("created_at")
         updated_at = data.get("updated_at")
-        # if created_at:
-        #     created_at = datetime.fromisoformat(created_at)
-        # if updated_at:
-        #     updated_at = datetime.fromisoformat(updated_at)
-
-        # Serialize TemplateContent
         content_data = data.get("content", {})
         template_content = {
             "fields": [
@@ -117,7 +134,10 @@ def template_individual_serializer(data) -> dict:
         raise
 
 
-def document_individual_serialiser(data) -> dict:
+def document_individual_serializer(data) -> dict:
+    created_at = data.get("created_at")
+    updated_at = data.get("updated_at")
+    attestation_date = data.get("attestation_date")
     try:
         return {
             "id": str(data["_id"]),
@@ -125,10 +145,35 @@ def document_individual_serialiser(data) -> dict:
             "date": data.get("date", ""),
             "document": data.get("document", {}),
             "template_id": str(data.get("templateId", "")),
+            "created_by_id": data.get("created_by_id", ""),
+            "created_at": created_at,
+            "updated_at": updated_at,
+            "commissioner_id": data.get("commissioner_id", ""),
+            "is_attested": bool(data.get("isAttested", False)),
+            "attestation_date": attestation_date,
+            "status": data.get("status"),
+            "payment_ref": data.get("payment_ref", ""),
+            "qr_code: str": data.get("qr_code: str", ""),
         }
     except KeyError as e:
         logging.error(f"Missing key in document data: {e}")
         return {}
+
+
+def serialize_mongo_document(document):
+    if isinstance(document, list):
+        return [serialize_mongo_document(doc) for doc in document]
+    if not isinstance(document, dict):
+        return document
+    serialized_document = {}
+    for key, value in document.items():
+        if isinstance(value, ObjectId):
+            serialized_document[key] = str(value)
+        elif isinstance(value, (dict, list)):
+            serialized_document[key] = serialize_mongo_document(value)
+        else:
+            serialized_document[key] = value
+    return serialized_document
 
 
 def template_list_serialiser(templates) -> list:
@@ -136,4 +181,4 @@ def template_list_serialiser(templates) -> list:
 
 
 def document_list_serialiser(documents) -> list:
-    return [document_individual_serialiser(document) for document in documents]
+    return [document_individual_serializer(document) for document in documents]

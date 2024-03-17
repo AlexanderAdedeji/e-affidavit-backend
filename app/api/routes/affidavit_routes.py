@@ -1,29 +1,37 @@
+from base64 import encode
 from datetime import datetime
+from io import BytesIO
 import logging
-from typing import List
+import random
+import string
+from typing import Any, List
 from uuid import uuid4
-
 from loguru import logger
 from app.api.dependencies.db import get_db
+from app.core.services.utils.utils import (
+    generate_document_name,
+    generate_qr_code_base64,
+)
 from app.models.user_model import User
 from app.repositories.user_repo import user_repo
 from commonLib.response.response_schema import GenericResponse, create_response
-import namegenerator
 from sqlalchemy.orm import Session
 from bson import ObjectId
 from app.api.dependencies.authentication import (
     admin_permission_dependency,
     get_currently_authenticated_user,
-    authenticated_user_dependecies,
+    authenticated_user_dependencies,
 )
 from fastapi import Depends, HTTPException, APIRouter, status
 from app.schemas.affidavit_schema import (
     DocumentBase,
+    DocumentCreate,
+    DocumentCreateForm,
     TemplateBase,
     TemplateCreate,
     TemplateCreateForm,
     TemplateInResponse,
-    document_individual_serialiser,
+    document_individual_serializer,
     document_list_serialiser,
     template_individual_serializer,
     template_list_serialiser,
@@ -82,16 +90,12 @@ async def update_template(
 ):
     template_dict = {**template_in.dict(), "updated_at": datetime.utcnow()}
     object_id = ObjectId(template_dict["id"])
-    existing_template = await template_collection.find_one(
-        {"_id": object_id}
-    )
+    existing_template = await template_collection.find_one({"_id": object_id})
 
     if not existing_template:
 
-        raise HTTPException(
-            status_code=404, detail="Template does not exist"
-        )
-    
+        raise HTTPException(status_code=404, detail="Template does not exist")
+
     # If a template with the same name exists, update it
     update_result = await template_collection.update_one(
         {"_id": existing_template["_id"]}, {"$set": template_dict}
@@ -112,7 +116,7 @@ async def update_template(
 
 @router.get(
     "/get_templates",
-    dependencies=[Depends(admin_permission_dependency)],
+    # dependencies=[Depends(admin_permission_dependency)],
     response_model=GenericResponse[List[TemplateBase]],
 )
 async def get_templates():
@@ -140,7 +144,7 @@ async def get_templates():
 @router.get(
     "/get_template/{template_id}",
     response_model=GenericResponse[TemplateBase],
-    dependencies=[Depends(admin_permission_dependency)],
+    # dependencies=[Depends(admin_permission_dependency)],
 )
 async def get_template(template_id: str):
     try:
@@ -175,58 +179,10 @@ async def get_template(template_id: str):
     )
 
 
-@router.get(
-    "/get_template_for_document_creation/{template_id}",
-    response_model=GenericResponse[TemplateBase],
-    dependencies=[Depends(authenticated_user_dependecies)],
-)
-async def get_template_for_document_creation(
-    template_id: str,
-):
-    try:
-        # Convert the string ID to ObjectId
-        object_id = ObjectId(template_id)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid ID format: {template_id}")
-
-    # Log the ObjectId
-    logging.info(f"Fetching template with ID: {object_id}")
-
-    template_obj = await template_collection.find_one({"_id": object_id})
-    if template_obj["is_disabled"]:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Template is not available at the moment",
-        )
-
-    # Log the result of the query
-    if template_obj:
-        logging.info(f"Found template: {template_obj}")
-    else:
-        logging.info("No template found")
-
-    if not template_obj:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Template with ID {template_id} does not exist",
-        )
-
-    # Assuming individual_serialiser is a valid function
-    template_obj = template_individual_serializer(template_obj)
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message=f"{template_obj['name']} retrieved successfully",
-        data=TemplateInResponse(
-            id=template_obj["id"],
-            name=template_obj["name"],
-            description=template_obj["description"],
-            content=template_obj["content"],
-            price=template_obj["price"],
-        ),
-    )
 
 
-@router.get("/get_documents")
+
+@router.get("/get_documents", dependencies=[Depends(admin_permission_dependency)])
 async def get_documents():
     try:
         documents = await document_collection.find().to_list(
@@ -235,7 +191,11 @@ async def get_documents():
         if not documents:
             logger.info("No documents found")
             return []
-        return document_list_serialiser(documents)
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            data=document_list_serialiser(documents),
+            message=f"Documents retrieved successfully",
+        )
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching documents")
@@ -265,24 +225,37 @@ async def get_single_document(document_id: str):
 
 
 @router.post("/create_document")
-async def create_document(document_in: DocumentBase):
+async def create_document(
+    document_in: DocumentCreateForm,
+    current_user: User = Depends(get_currently_authenticated_user),
+) -> Any:
+    document_name = generate_document_name()
+    document_qr_code_url = (
+        f"https://e-affidavit-staging.netlify.app/qr-searchDocument/{document_name}"
+    )
+    qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
     document_dict = document_in.dict()
-    document_dict["name"] = namegenerator.gen()
+    document_dict.update({
+        "name": document_name,
+        "status": "SAVED",
+        "qr_code": qr_code_base64,
+        "created_by_id": current_user.id,
+    })
+
+    # Directly unpack the dictionary when creating a new instance of DocumentCreate.
+    document_obj = DocumentCreate(**document_dict)
 
     try:
-        result = await document_collection.insert_one(document_dict)
+        result = await document_collection.insert_one(document_obj.dict())
         if not result.acknowledged:
             logger.error("Failed to insert document")
             raise HTTPException(status_code=500, detail="Failed to create document")
 
         new_document = await document_collection.find_one({"_id": result.inserted_id})
-        return document_individual_serialiser(new_document)
+        return document_individual_serializer(new_document)
     except Exception as e:
-        logger.error(f"Error creating document: {str(e)}")
+        logger.error(f"Error creating document: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error creating document")
-
-
-
 
 
 @router.post("/create_template_category")

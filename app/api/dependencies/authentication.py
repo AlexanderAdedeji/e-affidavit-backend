@@ -136,7 +136,7 @@ commissioner_permission_dependency = PermissionChecker(
 )
 
 
-authenticated_user_dependecies = PermissionChecker(
+authenticated_user_dependencies = PermissionChecker(
     allowed_user_types=[
         COMMISSIONER_USER_TYPE,
         ADMIN_USER_TYPE,
