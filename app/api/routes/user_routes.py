@@ -288,7 +288,7 @@ async def get_templates():
 
 @router.get(
     "/get_template/{template_id}",
-    response_model=GenericResponse[TemplateBase],
+    # response_model=GenericResponse[TemplateBase],
     dependencies=[Depends(authenticated_user_dependencies)],
 )
 async def get_template_for_document_creation(
