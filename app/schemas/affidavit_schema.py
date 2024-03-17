@@ -71,8 +71,7 @@ class DocumentBase(BaseModel):
 
 
 class DocumentCreateForm(BaseModel):
-    document_data: dict
-
+    document_data: TemplateContent
     template_id: str
     court_id: str
 
