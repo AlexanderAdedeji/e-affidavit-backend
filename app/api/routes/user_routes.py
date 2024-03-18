@@ -1,6 +1,8 @@
 from typing import List
 import uuid
 from app.core.services.utils.utils import is_valid_objectid
+from app.models.court_system_models import Court, Jurisdiction
+from app.schemas.court_system_schema import CourtSystemInDB
 from bson import ObjectId
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -25,6 +27,7 @@ from app.schemas.affidavit_schema import (
     template_individual_serializer,
     template_list_serialiser,
 )
+from app.repositories.court_system_repo import state_repo
 from app.schemas.email_schema import UserCreationTemplateVariables
 from app.schemas.stats_schema import PublicDashboardStat
 from app.schemas.user_schema import (
@@ -253,6 +256,7 @@ async def get_document(
             detail="An error occurred while fetching the document",
         )
 
+
 @router.get(
     "/get_templates",
     # response_model=GenericResponse[List[TemplateBase]],
@@ -285,6 +289,7 @@ async def get_templates():
             for template in templates
         ],
     )
+
 
 @router.get(
     "/get_template/{template_id}",
@@ -333,8 +338,6 @@ async def get_template_for_document_creation(
     )
 
 
-
-
 @router.get("/pay_for_document")
 def pay_for_document(
     current_user: User = Depends(get_currently_authenticated_user),
@@ -380,4 +383,40 @@ def pay_for_document(
             name=current_user.user_type.name,
         ),
         verify_token="",
+    )
+
+
+@router.get("/get_states")
+def get_states(db: Session = Depends(get_db)):
+    states = state_repo.get_all(db)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{len(states)} States Retrieved Successfully!",
+        data=[CourtSystemInDB(id=state.id, name=state.name) for state in states],
+    )
+
+
+@router.get("/get_jurisdictions_by_state/{state_id}")
+def get_jurisdictions_by_states(state_id: int, db: Session = Depends(get_db)):
+    jurisdictions = (
+        db.query(Jurisdiction).filter(Jurisdiction.state_id == state_id).all()
+    )
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{len(jurisdictions)} States Retrieved Successfully!",
+        data=[
+            CourtSystemInDB(id=jurisdiction.id, name=jurisdiction.name)
+            for jurisdiction in jurisdictions
+        ],
+    )
+
+
+@router.get("/get_courts_by_jursdiction/{jurisdiction_id}")
+def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
+    courts = db.query(Court).filter(Court.jurisdiction_id == jurisdiction_id).all()
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{len(courts)} States Retrieved Successfully!",
+        data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
     )
