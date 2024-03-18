@@ -249,10 +249,17 @@ async def get_document(
             )
 
         document = serialize_mongo_document(document)
-        return document
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message=f"{document['name']} retrieve successfully",
+            data=document,
+        )
+
     except Exception as e:
+        logger.error(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            
             detail="An error occurred while fetching the document",
         )
 
