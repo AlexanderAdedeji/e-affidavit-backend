@@ -156,10 +156,10 @@ def retrieve_current_user(
 @router.get("/my_documents", dependencies=[Depends(authenticated_user_dependencies)])
 async def get_documents(current_user: User = Depends(get_currently_authenticated_user)):
     try:
-        documents = await document_collection.find(
-            {"created_by_id": current_user.id}
-        ).to_list(
-            length=100
+        documents = (
+            await document_collection.find({"created_by_id": current_user.id})
+            .sort("created_at", -1)
+            .to_list(length=100)
         )  # Set a reasonable limit
         if not documents:
             logger.info("No documents found")
