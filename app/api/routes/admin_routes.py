@@ -3,6 +3,13 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
 from app.core.services.invitation import process_user_invite
+from app.schemas.affidavit_schema import (
+    SlimTemplateInResponse,
+    TemplateContent,
+    TemplateInResponse,
+    template_individual_serializer,
+    template_list_serialiser,
+)
 from app.schemas.stats_schema import AdminDashboardStat
 from postmarker import core
 from sqlalchemy.orm import Session
@@ -32,6 +39,7 @@ from app.schemas.court_system_schema import CourtSystemInDB
 from app.schemas.email_schema import OperationsInviteTemplateVariables
 from app.schemas.user_schema import (
     AcceptedInviteResponse,
+    AdminInResponse,
     CreateInvite,
     FullCommissionerInResponse,
     InviteOperationsForm,
@@ -43,7 +51,7 @@ from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.core.services.email import email_service
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import create_response, GenericResponse
-
+from app.database.sessions.mongo_client import template_collection
 
 router = APIRouter()
 
@@ -157,33 +165,91 @@ async def accept_invite(token: str, db: Session = Depends(get_db)):
     )
 
 
+# @router.get(
+#     "/",
+#     dependencies=[Depends(admin_permission_dependency)],
+#     response_model=GenericResponse[List[UserInResponse]],
+# )
+# def get_all_admins(db: Session = Depends(get_db)):
+#     """Get all admin users"""
+#     user_type = user_type_repo.get_by_name(db, name=settings.ADMIN_USER_TYPE)
+#     admins = user_repo.get_users_by_user_type(db, user_type.id)
+#     return create_response(
+#         message="Admins retrieved successfully",
+#         status_code=status.HTTP_200_OK,
+#         data=[
+#             UserInResponse(
+#                 id=admin.id,
+#                 first_name=admin.first_name,
+#                 last_name=admin.last_name,
+#                 email=admin.email,
+#                 is_active=admin.is_active,
+#                 user_type=UserTypeInDB(
+#                     id=admin.user_type.id,
+#                     name=admin.user_type.name,
+#                 ),
+#                 verify_token="",
+#             )
+#             for admin in admins
+#         ],
+#     )
+
+
 @router.get(
-    "/",
-    dependencies=[Depends(admin_permission_dependency)],
-    response_model=GenericResponse[List[UserInResponse]],
+    "/get_all_admins",
+    # dependencies=[Depends(admin_permission_dependency)],
+    response_model=GenericResponse[List[AdminInResponse]],
 )
-def get_all_admins(db: Session = Depends(get_db)):
+async def get_all_admins(db: Session = Depends(get_db)):
     """Get all admin users"""
     user_type = user_type_repo.get_by_name(db, name=settings.ADMIN_USER_TYPE)
-    admins = user_repo.get_users_by_user_type(db, user_type.id)
+    admins = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
+    result = []
+    for admin in admins:
+        templates_created = await template_collection.find(
+            {"created_by_id": admin.id}
+        ).to_list(length=1000)
+        templates_serialized = [
+            SlimTemplateInResponse(
+                id=str(template["_id"]),
+                name=template.get("name", ""),
+                price=template.get("price", 0),
+                description=template.get("description", ""),
+                category=template.get("category", ""),
+            )
+            for template in templates_created
+        ]
+        admin = AdminInResponse(
+            id=admin.id,
+            date_created=admin.CreatedAt,
+            first_name=admin.first_name,
+            email=admin.email,
+            last_name=admin.last_name,
+            is_active=admin.is_active,
+            verify_token="",
+            user_type=UserTypeInDB(id=admin.user_type.id, name=admin.user_type.name),
+            users_invited=[
+                UserInResponse(
+                    id=user.user.id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    user_type=UserTypeInDB(
+                        id=user.user_type.id, name=user.user_type.name
+                    ),
+                    email=user.email,
+                    is_active=user.user.is_active,
+                    verify_token="",
+                )
+                for user in admin.invited_by
+            ],
+            templates_created=templates_serialized,
+        )
+        result.append(admin)
+
     return create_response(
         message="Admins retrieved successfully",
         status_code=status.HTTP_200_OK,
-        data=[
-            UserInResponse(
-                id=admin.id,
-                first_name=admin.first_name,
-                last_name=admin.last_name,
-                email=admin.email,
-                is_active=admin.is_active,
-                user_type=UserTypeInDB(
-                    id=admin.user_type.id,
-                    name=admin.user_type.name,
-                ),
-                verify_token="",
-            )
-            for admin in admins
-        ],
+        data=result
     )
 
 

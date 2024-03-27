@@ -19,10 +19,12 @@ from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.core.settings.configurations import settings
-from app.schemas.court_system_schema import CourtSystemInDB
+from app.schemas.affidavit_schema import SlimDocumentInResponse, SlimTemplateInResponse, document_individual_serializer, serialize_mongo_document
+from app.schemas.court_system_schema import CourtSystemBase, CourtSystemInDB
 from app.schemas.user_schema import (
     CommissionerAttestation,
     CommissionerCreate,
+    CommissionerInResponse,
     CommissionerProfileBase,
     CommissionerProfileCreate,
     FullCommissionerInResponse,
@@ -34,6 +36,7 @@ from app.schemas.user_schema import (
 from app.api.dependencies.authentication import (
     admin_and_head_of_unit_permission_dependency,
 )
+from app.database.sessions.mongo_client import document_collection
 from app.repositories.commissioner_profile_repo import comm_profile_repo
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
@@ -45,14 +48,14 @@ router = APIRouter()
 @router.get(
     "/",
     status_code=status.HTTP_200_OK,
-    # response_model=GenericResponse[List[CommissionerProfileBase]],
+    response_model=GenericResponse[List[CommissionerInResponse]],
     dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
 )
-def get_commissioners(
+async def get_commissioners(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    commissioners = []
+    results = []
     if current_user.user_type.name == settings.HEAD_OF_UNIT_USER_TYPE:
 
         commissioner_profiles = head_of_unit_repo.get_commissioners_under_jurisdiction(
@@ -66,20 +69,41 @@ def get_commissioners(
         if user_type is None:
             raise HTTPException(status_code=500)
         commissioners = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
+        # return commissioners[0].commissioner_profile.court
+        for commissioner in commissioners:
+            attested_documents = await document_collection.find(
+                {"commissioner_id": commissioner.id}
+            ).to_list(length=1000)
+            documents_serialized = [
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    attested_date=document.get("attestation_date", ""),
+                )
+                for document in attested_documents
+            ]
+            fullcommissioner = CommissionerInResponse(
+                id=commissioner.id,
+                first_name=commissioner.first_name,
+                user_type=UserTypeInDB(
+                    id=commissioner.user_type.id, name=commissioner.user_type.name
+                ),
+                verify_token="some_verify_token",
+                last_name=commissioner.last_name,
+                email=commissioner.email,
+                court=CourtSystemInDB(
+                    id=commissioner.commissioner_profile.court.id,
+                    name=commissioner.commissioner_profile.court.name,
+                ),
+                is_active=commissioner.is_active,
+                attested_documents=documents_serialized,
+                date_created=commissioner.CreatedAt,
+            )
+            results.append(fullcommissioner)
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Commissioners retireved successfully",
-        data=[
-            CommissionerProfileBase(
-                id=commissioner.id,
-                first_name=commissioner.first_name,
-                last_name=commissioner.last_name,
-                email=commissioner.email,
-                court=commissioner.commissioner_profile.court.name,
-                is_active=commissioner.is_active,
-            )
-            for commissioner in commissioners
-        ],
+        data=results,
     )
 
 
@@ -253,26 +277,28 @@ def deactivate_user(commissioner_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/search_document")
-def search_document(
+async def search_document(
+    document_name: str,
     current_user: User = Depends(get_currently_authenticated_user),
-) -> UserInResponse:
-    """
-    This is used to retrieve the currently logged-in user's profile.
-    You need to send a token in and it returns a full profile of the currently logged in user.
-    You send the token in as a header of the form \n
-    <b>Authorization</b> : 'Token <b> {JWT} </b>'
-    """
-    return UserInResponse(
-        id=current_user.id,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        email=current_user.email,
-        is_active=current_user.is_active,
-        user_type=UserTypeInDB(
-            id=current_user.user_type.id,
-            name=current_user.user_type.name,
-        ),
-        verify_token="",
+):
+
+    document = await document_collection.find_one({"name": document_name})
+    if document is None:
+        raise DoesNotExistException(
+            detail="Document with provided name does not exist."
+        )
+    if document["court_id"] != current_user.commissioner_profile.court_id:
+        raise UnauthorizedEndpointException(
+            detail="You do not have access, you are not in this court"
+        )
+    if document["status"] not in ["PAID", "ATTESTED"]:
+        raise UnauthorizedEndpointException(
+            detail="This document has not been paid for"
+        )
+    return create_response(
+        message="Document retrieved  successfully",
+        status_code=status.HTTP_200_OK,
+        data= serialize_mongo_document(document),
     )
 
 

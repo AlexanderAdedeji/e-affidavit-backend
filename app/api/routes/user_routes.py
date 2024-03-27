@@ -31,6 +31,8 @@ from app.repositories.court_system_repo import state_repo
 from app.schemas.email_schema import UserCreationTemplateVariables
 from app.schemas.stats_schema import PublicDashboardStat
 from app.schemas.user_schema import (
+    AllUsers,
+    PublicInResponse,
     UserCreate,
     UserCreateForm,
     UserInResponse,
@@ -52,12 +54,21 @@ CREATE_ACCOUNT_TEMPLATE_ID = settings.CREATE_ACCOUNT_TEMPLATE_ID
 
 
 @router.get("/get_dashboard_stats")
-def get_dashboard_stats():
+def get_dashboard_stats(current_user: User = Depends(get_currently_authenticated_user)):
 
-    total_saved = 10
-    total_paid = 60
-    total_attested = 40
-    total_response = 20
+    total_saved = document_collection.count_documents(
+        {"created_by_id": current_user.id, "status": "SAVED"}
+    )
+    total_paid = document_collection.count_documents(
+        {"created_by_id": current_user.id, "status": "PAID"}
+    )
+    total_attested = document_collection.count_documents(
+        {"created_by_id": current_user.id, "status": "ATTESTED"}
+    )
+    total_documents = document_collection.count_documents(
+        {"created_by_id": current_user.id}
+    )
+
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Dashboard stats retrieved successfully",
@@ -65,8 +76,112 @@ def get_dashboard_stats():
             total_saved=total_saved,
             total_paid=total_paid,
             total_attested=total_attested,
-            total_rejected=total_response,
+            total_documents=total_documents,
         ),
+    )
+
+
+@router.post("/complete_users_profile",
+              
+             #response_model=GenericResponse[List[PublicInResponse]]
+             )
+async def get_users(db: Session = Depends(get_db)):
+    users = user_repo.get_all(db)
+    response = []
+    for user in users:
+        pipeline = [
+            {
+                "$match": {
+                    "user_id": user.id,
+                    "$or": [{"status": "PAID"}, {"is_attested": True}],
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,  # Grouping without a specific field to aggregate across the whole dataset
+                    "total_amount": {"$sum": "$amount"},
+                }
+            },
+        ]
+        total_saved = await document_collection.find(
+            {"created_by_id": user.id, "status": "SAVED"}
+        ).to_list(length=1000)
+        total_paid = await document_collection.find(
+            {"created_by_id": user.id, "status": "PAID"}
+        ).to_list(length=1000)
+        total_attested = await document_collection.find(
+            {"created_by_id": user.id, "status": "ATTESTED"}
+        ).to_list(length=1000)
+        total_documents = await document_collection.find(
+            {"created_by_id": user.id}
+        ).to_list(length=1000)
+        total_amount_result = await document_collection.aggregate(pipeline).to_list(
+            length=100
+        )
+        if total_amount_result:
+            total_amount = total_amount_result[0]["total_amount"]
+        else:
+            total_amount = 0
+
+        new_user = PublicInResponse(
+            total_documents=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_documents
+            ],
+            total_paid=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_paid
+            ],
+            total_attested=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_attested
+            ],
+            total_saved=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_saved
+            ],
+            total_amount=total_amount,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            is_active=user.is_active,
+            user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+            date_created=user.CreatedAt,
+            verify_token="",
+        )
+        response.append(new_user)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Users information retrieved successfully.",
+        data=response,
     )
 
 
@@ -259,7 +374,6 @@ async def get_document(
         logger.error(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            
             detail="An error occurred while fetching the document",
         )
 
@@ -427,3 +541,49 @@ def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_d
         message=f"{len(courts)} States Retrieved Successfully!",
         data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
     )
+
+
+@router.get("/get_all_users")
+def get_all_users(db: Session = Depends(get_db)):
+    users = user_repo.get_all(db)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="All Users retrieved successfully.",
+        data=[
+            AllUsers(
+                id=user.id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
+                date_created=user.CreatedAt,
+                is_active=user.is_active,
+                verify_token="",
+            )
+            for user in users
+        ],
+    )
+
+
+# @router.get("/get_by_users_type")
+# def get_by_users_type(user_type: str, db: Session = Depends(get_db)):
+#     user_type = user_type_repo.get_by_name(db, name=user_type.upper())
+#     return user_type.users
+#     return create_response(
+#         status_code=status.HTTP_200_OK,
+#         message="All Users retrieved successfully.",
+#         data=[
+#             AllUsers(
+#                 id=user.id,
+#                 first_name=user.first_name,
+#                 last_name=user.last_name,
+#                 email=user.email,
+#                 user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
+#                 date_created=user.CreatedAt,
+#                 is_active=user.is_active,
+#                 verify_token="",
+#             )
+#             for user in users
+#         ],
+#     )

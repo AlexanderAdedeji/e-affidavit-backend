@@ -12,4 +12,4 @@ class PublicDashboardStat(BaseModel):
     total_saved: int
     total_paid: int
     total_attested: int
-    total_rejected: int
+    total_documents: int
