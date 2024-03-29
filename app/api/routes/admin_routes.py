@@ -7,9 +7,11 @@ from app.schemas.affidavit_schema import (
     SlimTemplateInResponse,
     TemplateContent,
     TemplateInResponse,
+    serialize_mongo_document,
     template_individual_serializer,
     template_list_serialiser,
 )
+from app.schemas.shared_schema import SlimUserInResponse
 from app.schemas.stats_schema import AdminDashboardStat
 from postmarker import core
 from sqlalchemy.orm import Session
@@ -35,7 +37,12 @@ from app.api.dependencies.authentication import (
     admin_permission_dependency,
     get_token_details,
 )
-from app.schemas.court_system_schema import CourtSystemInDB
+from app.schemas.court_system_schema import (
+    CourtSystemInDB,
+    JurisdictionInResponse,
+    SlimCourtInResponse,
+    SlimJurisdictionInResponse,
+)
 from app.schemas.email_schema import OperationsInviteTemplateVariables
 from app.schemas.user_schema import (
     AcceptedInviteResponse,
@@ -48,6 +55,8 @@ from app.schemas.user_schema import (
     UserInResponse,
 )
 from app.api.dependencies.authentication import get_currently_authenticated_user
+from app.database.sessions.mongo_client import document_collection
+from app.repositories.court_system_repo import jurisdiction_repo
 from app.core.services.email import email_service
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import create_response, GenericResponse
@@ -60,10 +69,26 @@ router = APIRouter()
 async def get_dashboard_stats(db: Session = Depends(get_db)):
     """
     This endpoint returns the number of users and invites in the system."""
-    total_affidavits = 10
-    total_users = 10
-    total_commissioner = 10
-    total_revenue = 10
+    total_affidavits = await document_collection.count_documents({})
+    total_users = user_repo.get_count(db)
+    total_templates = await template_collection.count_documents({})
+
+    pipeline = [
+        {
+            "$match": {
+                "$or": [{"status": "PAID"}, {"is_attested": True}],
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total_amount": {"$sum": "$amount_paid"},
+            }
+        },
+    ]
+
+    total_revenue_cursor = document_collection.aggregate(pipeline)
+    total_revenue = await total_revenue_cursor.to_list(length=1)
 
     return create_response(
         status_code=status.HTTP_200_OK,
@@ -71,8 +96,8 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
         data=AdminDashboardStat(
             total_affidavits=total_affidavits,
             total_users=total_users,
-            total_commissioners=total_commissioner,
-            total_revenue=total_revenue,
+            total_templates=total_templates,
+            total_revenue=total_revenue[0]["total_amount"],
         ),
     )
 
@@ -249,7 +274,7 @@ async def get_all_admins(db: Session = Depends(get_db)):
     return create_response(
         message="Admins retrieved successfully",
         status_code=status.HTTP_200_OK,
-        data=result
+        data=result,
     )
 
 
@@ -337,7 +362,7 @@ def retrieve_current_admin(
 ) -> UserInResponse:
     """
     This is used to retrieve the currently logged-in admin's profile.
-    You need to send a token in and it returns a full profile of the currently logged in user.
+    You need to send a token in and it returns a full profile of the currently logged in user.hur
     You send the token in as a header of the form \n
     <b>Authorization</b> : 'Token <b> {JWT} </b>'
     """
@@ -352,4 +377,80 @@ def retrieve_current_admin(
             name=current_user.user_type.name,
         ),
         verify_token="",
+    )
+
+
+@router.get("/get_all_jurisdictions")
+async def get_all_jurisdictions(db: Session = Depends(get_db)):
+    jurisdictions = await jurisdiction_repo.get_all(db)
+    return create_response(
+        message="Jurisdictions retrieved Successfully",
+        status_code=status.HTTP_200_OK,
+        data=[
+            SlimJurisdictionInResponse(
+                id=jurisdiction.id,
+                name=jurisdiction.name,
+                courts=len(jurisdiction.courts),
+                date_created=jurisdiction.CreatedAt,
+            )
+            for jurisdiction in jurisdictions
+        ],
+    )
+
+
+@router.get("/get_jurisdiction/{jurisdiction_id}")
+async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
+    jurisdiction = jurisdiction_repo.get(db, id=jurisdiction_id)
+    jurisdiction_documents = []
+    if not jurisdiction:
+        raise DoesNotExistException(detail="Jurisdiction does not exist")
+    for court in jurisdiction.courts:
+        document_in = await document_collection.find(
+            {
+                "court_id": court.id,
+                "status": {"$in": ["PAID", "ATTESTED"]},
+            }
+        ).to_list(length=1000)
+        jurisdiction_documents.extend(serialize_mongo_document(document_in))
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{jurisdiction.name} Retrieved successfully",
+        data=JurisdictionInResponse(
+            id=jurisdiction.id,
+            name=jurisdiction.name,
+            date_created=jurisdiction.CreatedAt,
+            state=CourtSystemInDB(
+                name=jurisdiction.state.name, id=jurisdiction.state.id
+            ),
+            courts=[
+                SlimCourtInResponse(
+                    id=court.id,
+                    date_created=court.CreatedAt,
+                    name=court.name,
+                    commissioners=len(court.commissioner_profile),
+                    documents=await document_collection.count_documents(
+                        {"court_id": court.id}
+                    ),
+                )
+                for court in jurisdiction.courts
+            ],
+            head_of_unit=SlimUserInResponse(
+                id=jurisdiction.head_of_unit.user.id,
+                first_name=jurisdiction.head_of_unit.user.first_name,
+                last_name=jurisdiction.head_of_unit.user.last_name,
+                email=jurisdiction.head_of_unit.user.email,
+            ) if jurisdiction.head_of_unit else None,
+            commissioners=[
+                SlimUserInResponse(
+                    id=commissioner.id,
+                    first_name=commissioner.first_name,
+                    last_name=commissioner.last_name,
+                    email=commissioner.email,
+                )
+                for court in jurisdiction.courts
+                for commissioner_profile in court.commissioner_profile
+                for commissioner in [commissioner_profile.user]
+            ],
+            documents=len(jurisdiction_documents),
+        ),
     )

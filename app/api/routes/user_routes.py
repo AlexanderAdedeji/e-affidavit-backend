@@ -81,7 +81,7 @@ def get_dashboard_stats(current_user: User = Depends(get_currently_authenticated
     )
 
 
-@router.post("/complete_users_profile",
+@router.get("/general_users",
               
              #response_model=GenericResponse[List[PublicInResponse]]
              )
@@ -99,7 +99,7 @@ async def get_users(db: Session = Depends(get_db)):
             {
                 "$group": {
                     "_id": None,  # Grouping without a specific field to aggregate across the whole dataset
-                    "total_amount": {"$sum": "$amount"},
+                    "total_amount": {"$sum": "$amount_paid"},
                 }
             },
         ]
@@ -123,7 +123,7 @@ async def get_users(db: Session = Depends(get_db)):
         else:
             total_amount = 0
 
-        new_user = PublicInResponse(
+        new_user = dict(
             total_documents=[
                 SlimDocumentInResponse(
                     id=str(document["_id"]),
@@ -168,6 +168,7 @@ async def get_users(db: Session = Depends(get_db)):
                 )
                 for document in total_saved
             ],
+            id= user.id,
             total_amount=total_amount,
             first_name=user.first_name,
             last_name=user.last_name,
@@ -178,6 +179,8 @@ async def get_users(db: Session = Depends(get_db)):
             verify_token="",
         )
         response.append(new_user)
+
+    return response
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"Users information retrieved successfully.",
@@ -338,6 +341,29 @@ async def get_my_latest_affidavits(
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching documents")
+
+
+@router.get("/get_public_users")
+def get_public_users(
+    db:Session = Depends(get_db)
+):
+    user_type = user_type_repo.get_by_name(db, name= settings.PUBLIC_USER_TYPE)
+    users= user_type.users
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Public Users retrived Successfully",
+        data=[UserInResponse(
+            email=user.email,
+            id=user.id,
+            first_name=
+            user.first_name,
+            is_active=user.is_active,
+            last_name=user.last_name,
+            verify_token="",
+            user_type=UserTypeInDB(id=user.user_type.id,name=user.user_type.name)
+
+        ) for user in users]
+    )
 
 
 @router.get("/get_document/{document_id}")

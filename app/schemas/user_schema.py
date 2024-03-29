@@ -176,6 +176,6 @@ class PublicInResponse(UserInResponse):
     document_saved: List[SlimDocumentInResponse]
     document_attested: List[SlimDocumentInResponse]
     document_paid: List[SlimDocumentInResponse]
-    total_documents:List[SlimDocumentInResponse]
-    total_amount: List[SlimDocumentInResponse]
+    total_documents: List[SlimDocumentInResponse]
+    total_amount: int
     date_created: datetime

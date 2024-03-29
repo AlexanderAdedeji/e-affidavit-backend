@@ -20,14 +20,12 @@ class TemplateContent(BaseModel):
     template_data: Optional[List[dict]]
 
 
-
 class SlimTemplateInResponse(BaseModel):
     id: str
     name: str
     price: int
     description: str
     category: str
-
 
 
 class TemplateInResponse(SlimTemplateInResponse):
@@ -62,7 +60,6 @@ class TemplateCreate(TemplateCreateForm):
         arbitrary_types_allowed = True
 
 
-
 class DocumentBase(BaseModel):
     name: str
     template_id: str
@@ -72,6 +69,7 @@ class DocumentBase(BaseModel):
     is_attested: bool
     attestation_date: Optional[datetime.datetime]
     status: str
+    amount_paid: int
     payment_ref: str
     created_at: str
     updated_at: str
@@ -86,11 +84,10 @@ class DocumentCreateForm(BaseModel):
 class SlimDocumentInResponse(BaseModel):
     id: str
     name: str
-    price:int
+    price: int
     attestation_date: Optional[datetime.datetime]
-    created_at:datetime.datetime
-    status:str
-
+    created_at: datetime.datetime
+    status: str
 
 
 class DocumentCreate(DocumentCreateForm):
@@ -113,8 +110,10 @@ def safe_parse_datetime(datetime_string):
 
 def template_individual_serializer(data) -> dict:
     try:
-        created_at = data.get("created_at","")
-        updated_at = data.get("updated_at",)
+        created_at = data.get("created_at", "")
+        updated_at = data.get(
+            "updated_at",
+        )
         content_data = data.get("content", {})
         template_content = {
             "fields": [
@@ -138,7 +137,9 @@ def template_individual_serializer(data) -> dict:
         }
     except KeyError as e:
         logging.error(f"Missing key in template data: {e}")
-        raise HTTPException(status_code=403, detail=f"Missing key in template data: {e}")
+        raise HTTPException(
+            status_code=403, detail=f"Missing key in template data: {e}"
+        )
 
 
 def document_individual_serializer(data) -> dict:

@@ -1,7 +1,8 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
+from app.schemas.affidavit_schema import SlimDocumentInResponse
 from app.schemas.shared_schema import SlimUserInResponse, UsersWithSharedType
 
 
@@ -30,22 +31,39 @@ class FullCourtInDB(CourtSystemBase):
     state: str
     jurisdiction: str
 
+class SlimCourtInResponse(CourtSystemInDB):
+    date_created:datetime
+    commissioners:int
+    documents: int
 
 class JurisdictionBase(CourtSystemBase):
     id: str
     date_created: datetime
     state: CourtSystemInDB
-    head_of_unit: SlimUserInResponse
-    courts: List[CourtSystemInDB]
+    head_of_unit:Optional[SlimUserInResponse] = None
+    courts: List[SlimCourtInResponse]
+
+
+class JurisdictionInResponse(JurisdictionBase):
+    commissioners: List[SlimUserInResponse]
+    documents: int
+
+
+class SlimJurisdictionInResponse(BaseModel):
+    id: str
+    date_created: datetime
+    courts: int
+    name: str
 
 
 class CourtBase(CourtSystemBase):
     id: str
     date_created: datetime
     state: CourtSystemInDB
-    Jurisdiction:CourtSystemInDB
+    Jurisdiction: CourtSystemInDB
     head_of_unit: SlimUserInResponse
     commissioners: List[SlimUserInResponse]
+    documents: List[SlimDocumentInResponse]
 
 
 
