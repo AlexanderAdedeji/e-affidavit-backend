@@ -54,18 +54,18 @@ CREATE_ACCOUNT_TEMPLATE_ID = settings.CREATE_ACCOUNT_TEMPLATE_ID
 
 
 @router.get("/get_dashboard_stats")
-def get_dashboard_stats(current_user: User = Depends(get_currently_authenticated_user)):
+async def get_dashboard_stats(current_user: User = Depends(get_currently_authenticated_user)):
 
-    total_saved = document_collection.count_documents(
+    total_saved = await document_collection.count_documents(
         {"created_by_id": current_user.id, "status": "SAVED"}
     )
-    total_paid = document_collection.count_documents(
+    total_paid = await document_collection.count_documents(
         {"created_by_id": current_user.id, "status": "PAID"}
     )
-    total_attested = document_collection.count_documents(
+    total_attested = await document_collection.count_documents(
         {"created_by_id": current_user.id, "status": "ATTESTED"}
     )
-    total_documents = document_collection.count_documents(
+    total_documents = await document_collection.count_documents(
         {"created_by_id": current_user.id}
     )
 
