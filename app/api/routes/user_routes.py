@@ -333,6 +333,9 @@ async def get_my_latest_affidavits(
                     id=document["_id"],
                     status=document["status"],
                     created_at=document["created_at"],
+                    price=document.get("price"),
+                    attestation_date=document.get("attestation_date"),
+                  
                 )
                 for document in enriched_documents
             ],

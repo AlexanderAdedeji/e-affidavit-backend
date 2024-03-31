@@ -84,7 +84,7 @@ class DocumentCreateForm(BaseModel):
 class SlimDocumentInResponse(BaseModel):
     id: str
     name: str
-    price: int
+    price: Optional[int]
     attestation_date: Optional[datetime.datetime]
     created_at: datetime.datetime
     status: str
