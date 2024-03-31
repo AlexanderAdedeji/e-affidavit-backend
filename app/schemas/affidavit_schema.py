@@ -89,7 +89,9 @@ class SlimDocumentInResponse(BaseModel):
     created_at: datetime.datetime
     status: str
 
-
+class LastestAffidavits(SlimDocumentInResponse):
+    court:str
+    template:str
 class DocumentCreate(DocumentCreateForm):
     created_by_id: str
     name: str

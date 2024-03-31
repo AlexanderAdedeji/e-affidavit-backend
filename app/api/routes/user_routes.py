@@ -19,6 +19,7 @@ from app.models.user_model import User
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.schemas.affidavit_schema import (
+    LastestAffidavits,
     SlimDocumentInResponse,
     TemplateBase,
     TemplateInResponse,
@@ -54,7 +55,9 @@ CREATE_ACCOUNT_TEMPLATE_ID = settings.CREATE_ACCOUNT_TEMPLATE_ID
 
 
 @router.get("/get_dashboard_stats")
-async def get_dashboard_stats(current_user: User = Depends(get_currently_authenticated_user)):
+async def get_dashboard_stats(
+    current_user: User = Depends(get_currently_authenticated_user),
+):
 
     total_saved = await document_collection.count_documents(
         {"created_by_id": current_user.id, "status": "SAVED"}
@@ -81,10 +84,10 @@ async def get_dashboard_stats(current_user: User = Depends(get_currently_authent
     )
 
 
-@router.get("/general_users",
-              
-             #response_model=GenericResponse[List[PublicInResponse]]
-             )
+@router.get(
+    "/general_users",
+    # response_model=GenericResponse[List[PublicInResponse]]
+)
 async def get_users(db: Session = Depends(get_db)):
     users = user_repo.get_all(db)
     response = []
@@ -168,7 +171,7 @@ async def get_users(db: Session = Depends(get_db)):
                 )
                 for document in total_saved
             ],
-            id= user.id,
+            id=user.id,
             total_amount=total_amount,
             first_name=user.first_name,
             last_name=user.last_name,
@@ -326,7 +329,7 @@ async def get_my_latest_affidavits(
         return create_response(
             status_code=status.HTTP_200_OK,
             data=[
-                SlimDocumentInResponse(
+                LastestAffidavits(
                     name=document["name"],
                     court=document["court"],
                     template=document["template"],
@@ -335,7 +338,7 @@ async def get_my_latest_affidavits(
                     created_at=document["created_at"],
                     price=document.get("price"),
                     attestation_date=document.get("attestation_date"),
-                  
+        
                 )
                 for document in enriched_documents
             ],
@@ -347,25 +350,24 @@ async def get_my_latest_affidavits(
 
 
 @router.get("/get_public_users")
-def get_public_users(
-    db:Session = Depends(get_db)
-):
-    user_type = user_type_repo.get_by_name(db, name= settings.PUBLIC_USER_TYPE)
-    users= user_type.users
+def get_public_users(db: Session = Depends(get_db)):
+    user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
+    users = user_type.users
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Public Users retrived Successfully",
-        data=[UserInResponse(
-            email=user.email,
-            id=user.id,
-            first_name=
-            user.first_name,
-            is_active=user.is_active,
-            last_name=user.last_name,
-            verify_token="",
-            user_type=UserTypeInDB(id=user.user_type.id,name=user.user_type.name)
-
-        ) for user in users]
+        data=[
+            UserInResponse(
+                email=user.email,
+                id=user.id,
+                first_name=user.first_name,
+                is_active=user.is_active,
+                last_name=user.last_name,
+                verify_token="",
+                user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+            )
+            for user in users
+        ],
     )
 
 
