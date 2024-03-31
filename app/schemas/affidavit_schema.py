@@ -170,21 +170,47 @@ def document_individual_serializer(data) -> dict:
         return {}
 
 
+# def serialize_mongo_document(document):
+#     if isinstance(document, list):
+#         return [serialize_mongo_document(doc) for doc in document]
+#     if not isinstance(document, dict):
+#         return document
+#     serialized_document = {}
+#     for key, value in document.items():
+#         if isinstance(value, ObjectId):
+#             serialized_document[key] = str(value)
+#         elif isinstance(value, (dict, list)):
+#             serialized_document[key] = serialize_mongo_document(value)
+#         else:
+#             serialized_document[key] = value
+#     return serialized_document
+
+from bson import ObjectId
+
 def serialize_mongo_document(document):
     if isinstance(document, list):
+        # If the document is a list, apply serialization to each item in the list.
         return [serialize_mongo_document(doc) for doc in document]
+    
     if not isinstance(document, dict):
+        # If the document is not a dictionary, return it as is.
         return document
+    
     serialized_document = {}
     for key, value in document.items():
+        new_key = 'id' if key == '_id' else key  # Convert '_id' to 'id'
+        
         if isinstance(value, ObjectId):
-            serialized_document[key] = str(value)
+            # Convert ObjectId to string
+            serialized_document[new_key] = str(value)
         elif isinstance(value, (dict, list)):
-            serialized_document[key] = serialize_mongo_document(value)
+            # Recursively serialize dictionaries or lists
+            serialized_document[new_key] = serialize_mongo_document(value)
         else:
-            serialized_document[key] = value
+            # For all other types, assign the value directly.
+            serialized_document[new_key] = value
+            
     return serialized_document
-
 
 def template_list_serialiser(templates) -> list:
     return [template_individual_serializer(template) for template in templates]
