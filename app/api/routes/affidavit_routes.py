@@ -224,39 +224,6 @@ async def get_single_document(document_id: str):
     }
 
 
-@router.post("/create_document")
-async def create_document(
-    document_in: DocumentCreateForm,
-    current_user: User = Depends(get_currently_authenticated_user),
-) -> Any:
-    document_name = generate_document_name()
-    document_qr_code_url = (
-        f"https://e-affidavit-staging.netlify.app/qr-searchDocument/{document_name}"
-    )
-    qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
-    document_dict = document_in.dict()
-    document_dict.update({
-        "name": document_name,
-        "status": "SAVED",
-        "qr_code": qr_code_base64,
-        "created_by_id": current_user.id,
-    })
-
-    # Directly unpack the dictionary when creating a new instance of DocumentCreate.
-    document_obj = DocumentCreate(**document_dict)
-
-    try:
-        result = await document_collection.insert_one(document_obj.dict())
-        if not result.acknowledged:
-            logger.error("Failed to insert document")
-            raise HTTPException(status_code=500, detail="Failed to create document")
-
-        new_document = await document_collection.find_one({"_id": result.inserted_id})
-        return document_individual_serializer(new_document)
-    except Exception as e:
-        logger.error(f"Error creating document: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error creating document")
-
 
 @router.post("/create_template_category")
 def create_category(name: str, db: Session = Depends(get_db)):

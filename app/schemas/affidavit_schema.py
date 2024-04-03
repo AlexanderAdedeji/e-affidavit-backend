@@ -16,7 +16,7 @@ class Field(BaseModel):
 
 
 class TemplateContent(BaseModel):
-    fields: List[Field]
+    fields: Optional[List[Field]]
     template_data: Optional[List[dict]]
 
 
@@ -75,6 +75,26 @@ class DocumentBase(BaseModel):
     updated_at: str
 
 
+class UpdateDocument(BaseModel):
+    created_by_id: str
+    commissioner_id: Optional[str] = None
+    attestation_date: Optional[datetime.datetime]
+    status: Optional[str]
+    amount_paid: Optional[int]
+    payment_ref: Optional[str]
+    created_at: Optional[datetime.datetime]
+    updated_at: Optional[datetime.datetime]
+    template_id: str
+    court_id: Optional[str]
+    document_data: TemplateContent
+    qr_code: Optional[str]
+    is_attested: Optional[bool]
+    name: str  # Added the name field as required
+
+
+class AttestDocument(BaseModel):
+    document_data: TemplateContent
+
 class DocumentCreateForm(BaseModel):
     document_data: TemplateContent
     template_id: str
@@ -89,9 +109,12 @@ class SlimDocumentInResponse(BaseModel):
     created_at: datetime.datetime
     status: str
 
+
 class LastestAffidavits(SlimDocumentInResponse):
-    court:str
-    template:str
+    court: str
+    template: str
+
+
 class DocumentCreate(DocumentCreateForm):
     created_by_id: str
     name: str
@@ -101,13 +124,6 @@ class DocumentCreate(DocumentCreateForm):
 
     class Config:
         arbitrary_types_allowed = True
-
-
-def safe_parse_datetime(datetime_string):
-    try:
-        return datetime.fromisoformat(datetime_string)
-    except (TypeError, ValueError):
-        return None
 
 
 def template_individual_serializer(data) -> dict:
@@ -187,19 +203,20 @@ def document_individual_serializer(data) -> dict:
 
 from bson import ObjectId
 
+
 def serialize_mongo_document(document):
     if isinstance(document, list):
         # If the document is a list, apply serialization to each item in the list.
         return [serialize_mongo_document(doc) for doc in document]
-    
+
     if not isinstance(document, dict):
         # If the document is not a dictionary, return it as is.
         return document
-    
+
     serialized_document = {}
     for key, value in document.items():
-        new_key = 'id' if key == '_id' else key  # Convert '_id' to 'id'
-        
+        new_key = "id" if key == "_id" else key  # Convert '_id' to 'id'
+
         if isinstance(value, ObjectId):
             # Convert ObjectId to string
             serialized_document[new_key] = str(value)
@@ -209,8 +226,9 @@ def serialize_mongo_document(document):
         else:
             # For all other types, assign the value directly.
             serialized_document[new_key] = value
-            
+
     return serialized_document
+
 
 def template_list_serialiser(templates) -> list:
     return [template_individual_serializer(template) for template in templates]

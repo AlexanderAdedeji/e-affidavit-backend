@@ -1,11 +1,17 @@
+from datetime import datetime
 from typing import List
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
+
+from bson import ObjectId
 from app.core.services.invitation import process_user_invite
 from app.schemas.affidavit_schema import (
     SlimTemplateInResponse,
+    TemplateBase,
     TemplateContent,
+    TemplateCreate,
+    TemplateCreateForm,
     TemplateInResponse,
     serialize_mongo_document,
     template_individual_serializer,
@@ -56,7 +62,7 @@ from app.schemas.user_schema import (
 )
 from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.database.sessions.mongo_client import document_collection
-from app.repositories.court_system_repo import jurisdiction_repo
+from app.repositories.court_system_repo import jurisdiction_repo, court_repo
 from app.core.services.email import email_service
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import create_response, GenericResponse
@@ -87,7 +93,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
         },
     ]
 
-    total_revenue_cursor = document_collection.aggregate(pipeline)
+    total_revenue_cursor =  document_collection.aggregate(pipeline)
     total_revenue = await total_revenue_cursor.to_list(length=1)
 
     return create_response(
@@ -97,7 +103,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
             total_affidavits=total_affidavits,
             total_users=total_users,
             total_templates=total_templates,
-            total_revenue=total_revenue[0]["total_amount"],
+            total_revenue=total_revenue[0]["total_amount"] if total_revenue else 0,
         ),
     )
 
@@ -434,12 +440,16 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
                 )
                 for court in jurisdiction.courts
             ],
-            head_of_unit=SlimUserInResponse(
-                id=jurisdiction.head_of_unit.user.id,
-                first_name=jurisdiction.head_of_unit.user.first_name,
-                last_name=jurisdiction.head_of_unit.user.last_name,
-                email=jurisdiction.head_of_unit.user.email,
-            ) if jurisdiction.head_of_unit else None,
+            head_of_unit=(
+                SlimUserInResponse(
+                    id=jurisdiction.head_of_unit.user.id,
+                    first_name=jurisdiction.head_of_unit.user.first_name,
+                    last_name=jurisdiction.head_of_unit.user.last_name,
+                    email=jurisdiction.head_of_unit.user.email,
+                )
+                if jurisdiction.head_of_unit
+                else None
+            ),
             commissioners=[
                 SlimUserInResponse(
                     id=commissioner.id,
@@ -454,3 +464,114 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
             documents=len(jurisdiction_documents),
         ),
     )
+
+
+@router.get("/get_court/{court_id}")
+async def get_court(court_id: str, db: Session = Depends(get_db)):
+    court = court_repo.get(db, id=court_id)
+    jurisdiction_documents = []
+    if not court:
+        raise DoesNotExistException(detail="Court does not exist")
+
+    document_in = await document_collection.find(
+        {
+            "court_id": court.id,
+            "status": {"$in": ["PAID", "ATTESTED"]},
+        }
+    ).to_list(length=1000)
+    jurisdiction_documents.extend(serialize_mongo_document(document_in))
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{court.name} Retrieved successfully",
+        data=JurisdictionInResponse(
+            id=court.id,
+            name=court.name,
+            date_created=court.CreatedAt,
+            jurisidiction=CourtSystemInDB(
+                name=court.jurisdiction.name, id=court.jurisdiction.id
+            ),
+            commissioners=[
+                SlimUserInResponse(
+                    id=commissioner.id,
+                    first_name=commissioner.first_name,
+                    last_name=commissioner.last_name,
+                    email=commissioner.email,
+                )
+                for commissioner_profile in court.commissioner_profile
+                for commissioner in [commissioner_profile.user]
+            ],
+            documents=len(jurisdiction_documents),
+        ),
+    )
+
+
+@router.post(
+    "/create_template",
+    dependencies=[Depends(admin_permission_dependency)],
+    status_code=status.HTTP_201_CREATED,
+    response_model=GenericResponse[TemplateBase],
+)
+async def create_template(
+    template_in: TemplateCreateForm,
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    template_dict = template_in.dict()
+    existing_template = await template_collection.find_one(
+        {"name": template_dict["name"]}
+    )
+    if existing_template:
+
+        raise HTTPException(
+            status_code=400, detail="Template with the given name already exists"
+        )
+    template_dict = TemplateCreate(
+        **template_dict, created_by_id=current_user.id
+    ).dict()
+
+    result = await template_collection.insert_one(template_dict)
+    if not result.acknowledged:
+        logger.error("Failed to insert template")
+        raise HTTPException(status_code=500, detail="Failed to create template")
+
+    new_template = await template_collection.find_one({"_id": result.inserted_id})
+    return create_response(
+        status_code=status.HTTP_201_CREATED,
+        message=f"{new_template['name']} template Created Successfully",
+        data=template_individual_serializer(new_template),
+    )
+
+@router.patch(
+    "/update_template/{template_id}",
+    dependencies=[Depends(admin_permission_dependency)],
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[TemplateBase],
+)
+async def update_template(
+    template_in: TemplateBase,
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    template_dict = {**template_in.dict(), "updated_at": datetime.utcnow()}
+    object_id = ObjectId(template_dict["id"])
+    existing_template = await template_collection.find_one({"_id": object_id})
+
+    if not existing_template:
+
+        raise HTTPException(status_code=404, detail="Template does not exist")
+
+    # If a template with the same name exists, update it
+    update_result = await template_collection.update_one(
+        {"_id": existing_template["_id"]}, {"$set": template_dict}
+    )
+    if not update_result.modified_count:
+        logger.error("Failed to update template")
+        raise HTTPException(status_code=500, detail="Failed to update template")
+
+    updated_template = await template_collection.find_one(
+        {"_id": existing_template["_id"]}
+    )
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{updated_template['name']} template updated successfully",
+        data=template_individual_serializer(updated_template),
+    )
+

@@ -1,6 +1,8 @@
+import datetime
 from typing import List
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from bson import ObjectId
 from loguru import logger
 from sqlalchemy.orm import Session
 from app.api.dependencies.authentication import (
@@ -19,7 +21,15 @@ from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.core.settings.configurations import settings
-from app.schemas.affidavit_schema import SlimDocumentInResponse, SlimTemplateInResponse, document_individual_serializer, serialize_mongo_document
+from app.schemas.affidavit_schema import (
+    AttestDocument,
+    DocumentBase,
+    SlimDocumentInResponse,
+    SlimTemplateInResponse,
+    UpdateDocument,
+    document_individual_serializer,
+    serialize_mongo_document,
+)
 from app.schemas.court_system_schema import CourtSystemBase, CourtSystemInDB
 from app.schemas.user_schema import (
     CommissionerAttestation,
@@ -228,10 +238,21 @@ def get_current_commissioner(
 @router.put(
     "/update_attestation", dependencies=[Depends(commissioner_permission_dependency)]
 )
-def create_attestation(
-    db: Session = Depends(get_db), user=Depends(get_currently_authenticated_user)
+def update_attestation(
+    attestation: CommissionerAttestation,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_currently_authenticated_user),
 ):
-    return {"notice": "Attestations are now being automatically created."}
+
+    commissioner_profile = comm_profile_repo.get_profile_by_commissioner_id(
+        db, commissioner_id=current_user.id
+    )
+
+    updated_commissioner_profile = comm_profile_repo.updateAttestation(
+        db, db_obj=commissioner_profile, attestation_obj=attestation
+    )
+
+    return updated_commissioner_profile
 
 
 @router.put(
@@ -298,29 +319,67 @@ async def search_document(
     return create_response(
         message="Document retrieved  successfully",
         status_code=status.HTTP_200_OK,
-        data= serialize_mongo_document(document),
+        data=serialize_mongo_document(document),
     )
 
 
-@router.get("/attest_document")
-def attest_document(
+@router.put("/attest_document/{document_id}")
+async def update_document(
+    document_id: str,
+    document_in: AttestDocument,
     current_user: User = Depends(get_currently_authenticated_user),
-) -> UserInResponse:
-    """
-    This is used to retrieve the currently logged-in user's profile.
-    You need to send a token in and it returns a full profile of the currently logged in user.
-    You send the token in as a header of the form \n
-    <b>Authorization</b> : 'Token <b> {JWT} </b>'
-    """
-    return UserInResponse(
-        id=current_user.id,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        email=current_user.email,
-        is_active=current_user.is_active,
-        user_type=UserTypeInDB(
-            id=current_user.user_type.id,
-            name=current_user.user_type.name,
+):
+
+    document_data = document_in.dict(exclude_unset=True)
+    document_data.update(
+        {
+            "status": "ATTESTED",
+            "commissioner_id": current_user.id,
+            "attestation_date": datetime.datetime.now(),
+            "updated_at": datetime.datetime.now(),
+        }
+    )
+
+
+
+    update_result = await document_collection.update_one(
+        {"_id": ObjectId(document_id)}, {"$set": document_data}
+    )
+
+    if update_result.modified_count == 0:
+        raise HTTPException(
+            status_code=404, detail="Document not found or no update made."
+        )
+
+    updated_document = await document_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+    if not updated_document:
+        raise HTTPException(status_code=404, detail="Document not found after update.")
+    attested_document = serialize_mongo_document(updated_document)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{attested_document['name'] } has been attested successfully",
+        data=None,
+    )
+
+
+@router.get(
+    "/get_my_attestation", dependencies=[Depends(commissioner_permission_dependency)]
+)
+async def get_my_attestations(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_currently_authenticated_user),
+):
+    commissioner_profile = comm_profile_repo.get_profile_by_commissioner_id(
+        db=db, commissioner_id=current_user.id
+    )
+    if not commissioner_profile:
+        raise DoesNotExistException(detail=f"Commissioner not found")
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Attestation retrieved successfully",
+        data=CommissionerAttestation(
+            signature=commissioner_profile.signature, stamp=commissioner_profile.stamp
         ),
-        verify_token="",
     )

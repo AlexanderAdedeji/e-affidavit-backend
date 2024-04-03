@@ -1,6 +1,6 @@
-from typing import List
+from typing import Any, List
 import uuid
-from app.core.services.utils.utils import is_valid_objectid
+from app.core.services.utils.utils import generate_document_name, generate_qr_code_base64, is_valid_objectid
 from app.models.court_system_models import Court, Jurisdiction
 from app.schemas.court_system_schema import CourtSystemInDB
 from bson import ObjectId
@@ -19,10 +19,13 @@ from app.models.user_model import User
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.schemas.affidavit_schema import (
+    DocumentCreate,
+    DocumentCreateForm,
     LastestAffidavits,
     SlimDocumentInResponse,
     TemplateBase,
     TemplateInResponse,
+    document_individual_serializer,
     document_list_serialiser,
     serialize_mongo_document,
     template_individual_serializer,
@@ -333,7 +336,7 @@ async def get_my_latest_affidavits(
                     name=document["name"],
                     court=document["court"],
                     template=document["template"],
-                    id=document["_id"],
+                    id=document["id"],
                     status=document["status"],
                     created_at=document["created_at"],
                     price=document.get("price"),
@@ -597,24 +600,35 @@ def get_all_users(db: Session = Depends(get_db)):
     )
 
 
-# @router.get("/get_by_users_type")
-# def get_by_users_type(user_type: str, db: Session = Depends(get_db)):
-#     user_type = user_type_repo.get_by_name(db, name=user_type.upper())
-#     return user_type.users
-#     return create_response(
-#         status_code=status.HTTP_200_OK,
-#         message="All Users retrieved successfully.",
-#         data=[
-#             AllUsers(
-#                 id=user.id,
-#                 first_name=user.first_name,
-#                 last_name=user.last_name,
-#                 email=user.email,
-#                 user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
-#                 date_created=user.CreatedAt,
-#                 is_active=user.is_active,
-#                 verify_token="",
-#             )
-#             for user in users
-#         ],
-#     )
+@router.post("/create_document")
+async def create_document(
+    document_in: DocumentCreateForm,
+    current_user: User = Depends(get_currently_authenticated_user),
+) -> Any:
+    document_name = generate_document_name()
+    document_qr_code_url = (
+        f"https://e-affidavit-staging.netlify.app/qr-searchDocument/{document_name}"
+    )
+    qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
+    document_dict = document_in.dict()
+    document_dict.update({
+        "name": document_name,
+        "status": "SAVED",
+        "qr_code": qr_code_base64,
+        "created_by_id": current_user.id,
+    })
+
+    document_obj = DocumentCreate(**document_dict)
+
+    try:
+        result = await document_collection.insert_one(document_obj.dict())
+        if not result.acknowledged:
+            logger.error("Failed to insert document")
+            raise HTTPException(status_code=500, detail="Failed to create document")
+
+        new_document = await document_collection.find_one({"_id": result.inserted_id})
+        return document_individual_serializer(new_document)
+    except Exception as e:
+        logger.error(f"Error creating document: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error creating document")
+

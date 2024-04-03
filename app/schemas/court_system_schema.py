@@ -31,16 +31,18 @@ class FullCourtInDB(CourtSystemBase):
     state: str
     jurisdiction: str
 
+
 class SlimCourtInResponse(CourtSystemInDB):
-    date_created:datetime
-    commissioners:int
+    date_created: datetime
+    commissioners: int
     documents: int
+
 
 class JurisdictionBase(CourtSystemBase):
     id: str
     date_created: datetime
     state: CourtSystemInDB
-    head_of_unit:Optional[SlimUserInResponse] = None
+    head_of_unit: Optional[SlimUserInResponse] = None
     courts: List[SlimCourtInResponse]
 
 
@@ -59,11 +61,9 @@ class SlimJurisdictionInResponse(BaseModel):
 class CourtBase(CourtSystemBase):
     id: str
     date_created: datetime
-    state: CourtSystemInDB
     Jurisdiction: CourtSystemInDB
-    head_of_unit: SlimUserInResponse
+
+
+class CourtInResponse(CourtBase):
     commissioners: List[SlimUserInResponse]
     documents: List[SlimDocumentInResponse]
-
-
-

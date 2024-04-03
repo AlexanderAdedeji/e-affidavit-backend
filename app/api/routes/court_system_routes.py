@@ -17,6 +17,7 @@ from app.repositories.court_system_repo import (
     court_repo,
     jurisdiction_repo,
 )
+from app.database.sessions.mongo_client import document_collection
 from app.api.dependencies.authentication import (
     admin_permission_dependency,
     admin_and_head_of_unit_permission_dependency,
@@ -24,7 +25,12 @@ from app.api.dependencies.authentication import (
 )
 from app.models.court_system_models import Court, Jurisdiction, State
 from app.repositories.head_of_unit_repo import head_of_unit_repo
+from app.schemas.affidavit_schema import (
+    SlimDocumentInResponse,
+    serialize_mongo_document,
+)
 from app.schemas.court_system_schema import (
+    CourtInResponse,
     CourtSystemBase,
     CourtSystemInDB,
     CreateCourt,
@@ -319,40 +325,39 @@ def get_jurisdiction(
     response_model=GenericResponse[List[CourtBase]],
     dependencies=[Depends(admin_and_head_of_unit_permission_dependency)],
 )
-def get_all_courts(
+async def get_all_courts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
     """Return a list of all courts"""
     try:
-        courts = []
+        documents = []
         if current_user.user_type.name == settings.HEAD_OF_UNIT_USER_TYPE:
             courts = head_of_unit_repo.get_courts_under_jurisdiction(
                 db=db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
             )
         else:
             courts = court_repo.get_all(db)
+
+        for court in courts:
+            db_documents = document_collection.find({"court_id": court.id}).to_list(
+                length=1000
+            )
+            documents.append(
+                serialize_mongo_document(document) for document in db_documents
+            )
+
         return create_response(
             status_code=status.HTTP_200_OK,
             message="Courts Retrieved Successfully",
             # data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
             data=[
-                CourtBase(
+                dict(
                     id=court.id,
                     date_created=court.CreatedAt,
                     name=court.name,
-                    state=CourtSystemInDB(
-                        id=court.jurisdiction.state.id,
-                        name=court.jurisdiction.state.name,
-                    ),
                     Jurisdiction=CourtSystemInDB(
                         id=court.jurisdiction.id, name=court.jurisdiction.name
-                    ),
-                    head_of_unit=SlimUserInResponse(
-                        id=court.jurisdiction.head_of_unit.id,
-                        first_name=court.jurisdiction.head_of_unit.user.first_name,
-                        last_name=court.jurisdiction.head_of_unit.user.last_name,
-                        email=court.jurisdiction.head_of_unit.user.email,
                     ),
                     commissioners=[
                         SlimUserInResponse(
@@ -362,6 +367,17 @@ def get_all_courts(
                             email=commissioner.user.email,
                         )
                         for commissioner in court.commissioner_profile
+                    ],
+                    documents=[
+                        SlimDocumentInResponse(
+                            id=str(document["_id"]),
+                            name=document.get("name", ""),
+                            price=document.get("price", 0),
+                            attestation_date=document.get("attest", ""),
+                            created_at=document.get("created_at", ""),
+                            status=document.get("status", ""),
+                        )
+                        for document in documents
                     ],
                 )
                 for court in courts
@@ -373,7 +389,7 @@ def get_all_courts(
 
 
 @router.post(
-    "/create_court",
+    "/court",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_permission_dependency)],
 )
