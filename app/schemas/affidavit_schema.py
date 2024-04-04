@@ -78,22 +78,23 @@ class DocumentBase(BaseModel):
 class UpdateDocument(BaseModel):
     created_by_id: str
     commissioner_id: Optional[str] = None
-    attestation_date: Optional[datetime.datetime]
-    status: Optional[str]
-    amount_paid: Optional[int]
-    payment_ref: Optional[str]
-    created_at: Optional[datetime.datetime]
-    updated_at: Optional[datetime.datetime]
+    attestation_date: Optional[datetime.datetime] =None
+    status: Optional[str] =None
+    amount_paid: Optional[int] =None
+    payment_ref: Optional[str]=None
+    created_at: Optional[datetime.datetime]=None
+    updated_at: Optional[datetime.datetime]=None
     template_id: str
-    court_id: Optional[str]
+    court_id: Optional[str]=None
     document_data: TemplateContent
-    qr_code: Optional[str]
-    is_attested: Optional[bool]
-    name: str  # Added the name field as required
+    qr_code: Optional[str]=None
+    is_attested: Optional[bool]=None
+    name: str 
 
 
 class AttestDocument(BaseModel):
     document_data: TemplateContent
+
 
 class DocumentCreateForm(BaseModel):
     document_data: TemplateContent
@@ -105,9 +106,16 @@ class SlimDocumentInResponse(BaseModel):
     id: str
     name: str
     price: Optional[int]
-    attestation_date: Optional[datetime.datetime]
+    attestation_date: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     status: str
+
+
+class DocumentPayment(BaseModel):
+
+    payment_ref: str
+    amount_paid:int
+    # document_data: TemplateContent
 
 
 class LastestAffidavits(SlimDocumentInResponse):

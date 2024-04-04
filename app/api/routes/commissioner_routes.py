@@ -335,6 +335,7 @@ async def update_document(
         {
             "status": "ATTESTED",
             "commissioner_id": current_user.id,
+            "is_attested": True,
             "attestation_date": datetime.datetime.now(),
             "updated_at": datetime.datetime.now(),
         }

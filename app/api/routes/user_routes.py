@@ -1,6 +1,11 @@
+import datetime
 from typing import Any, List
 import uuid
-from app.core.services.utils.utils import generate_document_name, generate_qr_code_base64, is_valid_objectid
+from app.core.services.utils.utils import (
+    generate_document_name,
+    generate_qr_code_base64,
+    is_valid_objectid,
+)
 from app.models.court_system_models import Court, Jurisdiction
 from app.schemas.court_system_schema import CourtSystemInDB
 from bson import ObjectId
@@ -21,10 +26,13 @@ from app.repositories.user_type_repo import user_type_repo
 from app.schemas.affidavit_schema import (
     DocumentCreate,
     DocumentCreateForm,
+    DocumentPayment,
     LastestAffidavits,
     SlimDocumentInResponse,
     TemplateBase,
+    TemplateContent,
     TemplateInResponse,
+    UpdateDocument,
     document_individual_serializer,
     document_list_serialiser,
     serialize_mongo_document,
@@ -341,7 +349,6 @@ async def get_my_latest_affidavits(
                     created_at=document["created_at"],
                     price=document.get("price"),
                     attestation_date=document.get("attestation_date"),
-        
                 )
                 for document in enriched_documents
             ],
@@ -493,52 +500,84 @@ async def get_template_for_document_creation(
     )
 
 
-@router.get("/pay_for_document")
-def pay_for_document(
+@router.patch("/update_document/{document_id}")
+async def update_document(
+    document_id: str,
+    document_in: UpdateDocument,
     current_user: User = Depends(get_currently_authenticated_user),
-) -> UserInResponse:
-    """
-    This is used to retrieve the currently logged-in user's profile.
-    You need to send a token in and it returns a full profile of the currently logged in user.
-    You send the token in as a header of the form \n
-    <b>Authorization</b> : 'Token <b> {JWT} </b>'
-    """
-    return UserInResponse(
-        id=current_user.id,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        email=current_user.email,
-        is_active=current_user.is_active,
-        user_type=UserTypeInDB(
-            id=current_user.user_type.id,
-            name=current_user.user_type.name,
-        ),
-        verify_token="",
+):
+
+    document = await document_collection.find_one(
+        {"_id": ObjectId(document_id), "created_by_id": current_user.id}
+    )
+    document_data = document_in.dict(exclude_unset=True)
+    document_data.update()
+
+    update_result = await document_collection.update_one(
+        {"_id": ObjectId(document_id)}, {"$set": document_data}
+    )
+
+    if update_result.modified_count == 0:
+        raise HTTPException(
+            status_code=404, detail="Document not found or no update made."
+        )
+
+    updated_document = await document_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+    if not updated_document:
+        raise HTTPException(status_code=404, detail="Document not found after update.")
+    attested_document = serialize_mongo_document(updated_document)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{attested_document['name'] } has been attested successfully",
+        data=None,
+    )
+
+    return serialize_mongo_document(document)
+
+
+@router.put("/pay_for_document/{document_id}")
+async def pay_for_document(
+    document_id: str,
+    document_in: DocumentPayment,
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+
+    document = await document_collection.find_one(
+        {"_id": ObjectId(document_id), "created_by_id": current_user.id}
+    )
+    document_data = document_in.dict(exclude_unset=True)
+    document_data.update(
+        {
+            "status": "PAID",
+            
+            "updated_at": datetime.datetime.now(),
+        }
+    )
+
+    update_result = await document_collection.update_one(
+        {"_id": ObjectId(document_id)}, {"$set": document_data}
+    )
+
+    if update_result.modified_count == 0:
+        raise HTTPException(
+            status_code=404, detail="Document not found or no update made."
+        )
+
+    updated_document = await document_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+    if not updated_document:
+        raise HTTPException(status_code=404, detail="Document not found after update.")
+    paid_document = serialize_mongo_document(updated_document)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{paid_document['name'] } has been paid for successfully",
+        data=None,
     )
 
 
-@router.get("/get_document_status_counts")
-def pay_for_document(
-    current_user: User = Depends(get_currently_authenticated_user),
-) -> UserInResponse:
-    """
-    This is used to retrieve the currently logged-in user's profile.
-    You need to send a token in and it returns a full profile of the currently logged in user.
-    You send the token in as a header of the form \n
-    <b>Authorization</b> : 'Token <b> {JWT} </b>'
-    """
-    return UserInResponse(
-        id=current_user.id,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        email=current_user.email,
-        is_active=current_user.is_active,
-        user_type=UserTypeInDB(
-            id=current_user.user_type.id,
-            name=current_user.user_type.name,
-        ),
-        verify_token="",
-    )
 
 
 @router.get("/get_states")
@@ -611,12 +650,14 @@ async def create_document(
     )
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
     document_dict = document_in.dict()
-    document_dict.update({
-        "name": document_name,
-        "status": "SAVED",
-        "qr_code": qr_code_base64,
-        "created_by_id": current_user.id,
-    })
+    document_dict.update(
+        {
+            "name": document_name,
+            "status": "SAVED",
+            "qr_code": qr_code_base64,
+            "created_by_id": current_user.id,
+        }
+    )
 
     document_obj = DocumentCreate(**document_dict)
 
@@ -627,8 +668,12 @@ async def create_document(
             raise HTTPException(status_code=500, detail="Failed to create document")
 
         new_document = await document_collection.find_one({"_id": result.inserted_id})
-        return document_individual_serializer(new_document)
+        return create_response(
+            status_code=status.HTTP_201_CREATED,
+            message=f"Document {new_document['name']} created successfully.",
+            data=serialize_mongo_document(new_document),
+        )
+
     except Exception as e:
         logger.error(f"Error creating document: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error creating document")
-

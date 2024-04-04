@@ -14,14 +14,22 @@ from app.core.errors.exceptions import (
     DoesNotExistException,
     UnauthorizedEndpointException,
 )
+from app.models.user_model import User
 from app.repositories.user_invite_repo import user_invite_repo
+from app.database.sessions.mongo_client import document_collection
 from app.repositories.user_repo import user_repo
 from app.repositories.head_of_unit_repo import head_of_unit_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.core.settings.configurations import settings
-from app.schemas.court_system_schema import CourtSystemInDB
+from app.schemas.affidavit_schema import (
+    SlimDocumentInResponse,
+    serialize_mongo_document,
+)
+from app.schemas.court_system_schema import CourtBase, CourtSystemInDB
+from app.schemas.shared_schema import SlimUserInResponse
 from app.schemas.user_schema import (
     CommissionerCreate,
+    CommissionerInResponse,
     CommissionerProfileBase,
     FullCommissionerInResponse,
     FullHeadOfUniteInResponse,
@@ -38,6 +46,131 @@ from commonLib.response.response_schema import create_response, GenericResponse
 
 
 router = APIRouter()
+
+
+@router.get(
+    "/courts",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+)
+async def get_all_courts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    """Return a list of all courts in the jurisdiction of the head of unit."""
+    try:
+        courts_data = []
+
+        courts = head_of_unit_repo.get_courts_under_jurisdiction(
+            db=db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+        )
+
+        for court in courts:
+            db_documents = await document_collection.find(
+                {"court_id": court.id}
+            ).to_list(length=1000)
+            documents = [
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=(
+                        document.get("attest") if document.get("attest", "") else None
+                    ),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in db_documents
+            ]
+
+            courts_data.append(
+                {
+                    "id": court.id,
+                    "date_created": court.CreatedAt,
+                    "name": court.name,
+                    "Jurisdiction": CourtSystemInDB(
+                        id=court.jurisdiction.id, name=court.jurisdiction.name
+                    ),
+                    "commissioners": [
+                        SlimUserInResponse(
+                            id=commissioner.user.id,
+                            first_name=commissioner.user.first_name,
+                            last_name=commissioner.user.last_name,
+                            email=commissioner.user.email,
+                        )
+                        for commissioner in court.commissioner_profile
+                    ],
+                    "documents": documents,  # Now directly using the list of documents
+                }
+            )
+
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Courts Retrieved Successfully",
+            data=courts_data,
+        )
+
+    except Exception as e:
+        # Consider adding logging or more specific error handling here
+        raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
+
+
+@router.get(
+    "/commissioners/",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[List[CommissionerInResponse]],
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+)
+async def get_commissioners(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    results = []
+
+    commissioner_profiles = head_of_unit_repo.get_commissioners_under_jurisdiction(
+        db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+    )
+    commissioners = [commissioner.user for commissioner in commissioner_profiles]
+    for commissioner in commissioners:
+        attested_documents = await document_collection.find(
+            {"commissioner_id": commissioner.id}
+        ).to_list(length=1000)
+        documents_serialized = [
+            SlimDocumentInResponse(
+                id=str(document["_id"]),
+                name=document.get("name", ""),
+                price=document.get("price", 0),
+                attestation_date=(
+                    document.get("attest") if document.get("attest", "") else None
+                ),
+                created_at=document.get("created_at", ""),
+                status=document.get("status", ""),
+            )
+            for document in attested_documents
+        ]
+        fullcommissioner = CommissionerInResponse(
+            id=commissioner.id,
+            first_name=commissioner.first_name,
+            user_type=UserTypeInDB(
+                id=commissioner.user_type.id, name=commissioner.user_type.name
+            ),
+            verify_token="some_verify_token",
+            last_name=commissioner.last_name,
+            email=commissioner.email,
+            court=CourtSystemInDB(
+                id=commissioner.commissioner_profile.court.id,
+                name=commissioner.commissioner_profile.court.name,
+            ),
+            is_active=commissioner.is_active,
+            attested_documents=documents_serialized,
+            date_created=commissioner.CreatedAt,
+        )
+        results.append(fullcommissioner)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Commissioners retireved successfully",
+        data=results,
+    )
 
 
 @router.post(
@@ -146,10 +279,7 @@ def get_unit_head(head_of_unit_id: str, db: Session = Depends(get_db)):
     )
 
 
-@router.get(
-    "/",
-    # dependencies=[Depends(admin_permission_dependency)]
-)
+@router.get("/head_of_units", dependencies=[Depends(admin_permission_dependency)])
 def get_unit_heads(db: Session = Depends(get_db)):
     user_type = user_type_repo.get_by_name(db=db, name=settings.HEAD_OF_UNIT_USER_TYPE)
     if user_type is None:
