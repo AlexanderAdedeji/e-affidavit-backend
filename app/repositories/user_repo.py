@@ -21,6 +21,7 @@ class UserRepositories(Base[User]):
             last_name=obj_in.last_name,
             email=obj_in.email,
             user_type_id=obj_in.user_type_id,
+            is_active=True
         )
         db_obj.set_password(obj_in.password)
         db.add(db_obj)

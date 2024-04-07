@@ -484,7 +484,7 @@ async def get_template_for_document_creation(
             detail=f"Template with ID {template_id} does not exist",
         )
 
-    # Assuming individual_serialiser is a valid function
+    #
     template_obj = template_individual_serializer(template_obj)
     return create_response(
         status_code=status.HTTP_200_OK,
@@ -534,7 +534,7 @@ async def update_document(
         data=None,
     )
 
-    return serialize_mongo_document(document)
+
 
 
 @router.put("/pay_for_document/{document_id}")
@@ -574,8 +574,10 @@ async def pay_for_document(
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{paid_document['name'] } has been paid for successfully",
-        data=None,
+        data=paid_document,
     )
+
+
 
 
 

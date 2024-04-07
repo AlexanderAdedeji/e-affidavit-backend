@@ -58,7 +58,7 @@ def login(
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
     if not user.is_active:
-        raise HTTPException(detail=error_strings.INACTIVE_USER_ERROR)
+        raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
 
     template_dict = UserCreationTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
