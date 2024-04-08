@@ -298,7 +298,7 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
             return []
         return create_response(
             status_code=status.HTTP_200_OK,
-            data=document_list_serialiser(documents),
+            data=serialize_mongo_document(documents),
             message=f"Documents retrieved successfully",
         )
     except Exception as e:
@@ -348,7 +348,7 @@ async def get_my_latest_affidavits(
                     status=document["status"],
                     created_at=document["created_at"],
                     price=document.get("price"),
-                    attestation_date=document.get("attestation_date"),
+                    attestation_date=str(document.get("attestation_date")),
                 )
                 for document in enriched_documents
             ],
@@ -408,6 +408,35 @@ async def get_document(
         return create_response(
             status_code=status.HTTP_200_OK,
             message=f"{document['name']} retrieve successfully",
+            data=document,
+        )
+
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching the document",
+        )
+
+
+@router.get("/get_document_by_name")
+async def get_document_by_name(
+    document_name: str,
+):
+
+
+    try:
+        document = await document_collection.find_one({"name": document_name})
+        if not document:
+            logger.error(f"Could not find document by name {document_name}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            )
+
+        document = serialize_mongo_document(document)
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message=f"{document['name']} verified successfully",
             data=document,
         )
 
@@ -535,8 +564,6 @@ async def update_document(
     )
 
 
-
-
 @router.put("/pay_for_document/{document_id}")
 async def pay_for_document(
     document_id: str,
@@ -551,7 +578,6 @@ async def pay_for_document(
     document_data.update(
         {
             "status": "PAID",
-            
             "updated_at": datetime.datetime.now(),
         }
     )
@@ -576,10 +602,6 @@ async def pay_for_document(
         message=f"{paid_document['name'] } has been paid for successfully",
         data=paid_document,
     )
-
-
-
-
 
 
 @router.get("/get_states")
@@ -648,7 +670,7 @@ async def create_document(
 ) -> Any:
     document_name = generate_document_name()
     document_qr_code_url = (
-        f"https://e-affidavit-staging.netlify.app/qr-searchDocument/{document_name}"
+                 f"https://e-affidavit-public.vercel.app/verify-document/{document_name}"
     )
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
     document_dict = document_in.dict()
@@ -679,3 +701,36 @@ async def create_document(
     except Exception as e:
         logger.error(f"Error creating document: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error creating document")
+
+
+# # Assuming this is the function to generate QR code in base64 format
+# # It should be defined somewhere in your application
+# def generate_qr_code_base64(data: str) -> str:
+#     # QR code generation logic...
+#     return "base64_qr_code_string"
+
+
+# @router.get("/generate_qr_code")
+# async def generate_qr_code(name: str) -> Any:
+#     """
+#     Generate a QR code for the provided name.
+#     """
+#     try:
+#         # Construct the URL for the QR code
+#         qr_code_url = (
+#             f"https://e-affidavit-public.vercel.app/verify-document/{name}"
+#         )
+
+#         # Generate the QR code in base64 format
+#         qr_code_base64 = generate_qr_code_base64(qr_code_url)
+
+#         return {
+#             "name": name,
+#             "qr_code_url": qr_code_url,
+#             "qr_code_base64": qr_code_base64,
+#         }
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail="Error generating QR code")
+
+
+# Include other routes and logic as needed...

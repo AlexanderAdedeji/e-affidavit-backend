@@ -89,6 +89,8 @@ async def get_commissioners(
                     id=str(document["_id"]),
                     name=document.get("name", ""),
                     attested_date=document.get("attestation_date", ""),
+                    created_at=document.get("created_at",""),
+                    status=document.get("status","")
                 )
                 for document in attested_documents
             ]
