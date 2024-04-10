@@ -194,7 +194,7 @@ async def get_users(db: Session = Depends(get_db)):
         )
         response.append(new_user)
 
-    return response
+ 
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"Users information retrieved successfully.",
@@ -710,27 +710,27 @@ async def create_document(
 #     return "base64_qr_code_string"
 
 
-# @router.get("/generate_qr_code")
-# async def generate_qr_code(name: str) -> Any:
-#     """
-#     Generate a QR code for the provided name.
-#     """
-#     try:
-#         # Construct the URL for the QR code
-#         qr_code_url = (
-#             f"https://e-affidavit-public.vercel.app/verify-document/{name}"
-#         )
+@router.get("/generate_qr_code")
+async def generate_qr_code(name: str) -> Any:
+    """
+    Generate a QR code for the provided name.
+    """
+    try:
+        # Construct the URL for the QR code
+        qr_code_url = (
+            f"https://e-affidavit-public.vercel.app/verify-document/{name}"
+        )
 
-#         # Generate the QR code in base64 format
-#         qr_code_base64 = generate_qr_code_base64(qr_code_url)
+        # Generate the QR code in base64 format
+        qr_code_base64 = generate_qr_code_base64(qr_code_url)
 
-#         return {
-#             "name": name,
-#             "qr_code_url": qr_code_url,
-#             "qr_code_base64": qr_code_base64,
-#         }
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="Error generating QR code")
+        return {
+            "name": name,
+            "qr_code_url": qr_code_url,
+            "qr_code_base64": qr_code_base64,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error generating QR code")
 
 
 # Include other routes and logic as needed...

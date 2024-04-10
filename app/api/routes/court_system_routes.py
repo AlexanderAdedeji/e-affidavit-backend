@@ -237,9 +237,7 @@ def create_jurisdiction(
         logger.error(
             "Something went wrong  while creating the jusridiction: {err}", err=e
         )
-        raise ServerException(
-            detail="Something went wrong  while creating the jusridiction:"
-        )
+        raise ServerException(detail="Something went wrong  while creating the jusridiction:")
 
 
 @router.get(
@@ -398,7 +396,10 @@ def create_court(court: CreateCourt, db: Session = Depends(get_db)):
         raise DoesNotExistException(
             detail=f"Jurisdiction with id {court.jurisdiction_id} does not exist."
         )
-
+    if court_repo.get_by_name(db=db, name=court.name):
+        raise AlreadyExistsException(
+            detail=f"Court with name {court.name} already exist."
+        )
     new_court = court_repo.create(db, obj_in=dict(**court.dict(), id=uuid4()))
     return dict(
         message=f"{new_court.name} created successfully",
