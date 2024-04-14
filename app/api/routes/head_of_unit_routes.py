@@ -27,6 +27,7 @@ from app.schemas.affidavit_schema import (
 )
 from app.schemas.court_system_schema import CourtBase, CourtSystemInDB
 from app.schemas.shared_schema import SlimUserInResponse
+from app.schemas.stats_schema import AdminDashboardStat, HeadOfUnitDashboardStat
 from app.schemas.user_schema import (
     CommissionerCreate,
     CommissionerInResponse,
@@ -46,6 +47,69 @@ from commonLib.response.response_schema import create_response, GenericResponse
 
 
 router = APIRouter()
+
+@router.get(
+    "/get_dashboard_stats",
+    # dependencies=[Depends(admin_permission_dependency)]
+)
+async def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    """
+    This endpoint returns statistics about users, invitations, affidavits, commissioners, courts, and revenue in the system.
+    """
+    # Get courts under jurisdiction
+    total_courts = head_of_unit_repo.get_courts_under_jurisdiction(
+        db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+    )
+    
+    total_affidavits = []
+    total_revenue = 0
+    total_commissioners = head_of_unit_repo.get_commissioners_under_jurisdiction(
+        db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+    )
+    
+    # Loop through each court and get affidavits and revenue
+    for court in total_courts:
+        pipeline = [
+            {"$match": {
+                "court_id": court.id,
+                "$or": [{"status": "PAID"}, {"is_attested": True}]
+            }},
+            {"$group": {
+                "_id": None,
+                "total_amount": {"$sum": "$price"},
+                "documents": {"$push": "$$ROOT"}
+            }}
+        ]
+        results = await document_collection.aggregate(pipeline).to_list(length=1)
+        if results and results[0]:
+            total_revenue += results[0].get('total_amount', 0)
+            documents = [
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", None),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in results[0].get('documents', [])
+            ]
+            total_affidavits.append(documents)
+
+    # Create and return response
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Dashboard Stats fetched successfully.",
+        data=HeadOfUnitDashboardStat(
+            total_courts=len(total_courts),
+            total_commissioners=len(total_commissioners),
+            total_affidavits=sum(len(docs) for docs in total_affidavits),
+            total_revenue=total_revenue,
+        ),
+    )
 
 
 @router.get(
@@ -169,6 +233,7 @@ def get_unit_heads(db: Session = Depends(get_db)):
             for head_of_unit in head_of_units
         ],
     )
+
 
 @router.get(
     "/commissioners/",
@@ -332,4 +397,3 @@ def get_unit_head(head_of_unit_id: str, db: Session = Depends(get_db)):
             ),
         ),
     )
-

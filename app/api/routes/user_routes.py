@@ -106,13 +106,13 @@ async def get_users(db: Session = Depends(get_db)):
         pipeline = [
             {
                 "$match": {
-                    "user_id": user.id,
+                    "created_by_id": user.id,
                     "$or": [{"status": "PAID"}, {"is_attested": True}],
                 }
             },
             {
                 "$group": {
-                    "_id": None,  # Grouping without a specific field to aggregate across the whole dataset
+                    "_id": None,
                     "total_amount": {"$sum": "$amount_paid"},
                 }
             },

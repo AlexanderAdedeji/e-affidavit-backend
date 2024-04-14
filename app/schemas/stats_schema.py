@@ -13,3 +13,10 @@ class PublicDashboardStat(BaseModel):
     total_paid: int
     total_attested: int
     total_documents: int
+
+
+class HeadOfUnitDashboardStat(BaseModel):
+    total_courts: int
+    total_commissioners: int
+    total_revenue: int
+    total_affidavits: int
