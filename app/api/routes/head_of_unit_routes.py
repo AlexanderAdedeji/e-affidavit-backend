@@ -85,7 +85,7 @@ async def get_dashboard_stats(
         ]
         results = await document_collection.aggregate(pipeline).to_list(length=1)
         if results and results[0]:
-            total_revenue += results[0].get('total_amount', 0)
+            total_revenue += results[0]['total_amount']
             documents = [
                 SlimDocumentInResponse(
                     id=str(document["_id"]),

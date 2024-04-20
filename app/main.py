@@ -16,10 +16,10 @@ from app.api.routes.routes import router as global_router
 
 Base.metadata.create_all(engine)
 # CORS configuration
-origins = ["*"]  # Replace with your allowed origins
-methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  # Specify allowed methods
+origins = ["*"]  
+methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  
 
-# Security middleware (example)
+
 security_middleware = Middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -62,7 +62,7 @@ def create_application_instance() -> FastAPI:
             content={"detail": f"An unexpected error occurred: {str(exc)}"},
         )
 
-    # Your existing middleware and route includes go here
+  
     app.include_router(global_router, prefix=settings.API_URL_PREFIX)
 
     return app

@@ -93,7 +93,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
         },
     ]
 
-    total_revenue_cursor =  document_collection.aggregate(pipeline)
+    total_revenue_cursor = document_collection.aggregate(pipeline)
     total_revenue = await total_revenue_cursor.to_list(length=1)
 
     return create_response(
@@ -540,6 +540,7 @@ async def create_template(
         data=template_individual_serializer(new_template),
     )
 
+
 @router.patch(
     "/update_template/{template_id}",
     dependencies=[Depends(admin_permission_dependency)],
@@ -575,3 +576,44 @@ async def update_template(
         data=template_individual_serializer(updated_template),
     )
 
+
+@router.put(
+    "/activate_user/{user_id}",
+    dependencies=[Depends(admin_permission_dependency)],
+)
+def activate_user(user_id: str, db: Session = Depends(get_db)):
+    db_user = user_repo.get(db, id=user_id)
+    if not db_user:
+        raise DoesNotExistException(detail="User does not exist")
+    if db_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account is already active.",
+        )
+    user_repo.activate(db, db_obj=db_user)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{db_user.first_name } {db_user.last_name} activated successfully",
+    )
+
+
+@router.put(
+    "/deactivate_user/{user_id}",
+    dependencies=[Depends(admin_permission_dependency)],
+)
+def deactivate_user(user_id: str, db: Session = Depends(get_db)):
+    db_user = user_repo.get(db, id=user_id)
+    if not db_user:
+        raise DoesNotExistException(detail="User does not exist")
+    if not db_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account is already in-active.",
+        )
+    user_repo.deactivate(db, db_obj=db_user)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{db_user.first_name } {db_user.last_name} de-activated successfully",
+    )
