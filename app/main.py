@@ -16,7 +16,11 @@ from app.api.routes.routes import router as global_router
 
 Base.metadata.create_all(engine)
 # CORS configuration
-origins = ["*"]  
+origins = [
+    "https://e-affidavit-court-system-fe.vercel.app/",
+    "https://e-affidavit-admin-fe.vercel.app/",
+    "https://e-affidavit-public-fe.vercel.app/"  # Make sure all URLs are correct
+]
 methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  
 
 
