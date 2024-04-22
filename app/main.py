@@ -26,7 +26,7 @@ methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
 
 security_middleware = Middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=methods,
     allow_headers=["*"],
