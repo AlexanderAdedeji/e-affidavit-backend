@@ -16,13 +16,13 @@ from app.api.routes.routes import router as global_router
 
 Base.metadata.create_all(engine)
 # CORS configuration
-origins = settings.ORIGINS
+origins = ["*"]  
 methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  
 
 
 security_middleware = Middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=methods,
     allow_headers=["*"],
