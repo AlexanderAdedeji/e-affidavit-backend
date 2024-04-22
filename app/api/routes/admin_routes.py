@@ -7,6 +7,7 @@ from loguru import logger
 from bson import ObjectId
 from app.core.services.invitation import process_user_invite
 from app.schemas.affidavit_schema import (
+    SlimDocumentInResponse,
     SlimTemplateInResponse,
     TemplateBase,
     TemplateContent,
@@ -44,6 +45,7 @@ from app.api.dependencies.authentication import (
     get_token_details,
 )
 from app.schemas.court_system_schema import (
+    CourtInResponse,
     CourtSystemInDB,
     JurisdictionInResponse,
     SlimCourtInResponse,
@@ -469,7 +471,7 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
 @router.get("/get_court/{court_id}")
 async def get_court(court_id: str, db: Session = Depends(get_db)):
     court = court_repo.get(db, id=court_id)
-    jurisdiction_documents = []
+    court_documents = []
     if not court:
         raise DoesNotExistException(detail="Court does not exist")
 
@@ -479,15 +481,15 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
             "status": {"$in": ["PAID", "ATTESTED"]},
         }
     ).to_list(length=1000)
-    jurisdiction_documents.extend(serialize_mongo_document(document_in))
+    court_documents.extend(serialize_mongo_document(document_in))
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{court.name} Retrieved successfully",
-        data=JurisdictionInResponse(
+        data=CourtInResponse(
             id=court.id,
             name=court.name,
             date_created=court.CreatedAt,
-            jurisidiction=CourtSystemInDB(
+            jurisdiction=CourtSystemInDB(
                 name=court.jurisdiction.name, id=court.jurisdiction.id
             ),
             commissioners=[
@@ -500,7 +502,17 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
                 for commissioner_profile in court.commissioner_profile
                 for commissioner in [commissioner_profile.user]
             ],
-            documents=len(jurisdiction_documents),
+            documents=[
+                SlimDocumentInResponse(
+                    id=str(document.get("id")),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in court_documents
+            ],
         ),
     )
 

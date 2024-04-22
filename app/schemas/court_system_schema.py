@@ -61,7 +61,7 @@ class SlimJurisdictionInResponse(BaseModel):
 class CourtBase(CourtSystemBase):
     id: str
     date_created: datetime
-    Jurisdiction: CourtSystemInDB
+    jurisdiction: CourtSystemInDB
 
 
 class CourtInResponse(CourtBase):
