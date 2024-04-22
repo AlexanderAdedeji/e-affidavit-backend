@@ -16,7 +16,7 @@ from app.api.routes.routes import router as global_router
 
 Base.metadata.create_all(engine)
 # CORS configuration
-origins = ["*"]  
+origins = settings.ORIGINS
 methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  
 
 

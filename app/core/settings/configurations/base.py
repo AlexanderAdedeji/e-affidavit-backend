@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings
 class CustomSettings(BaseSettings):
 
     ALLOWED_HOSTS: Any
-
+    ORIGINS:list
     SECRET_KEY: str
     RESET_TOKEN_EXPIRE_MINUTES: int = 60
     PROJECT_NAME: str = "E-Affidavit Server"
