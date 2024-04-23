@@ -39,12 +39,15 @@ class EmailService:
             ),
         )
 
-        # background_tasks.add_task(
-        #     self._send_email_with_template, email=email, template_dict=template_dict
-        # )
+        background_tasks.add_task(
+            self._send_email_with_template,db=db, email=email, template_dict=template_dict
+        )
+
+
+
 
     async def _send_email_with_template(
-        self, email: Email, template_dict: Dict[str, Any]
+        self, email: Email,db:Session, template_dict: Dict[str, Any]
     ):
         try:
             response = self.client.emails.send_with_template(
@@ -54,7 +57,7 @@ class EmailService:
                 To=email.recipient,
             )
             if response["ErrorCode"] == 0:
-                email_repo.mark_as_delivered(db_obj=email)
+                email_repo.mark_as_delivered(db,db_obj=email)
             else:
                 email_repo.update(
                     db_obj=email,

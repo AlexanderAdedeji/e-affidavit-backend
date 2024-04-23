@@ -44,6 +44,9 @@ class TemplateBase(TemplateInResponse):
         arbitrary_types_allowed = True
 
 
+        
+
+
 class TemplateCreateForm(BaseModel):
     name: str
     content: TemplateContent

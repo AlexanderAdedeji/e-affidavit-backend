@@ -224,13 +224,13 @@ def create_user(
         new_user = user_repo.create(obj_in=user_in, db=db)
         verify_token = user_repo.create_verification_token(email=new_user.email, db=db)
         verification_link = (
-            f"{PUBLIC_FRONTEND_BASE_URL}{VERIFY_EMAIL_LINK}={verify_token}"
+            f"{PUBLIC_FRONTEND_BASE_URL}{VERIFY_EMAIL_LINK}/{verify_token}"
         )
         template_dict = UserCreationTemplateVariables(
             name=f"{new_user.first_name} {new_user.last_name}",
             action_url=verification_link,
         ).dict()
-
+        print(verification_link)
         email_service.send_email_with_template(
             db=db,
             template_id=CREATE_ACCOUNT_TEMPLATE_ID,

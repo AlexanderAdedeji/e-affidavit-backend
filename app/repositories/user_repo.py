@@ -10,6 +10,9 @@ from app.schemas.user_schema import UserCreate
 from app.core.settings.security import security
 
 
+
+
+
 class UserRepositories(Base[User]):
     def get_by_email(self, db: Session, *, email):
         return db.query(User).filter(User.email == email).first()
@@ -21,7 +24,7 @@ class UserRepositories(Base[User]):
             last_name=obj_in.last_name,
             email=obj_in.email,
             user_type_id=obj_in.user_type_id,
-            is_active=True
+            # is_active=True
         )
         db_obj.set_password(obj_in.password)
         db.add(db_obj)
