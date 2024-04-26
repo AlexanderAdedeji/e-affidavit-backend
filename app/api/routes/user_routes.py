@@ -18,7 +18,11 @@ from app.api.dependencies.authentication import (
     authenticated_user_dependencies,
 )
 from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import AlreadyExistsException, DoesNotExistException
+from app.core.errors.exceptions import (
+    AlreadyExistsException,
+    DoesNotExistException,
+    UnauthorizedEndpointException,
+)
 from app.core.services.email import email_service
 from app.models.user_model import User
 from app.repositories.user_repo import user_repo
@@ -93,7 +97,6 @@ async def get_dashboard_stats(
             total_documents=total_documents,
         ),
     )
-
 
 
 @router.post("/user", response_model=GenericResponse[UserInResponse])
@@ -318,7 +321,6 @@ async def get_document_by_name(
     document_name: str,
 ):
 
-
     try:
         document = await document_collection.find_one({"name": document_name})
         if not document:
@@ -369,7 +371,7 @@ async def get_templates():
                 description=template["description"],
                 content=template["content"],
                 price=template["price"],
-                       category=template["category"],
+                category=template["category"],
             )
             for template in templates
         ],
@@ -420,6 +422,32 @@ async def get_template_for_document_creation(
             price=template_obj["price"],
             category=template_obj["category"],
         ),
+    )
+
+
+@router.delete("/delete_document/{document_id}")
+async def delete_document(
+    document_id: str, current_user: User = Depends(get_currently_authenticated_user)
+):
+    document = await document_collection.find_one({"_id": ObjectId(document_id)})
+    if not document:
+        raise DoesNotExistException(detail="This document does not exist")
+
+    if document["created_by_id"] != str(current_user.id):
+        raise UnauthorizedEndpointException(
+            detail="You are not authorised to delete this document"
+        )
+    if document["status"] != "SAVED":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORISED,
+            detail="Only saved documents can be deleted, try archiving instead",
+        )
+    deleted_count = await document_collection.delete_one({"_id": ObjectId(document_id)})
+    if deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return create_response(
+        status_code=status.HTTP_204_NO_CONTENT,
+        message=f"{document['name']} has been deleted successfully.",
     )
 
 
@@ -564,7 +592,7 @@ async def create_document(
 ) -> Any:
     document_name = generate_document_name()
     document_qr_code_url = (
-                 f"https://e-affidavit-public.vercel.app/verify-document/{document_name}"
+        f"https://e-affidavit-public.vercel.app/verify-document/{document_name}"
     )
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
     document_dict = document_in.dict()
@@ -597,21 +625,15 @@ async def create_document(
         raise HTTPException(status_code=500, detail="Error creating document")
 
 
-
-
-
 @router.get("/generate_qr_code")
 async def generate_qr_code(name: str) -> Any:
     """
     Generate a QR code for the provided name.
     """
     try:
-    
-        qr_code_url = (
-            f"https://e-affidavit-public.vercel.app/verify-document/{name}"
-        )
 
-       
+        qr_code_url = f"https://e-affidavit-public.vercel.app/verify-document/{name}"
+
         qr_code_base64 = generate_qr_code_base64(qr_code_url)
 
         return {
@@ -621,5 +643,3 @@ async def generate_qr_code(name: str) -> Any:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error generating QR code")
-
-
