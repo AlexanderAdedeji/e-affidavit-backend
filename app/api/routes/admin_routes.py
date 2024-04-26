@@ -55,9 +55,11 @@ from app.schemas.email_schema import OperationsInviteTemplateVariables
 from app.schemas.user_schema import (
     AcceptedInviteResponse,
     AdminInResponse,
+    AllUsers,
     CommissionerInResponse,
     CreateInvite,
     FullCommissionerInResponse,
+    HeadOfUnitInResponse,
     InviteOperationsForm,
     OperationsCreateForm,
     UserCreate,
@@ -169,6 +171,7 @@ def get_unit_heads(db: Session = Depends(get_db)):
 
 @router.get(
     "/general_users",
+    dependencies=[Depends(admin_permission_dependency)],
     # response_model=GenericResponse[List[PublicInResponse]]
 )
 async def get_users(db: Session = Depends(get_db)):
@@ -273,7 +276,11 @@ async def get_users(db: Session = Depends(get_db)):
     )
 
 
-@router.post("/invite_personel")
+@router.post(
+    "/invite_personel",
+    dependencies=[Depends(admin_permission_dependency)],
+    status_code=status.HTTP_200_OK,
+)
 async def invite_users(
     users: List[InviteOperationsForm],
     background_tasks: BackgroundTasks,
@@ -291,9 +298,9 @@ async def invite_users(
 
 @router.get(
     "/get_commissioners",
+    dependencies=[Depends(admin_permission_dependency)],
     status_code=status.HTTP_200_OK,
     response_model=GenericResponse[List[CommissionerInResponse]],
-    dependencies=[Depends(admin_permission_dependency)],
 )
 async def get_commissioners(
     db: Session = Depends(get_db),
@@ -416,39 +423,54 @@ async def accept_invite(token: str, db: Session = Depends(get_db)):
     )
 
 
-# @router.get(
-#     "/",
-#     dependencies=[Depends(admin_permission_dependency)],
-#     response_model=GenericResponse[List[UserInResponse]],
-# )
-# def get_all_admins(db: Session = Depends(get_db)):
-#     """Get all admin users"""
-#     user_type = user_type_repo.get_by_name(db, name=settings.ADMIN_USER_TYPE)
-#     admins = user_repo.get_users_by_user_type(db, user_type.id)
-#     return create_response(
-#         message="Admins retrieved successfully",
-#         status_code=status.HTTP_200_OK,
-#         data=[
-#             UserInResponse(
-#                 id=admin.id,
-#                 first_name=admin.first_name,
-#                 last_name=admin.last_name,
-#                 email=admin.email,
-#                 is_active=admin.is_active,
-#                 user_type=UserTypeInDB(
-#                     id=admin.user_type.id,
-#                     name=admin.user_type.name,
-#                 ),
-#                 verify_token="",
-#             )
-#             for admin in admins
-#         ],
-#     )
+@router.get("/get_public_users")
+def get_public_users(db: Session = Depends(get_db)):
+    user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
+    users = user_type.users
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Public Users retrived Successfully",
+        data=[
+            UserInResponse(
+                email=user.email,
+                id=user.id,
+                first_name=user.first_name,
+                is_active=user.is_active,
+                last_name=user.last_name,
+                verify_token="",
+                user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+            )
+            for user in users
+        ],
+    )
+
+
+@router.get("/get_all_users")
+def get_all_users(db: Session = Depends(get_db)):
+    users = user_repo.get_all(db)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="All Users retrieved successfully.",
+        data=[
+            AllUsers(
+                id=user.id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
+                date_created=user.CreatedAt,
+                is_active=user.is_active,
+                verify_token="",
+            )
+            for user in users
+        ],
+    )
 
 
 @router.get(
     "/get_all_admins",
-    # dependencies=[Depends(admin_permission_dependency)],
+    dependencies=[Depends(admin_permission_dependency)],
     response_model=GenericResponse[List[AdminInResponse]],
 )
 async def get_all_admins(db: Session = Depends(get_db)):
@@ -504,27 +526,27 @@ async def get_all_admins(db: Session = Depends(get_db)):
     )
 
 
-# @router.get(
-#     "/{id}",
-#     status_code=status.HTTP_200_OK,
-#     dependencies=[Depends(admin_permission_dependency)],
-#     response_model=GenericResponse[UserInResponse],
-# )
-# def get_admin(id: str, db: Session = Depends(get_db)):
-#     """Get an admin by ID"""
-#     admin = user_repo.get(db, id=id)
-#     return UserInResponse(
-#         id=admin.id,
-#         first_name=admin.first_name,
-#         last_name=admin.last_name,
-#         email=admin.email,
-#         is_active=admin.is_active,
-#         user_type=UserTypeInDB(
-#             id=admin.user_type.id,
-#             name=admin.user_type.name,
-#         ),
-#         verify_token="",
-#     )
+@router.get(
+    "/{id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(admin_permission_dependency)],
+    response_model=GenericResponse[UserInResponse],
+)
+def get_admin(id: str, db: Session = Depends(get_db)):
+    """Get an admin by ID"""
+    admin = user_repo.get(db, id=id)
+    return UserInResponse(
+        id=admin.id,
+        first_name=admin.first_name,
+        last_name=admin.last_name,
+        email=admin.email,
+        is_active=admin.is_active,
+        user_type=UserTypeInDB(
+            id=admin.user_type.id,
+            name=admin.user_type.name,
+        ),
+        verify_token="",
+    )
 
 
 @router.post(
@@ -583,7 +605,7 @@ def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
     response_model=GenericResponse[UserInResponse],
 )
 def retrieve_current_admin(
-    db: Session = Depends(get_db),
+
     current_user=Depends(get_currently_authenticated_user),
 ) -> UserInResponse:
     """
@@ -605,6 +627,11 @@ def retrieve_current_admin(
         verify_token="",
     )
 
+
+################
+###################################################
+##### COURT SYSTEM ###############
+#############################
 
 @router.get("/get_all_jurisdictions")
 async def get_all_jurisdictions(db: Session = Depends(get_db)):
@@ -735,13 +762,12 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
     )
 
 
-
-
 ##############
 #################
 ### AFFIDAVITS ROUTES#####
 #########
 ##########
+
 
 @router.post(
     "/create_template",
@@ -805,6 +831,7 @@ async def get_templates():
         logger.error(f"Error fetching templates: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching templates")
 
+
 @router.get(
     "/get_template/{template_id}",
     response_model=GenericResponse[TemplateBase],
@@ -841,8 +868,6 @@ async def get_template(template_id: str):
         message=f"{template_obj['name']} retrieved successfully",
         data=template_obj,
     )
-
-
 
 
 @router.patch(
