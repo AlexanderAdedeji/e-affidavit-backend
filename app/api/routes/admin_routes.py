@@ -55,6 +55,7 @@ from app.schemas.email_schema import OperationsInviteTemplateVariables
 from app.schemas.user_schema import (
     AcceptedInviteResponse,
     AdminInResponse,
+    CommissionerInResponse,
     CreateInvite,
     FullCommissionerInResponse,
     InviteOperationsForm,
@@ -110,6 +111,168 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
     )
 
 
+@router.get("/get_head_of_units", dependencies=[Depends(admin_permission_dependency)])
+def get_unit_heads(db: Session = Depends(get_db)):
+    user_type = user_type_repo.get_by_name(db=db, name=settings.HEAD_OF_UNIT_USER_TYPE)
+    if user_type is None:
+        raise HTTPException(status_code=500)
+    head_of_units = user_repo.get_users_by_user_type(db=db, user_type_id=user_type.id)
+
+    # head_of_units[0].head_of_unit.jurisdiction.courts[0].commissioner_profile[0].user
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Head Of Units retrieved successfully",
+        data=[
+            HeadOfUnitInResponse(
+                id=head_of_unit.id,
+                first_name=head_of_unit.first_name,
+                last_name=head_of_unit.last_name,
+                email=head_of_unit.email,
+                date_created=head_of_unit.CreatedAt,
+                user_type=UserTypeInDB(
+                    id=head_of_unit.user_type.id,
+                    name=head_of_unit.user_type.name,
+                ),
+                verify_token="",
+                is_active=head_of_unit.is_active,
+                jurisdiction=CourtSystemInDB(
+                    name=head_of_unit.head_of_unit.jurisdiction.name,
+                    id=head_of_unit.head_of_unit.jurisdiction.id,
+                ),
+                courts=[
+                    CourtSystemInDB(name=court.name, id=court.id)
+                    for court in head_of_unit.head_of_unit.jurisdiction.courts
+                ],
+                commissioners=[
+                    UserInResponse(
+                        id=commissioner.id,
+                        first_name=commissioner.first_name,
+                        last_name=commissioner.last_name,
+                        email=commissioner.email,
+                        user_type=UserTypeInDB(
+                            id=commissioner.user_type.id,
+                            name=commissioner.user_type.name,
+                        ),
+                        verify_token="",
+                        is_active=commissioner.is_active,
+                    )
+                    for head_of_unit in head_of_units
+                    for court in head_of_unit.head_of_unit.jurisdiction.courts
+                    for commissioner_profile in court.commissioner_profile
+                    for commissioner in [commissioner_profile.user]
+                ],
+            )
+            for head_of_unit in head_of_units
+        ],
+    )
+
+
+@router.get(
+    "/general_users",
+    # response_model=GenericResponse[List[PublicInResponse]]
+)
+async def get_users(db: Session = Depends(get_db)):
+    users = user_repo.get_all(db)
+    response = []
+    for user in users:
+        pipeline = [
+            {
+                "$match": {
+                    "created_by_id": user.id,
+                    "$or": [{"status": "PAID"}, {"is_attested": True}],
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_amount": {"$sum": "$amount_paid"},
+                }
+            },
+        ]
+        total_saved = await document_collection.find(
+            {"created_by_id": user.id, "status": "SAVED"}
+        ).to_list(length=1000)
+        total_paid = await document_collection.find(
+            {"created_by_id": user.id, "status": "PAID"}
+        ).to_list(length=1000)
+        total_attested = await document_collection.find(
+            {"created_by_id": user.id, "status": "ATTESTED"}
+        ).to_list(length=1000)
+        total_documents = await document_collection.find(
+            {"created_by_id": user.id}
+        ).to_list(length=1000)
+        total_amount_result = await document_collection.aggregate(pipeline).to_list(
+            length=100
+        )
+        if total_amount_result:
+            total_amount = total_amount_result[0]["total_amount"]
+        else:
+            total_amount = 0
+
+        new_user = dict(
+            total_documents=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_documents
+            ],
+            total_paid=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_paid
+            ],
+            total_attested=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_attested
+            ],
+            total_saved=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_saved
+            ],
+            id=user.id,
+            total_amount=total_amount,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            is_active=user.is_active,
+            user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+            date_created=user.CreatedAt,
+            verify_token="",
+        )
+        response.append(new_user)
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Users information retrieved successfully.",
+        data=response,
+    )
+
+
 @router.post("/invite_personel")
 async def invite_users(
     users: List[InviteOperationsForm],
@@ -123,6 +286,61 @@ async def invite_users(
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Users invited successfully.",
+    )
+
+
+@router.get(
+    "/get_commissioners",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[List[CommissionerInResponse]],
+    dependencies=[Depends(admin_permission_dependency)],
+)
+async def get_commissioners(
+    db: Session = Depends(get_db),
+):
+    results = []
+
+    user_type = user_type_repo.get_by_name(db=db, name=settings.COMMISSIONER_USER_TYPE)
+    if user_type is None:
+        raise HTTPException(status_code=500)
+    commissioners = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
+
+    for commissioner in commissioners:
+        attested_documents = await document_collection.find(
+            {"commissioner_id": commissioner.id}
+        ).to_list(length=1000)
+        documents_serialized = [
+            SlimDocumentInResponse(
+                id=str(document["_id"]),
+                name=document.get("name", ""),
+                attested_date=document.get("attestation_date", ""),
+                created_at=document.get("created_at", ""),
+                status=document.get("status", ""),
+            )
+            for document in attested_documents
+        ]
+        fullcommissioner = CommissionerInResponse(
+            id=commissioner.id,
+            first_name=commissioner.first_name,
+            user_type=UserTypeInDB(
+                id=commissioner.user_type.id, name=commissioner.user_type.name
+            ),
+            verify_token="some_verify_token",
+            last_name=commissioner.last_name,
+            email=commissioner.email,
+            court=CourtSystemInDB(
+                id=commissioner.commissioner_profile.court.id,
+                name=commissioner.commissioner_profile.court.name,
+            ),
+            is_active=commissioner.is_active,
+            attested_documents=documents_serialized,
+            date_created=commissioner.CreatedAt,
+        )
+        results.append(fullcommissioner)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Commissioners retireved successfully",
+        data=results,
     )
 
 
@@ -517,6 +735,14 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
     )
 
 
+
+
+##############
+#################
+### AFFIDAVITS ROUTES#####
+#########
+##########
+
 @router.post(
     "/create_template",
     dependencies=[Depends(admin_permission_dependency)],
@@ -551,6 +777,72 @@ async def create_template(
         message=f"{new_template['name']} template Created Successfully",
         data=template_individual_serializer(new_template),
     )
+
+
+@router.get(
+    "/get_templates",
+    dependencies=[Depends(admin_permission_dependency)],
+    response_model=GenericResponse[List[TemplateBase]],
+)
+async def get_templates():
+    try:
+        templates = await template_collection.find().to_list(length=100)
+        if not templates:
+            logger.info("No templates found")
+            return create_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="No templates found",
+                data=[],
+            )
+
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Templates retrieved successfully",
+            data=template_list_serialiser(templates),
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching templates: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching templates")
+
+@router.get(
+    "/get_template/{template_id}",
+    response_model=GenericResponse[TemplateBase],
+    # dependencies=[Depends(admin_permission_dependency)],
+)
+async def get_template(template_id: str):
+    try:
+        # Convert the string ID to ObjectId
+        object_id = ObjectId(template_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid ID format: {template_id}")
+
+    # Log the ObjectId
+    logger.info(f"Fetching template with ID: {object_id}")
+
+    template_obj = await template_collection.find_one({"_id": object_id})
+
+    # Log the result of the query
+    if template_obj:
+        logger.info(f"Found template: {template_obj}")
+    else:
+        logger.info("No template found")
+
+    if not template_obj:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Template with ID {template_id} does not exist",
+        )
+
+    # Assuming individual_serialiser is a valid function
+    template_obj = template_individual_serializer(template_obj)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{template_obj['name']} retrieved successfully",
+        data=template_obj,
+    )
+
+
 
 
 @router.patch(

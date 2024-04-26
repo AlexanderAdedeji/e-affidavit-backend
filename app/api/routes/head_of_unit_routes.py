@@ -179,60 +179,6 @@ async def get_all_courts(
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
 
-@router.get("/get_head_of_units", dependencies=[Depends(admin_permission_dependency)])
-def get_unit_heads(db: Session = Depends(get_db)):
-    user_type = user_type_repo.get_by_name(db=db, name=settings.HEAD_OF_UNIT_USER_TYPE)
-    if user_type is None:
-        raise HTTPException(status_code=500)
-    head_of_units = user_repo.get_users_by_user_type(db=db, user_type_id=user_type.id)
-
-    # head_of_units[0].head_of_unit.jurisdiction.courts[0].commissioner_profile[0].user
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message="Head Of Units retrieved successfully",
-        data=[
-            HeadOfUnitInResponse(
-                id=head_of_unit.id,
-                first_name=head_of_unit.first_name,
-                last_name=head_of_unit.last_name,
-                email=head_of_unit.email,
-                date_created=head_of_unit.CreatedAt,
-                user_type=UserTypeInDB(
-                    id=head_of_unit.user_type.id,
-                    name=head_of_unit.user_type.name,
-                ),
-                verify_token="",
-                is_active=head_of_unit.is_active,
-                jurisdiction=CourtSystemInDB(
-                    name=head_of_unit.head_of_unit.jurisdiction.name,
-                    id=head_of_unit.head_of_unit.jurisdiction.id,
-                ),
-                courts=[
-                    CourtSystemInDB(name=court.name, id=court.id)
-                    for court in head_of_unit.head_of_unit.jurisdiction.courts
-                ],
-                commissioners=[
-                    UserInResponse(
-                        id=commissioner.id,
-                        first_name=commissioner.first_name,
-                        last_name=commissioner.last_name,
-                        email=commissioner.email,
-                        user_type=UserTypeInDB(
-                            id=commissioner.user_type.id,
-                            name=commissioner.user_type.name,
-                        ),
-                        verify_token="",
-                        is_active=commissioner.is_active,
-                    )
-                    for head_of_unit in head_of_units
-                    for court in head_of_unit.head_of_unit.jurisdiction.courts
-                    for commissioner_profile in court.commissioner_profile
-                    for commissioner in [commissioner_profile.user]
-                ],
-            )
-            for head_of_unit in head_of_units
-        ],
-    )
 
 
 @router.get(

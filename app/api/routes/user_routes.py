@@ -95,112 +95,6 @@ async def get_dashboard_stats(
     )
 
 
-@router.get(
-    "/general_users",
-    # response_model=GenericResponse[List[PublicInResponse]]
-)
-async def get_users(db: Session = Depends(get_db)):
-    users = user_repo.get_all(db)
-    response = []
-    for user in users:
-        pipeline = [
-            {
-                "$match": {
-                    "created_by_id": user.id,
-                    "$or": [{"status": "PAID"}, {"is_attested": True}],
-                }
-            },
-            {
-                "$group": {
-                    "_id": None,
-                    "total_amount": {"$sum": "$amount_paid"},
-                }
-            },
-        ]
-        total_saved = await document_collection.find(
-            {"created_by_id": user.id, "status": "SAVED"}
-        ).to_list(length=1000)
-        total_paid = await document_collection.find(
-            {"created_by_id": user.id, "status": "PAID"}
-        ).to_list(length=1000)
-        total_attested = await document_collection.find(
-            {"created_by_id": user.id, "status": "ATTESTED"}
-        ).to_list(length=1000)
-        total_documents = await document_collection.find(
-            {"created_by_id": user.id}
-        ).to_list(length=1000)
-        total_amount_result = await document_collection.aggregate(pipeline).to_list(
-            length=100
-        )
-        if total_amount_result:
-            total_amount = total_amount_result[0]["total_amount"]
-        else:
-            total_amount = 0
-
-        new_user = dict(
-            total_documents=[
-                SlimDocumentInResponse(
-                    id=str(document["_id"]),
-                    name=document.get("name", ""),
-                    price=document.get("price", 0),
-                    attestation_date=document.get("attest", ""),
-                    created_at=document.get("created_at", ""),
-                    status=document.get("status", ""),
-                )
-                for document in total_documents
-            ],
-            total_paid=[
-                SlimDocumentInResponse(
-                    id=str(document["_id"]),
-                    name=document.get("name", ""),
-                    price=document.get("price", 0),
-                    attestation_date=document.get("attest", ""),
-                    created_at=document.get("created_at", ""),
-                    status=document.get("status", ""),
-                )
-                for document in total_paid
-            ],
-            total_attested=[
-                SlimDocumentInResponse(
-                    id=str(document["_id"]),
-                    name=document.get("name", ""),
-                    price=document.get("price", 0),
-                    attestation_date=document.get("attest", ""),
-                    created_at=document.get("created_at", ""),
-                    status=document.get("status", ""),
-                )
-                for document in total_attested
-            ],
-            total_saved=[
-                SlimDocumentInResponse(
-                    id=str(document["_id"]),
-                    name=document.get("name", ""),
-                    price=document.get("price", 0),
-                    attestation_date=document.get("attest", ""),
-                    created_at=document.get("created_at", ""),
-                    status=document.get("status", ""),
-                )
-                for document in total_saved
-            ],
-            id=user.id,
-            total_amount=total_amount,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            email=user.email,
-            is_active=user.is_active,
-            user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
-            date_created=user.CreatedAt,
-            verify_token="",
-        )
-        response.append(new_user)
-
- 
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message=f"Users information retrieved successfully.",
-        data=response,
-    )
-
 
 @router.post("/user", response_model=GenericResponse[UserInResponse])
 def create_user(
@@ -359,26 +253,26 @@ async def get_my_latest_affidavits(
         raise HTTPException(status_code=500, detail="Error fetching documents")
 
 
-@router.get("/get_public_users")
-def get_public_users(db: Session = Depends(get_db)):
-    user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
-    users = user_type.users
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message="Public Users retrived Successfully",
-        data=[
-            UserInResponse(
-                email=user.email,
-                id=user.id,
-                first_name=user.first_name,
-                is_active=user.is_active,
-                last_name=user.last_name,
-                verify_token="",
-                user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
-            )
-            for user in users
-        ],
-    )
+# @router.get("/get_public_users")
+# def get_public_users(db: Session = Depends(get_db)):
+#     user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
+#     users = user_type.users
+#     return create_response(
+#         status_code=status.HTTP_200_OK,
+#         message="Public Users retrived Successfully",
+#         data=[
+#             UserInResponse(
+#                 email=user.email,
+#                 id=user.id,
+#                 first_name=user.first_name,
+#                 is_active=user.is_active,
+#                 last_name=user.last_name,
+#                 verify_token="",
+#                 user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+#             )
+#             for user in users
+#         ],
+#     )
 
 
 @router.get("/get_document/{document_id}")
@@ -450,8 +344,8 @@ async def get_document_by_name(
 
 @router.get(
     "/get_templates",
-    # response_model=GenericResponse[List[TemplateBase]],
-    # dependencies=[Depends(authenticated_user_dependencies)],
+    response_model=GenericResponse[List[TemplateInResponse]],
+    dependencies=[Depends(authenticated_user_dependencies)],
 )
 async def get_templates():
     templates = await template_collection.find({"is_disabled": False}).to_list(
@@ -475,7 +369,7 @@ async def get_templates():
                 description=template["description"],
                 content=template["content"],
                 price=template["price"],
-                category="hkjhkhk",
+                       category=template["category"],
             )
             for template in templates
         ],
@@ -484,7 +378,7 @@ async def get_templates():
 
 @router.get(
     "/get_template/{template_id}",
-    # response_model=GenericResponse[TemplateBase],
+    response_model=GenericResponse[TemplateInResponse],
     dependencies=[Depends(authenticated_user_dependencies)],
 )
 async def get_template_for_document_creation(
@@ -640,27 +534,27 @@ def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_d
     )
 
 
-@router.get("/get_all_users")
-def get_all_users(db: Session = Depends(get_db)):
-    users = user_repo.get_all(db)
+# @router.get("/get_all_users")
+# def get_all_users(db: Session = Depends(get_db)):
+#     users = user_repo.get_all(db)
 
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message="All Users retrieved successfully.",
-        data=[
-            AllUsers(
-                id=user.id,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                email=user.email,
-                user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
-                date_created=user.CreatedAt,
-                is_active=user.is_active,
-                verify_token="",
-            )
-            for user in users
-        ],
-    )
+#     return create_response(
+#         status_code=status.HTTP_200_OK,
+#         message="All Users retrieved successfully.",
+#         data=[
+#             AllUsers(
+#                 id=user.id,
+#                 first_name=user.first_name,
+#                 last_name=user.last_name,
+#                 email=user.email,
+#                 user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
+#                 date_created=user.CreatedAt,
+#                 is_active=user.is_active,
+#                 verify_token="",
+#             )
+#             for user in users
+#         ],
+#     )
 
 
 @router.post("/create_document")
@@ -703,11 +597,7 @@ async def create_document(
         raise HTTPException(status_code=500, detail="Error creating document")
 
 
-# # Assuming this is the function to generate QR code in base64 format
-# # It should be defined somewhere in your application
-# def generate_qr_code_base64(data: str) -> str:
-#     # QR code generation logic...
-#     return "base64_qr_code_string"
+
 
 
 @router.get("/generate_qr_code")
@@ -716,12 +606,12 @@ async def generate_qr_code(name: str) -> Any:
     Generate a QR code for the provided name.
     """
     try:
-        # Construct the URL for the QR code
+    
         qr_code_url = (
             f"https://e-affidavit-public.vercel.app/verify-document/{name}"
         )
 
-        # Generate the QR code in base64 format
+       
         qr_code_base64 = generate_qr_code_base64(qr_code_url)
 
         return {
@@ -733,4 +623,3 @@ async def generate_qr_code(name: str) -> Any:
         raise HTTPException(status_code=500, detail="Error generating QR code")
 
 
-# Include other routes and logic as needed...

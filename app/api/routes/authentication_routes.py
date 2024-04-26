@@ -86,7 +86,7 @@ def login(
     )
 
 
-@router.post("/verify-email/", status_code=status.HTTP_200_OK, response_model=GenericResponse)
+@router.post("/verify_email/", status_code=status.HTTP_200_OK, response_model=GenericResponse)
 def verify_user(token: UserVerify, db: Session = Depends(get_db)):
     """
     Verify user route. Expects token sent in the email link.

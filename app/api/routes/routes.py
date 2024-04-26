@@ -38,8 +38,7 @@ router.include_router(commissioner_routes.router, tags=["Commissioners"], prefix
 # Administrative routes for managing the application
 router.include_router(admin_routes.router, tags=["Admin"], prefix="/admin")
 
-# Routes for managing affidavits
-router.include_router(affidavit_routes.router, tags=["Affidavits"], prefix="/affidavits")
+
 
 # Routes for operations related to the head of unit
 router.include_router(head_of_unit_routes.router, tags=["Head of Unit"], prefix="/head_of_unit")
