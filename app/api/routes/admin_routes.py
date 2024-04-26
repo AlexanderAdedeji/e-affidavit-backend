@@ -526,27 +526,27 @@ async def get_all_admins(db: Session = Depends(get_db)):
     )
 
 
-@router.get(
-    "/{id}",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(admin_permission_dependency)],
-    response_model=GenericResponse[UserInResponse],
-)
-def get_admin(id: str, db: Session = Depends(get_db)):
-    """Get an admin by ID"""
-    admin = user_repo.get(db, id=id)
-    return UserInResponse(
-        id=admin.id,
-        first_name=admin.first_name,
-        last_name=admin.last_name,
-        email=admin.email,
-        is_active=admin.is_active,
-        user_type=UserTypeInDB(
-            id=admin.user_type.id,
-            name=admin.user_type.name,
-        ),
-        verify_token="",
-    )
+# @router.get(
+#     "/{id}",
+#     status_code=status.HTTP_200_OK,
+#     dependencies=[Depends(admin_permission_dependency)],
+#     response_model=GenericResponse[UserInResponse],
+# )
+# def get_admin(id: str, db: Session = Depends(get_db)):
+#     """Get an admin by ID"""
+#     admin = user_repo.get(db, id=id)
+#     return UserInResponse(
+#         id=admin.id,
+#         first_name=admin.first_name,
+#         last_name=admin.last_name,
+#         email=admin.email,
+#         is_active=admin.is_active,
+#         user_type=UserTypeInDB(
+#             id=admin.user_type.id,
+#             name=admin.user_type.name,
+#         ),
+#         verify_token="",
+#     )
 
 
 @router.post(
