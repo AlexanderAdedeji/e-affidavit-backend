@@ -13,6 +13,7 @@ class Field(BaseModel):
     name: str
     type: str
     required: bool
+    label:str
 
 
 class TemplateContent(BaseModel):
@@ -42,9 +43,6 @@ class TemplateBase(TemplateInResponse):
 
     class Config:
         arbitrary_types_allowed = True
-
-
-        
 
 
 class TemplateCreateForm(BaseModel):
@@ -81,18 +79,18 @@ class DocumentBase(BaseModel):
 class UpdateDocument(BaseModel):
     created_by_id: str
     commissioner_id: Optional[str] = None
-    attestation_date: Optional[datetime.datetime] =None
-    status: Optional[str] =None
-    amount_paid: Optional[int] =None
-    payment_ref: Optional[str]=None
-    created_at: Optional[datetime.datetime]=None
-    updated_at: Optional[datetime.datetime]=None
+    attestation_date: Optional[datetime.datetime] = None
+    status: Optional[str] = None
+    amount_paid: Optional[int] = None
+    payment_ref: Optional[str] = None
+    created_at: Optional[datetime.datetime] = None
+    updated_at: Optional[datetime.datetime] = None
     template_id: str
-    court_id: Optional[str]=None
+    court_id: Optional[str] = None
     document_data: TemplateContent
-    qr_code: Optional[str]=None
-    is_attested: Optional[bool]=None
-    name: str 
+    qr_code: Optional[str] = None
+    is_attested: Optional[bool] = None
+    name: str
 
 
 class AttestDocument(BaseModel):
@@ -108,7 +106,7 @@ class DocumentCreateForm(BaseModel):
 class SlimDocumentInResponse(BaseModel):
     id: str
     name: str
-    price: Optional[int] =None
+    price: Optional[int] = None
     attestation_date: Optional[str] = None
     created_at: datetime.datetime
     status: str
@@ -117,7 +115,7 @@ class SlimDocumentInResponse(BaseModel):
 class DocumentPayment(BaseModel):
 
     payment_ref: str
-    amount_paid:int
+    amount_paid: int
     # document_data: TemplateContent
 
 

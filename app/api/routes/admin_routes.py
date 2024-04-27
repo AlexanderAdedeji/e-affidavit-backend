@@ -869,6 +869,40 @@ async def get_template(template_id: str):
         data=template_obj,
     )
 
+@router.patch(
+    "/delete_template/{template_id}",
+    dependencies=[Depends(admin_permission_dependency)],
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[TemplateBase],
+)
+async def delete_template(
+    template_id:str,
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    template_dict = {"is_disabled":True, "updated_at": datetime.utcnow()}
+    object_id = ObjectId(template_id)
+    existing_template = await template_collection.find_one({"_id": object_id})
+
+    if not existing_template:
+
+        raise HTTPException(status_code=404, detail="Template does not exist")
+
+    # If a template with the same name exists, update it
+    update_result = await template_collection.update_one(
+        {"_id": existing_template["_id"]}, {"$set": template_dict}
+    )
+    if not update_result.modified_count:
+        logger.error("Failed to update template")
+        raise HTTPException(status_code=500, detail="Failed to update template")
+
+    updated_template = await template_collection.find_one(
+        {"_id": existing_template["_id"]}
+    )
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"{updated_template['name']} template deleted successfully",
+     
+    )
 
 @router.patch(
     "/update_template/{template_id}",
