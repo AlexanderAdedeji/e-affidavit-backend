@@ -15,7 +15,7 @@ from app.schemas.affidavit_schema import (
     TemplateCreateForm,
     TemplateInResponse,
     serialize_mongo_document,
-    template_individual_serializer,
+    # template_individual_serializer,
     template_list_serialiser,
 )
 from app.schemas.shared_schema import SlimUserInResponse
@@ -801,7 +801,7 @@ async def create_template(
     return create_response(
         status_code=status.HTTP_201_CREATED,
         message=f"{new_template['name']} template Created Successfully",
-        data=template_individual_serializer(new_template),
+        data=serialize_mongo_document(new_template),
     )
 
 

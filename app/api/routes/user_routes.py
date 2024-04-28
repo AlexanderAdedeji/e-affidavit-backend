@@ -37,8 +37,7 @@ from app.schemas.affidavit_schema import (
     TemplateContent,
     TemplateInResponse,
     UpdateDocument,
-    document_individual_serializer,
-    document_list_serialiser,
+
     serialize_mongo_document,
     template_individual_serializer,
     template_list_serialiser,
@@ -47,12 +46,11 @@ from app.repositories.court_system_repo import state_repo
 from app.schemas.email_schema import UserCreationTemplateVariables
 from app.schemas.stats_schema import PublicDashboardStat
 from app.schemas.user_schema import (
-    AllUsers,
-    PublicInResponse,
+
     UserCreate,
     UserCreateForm,
     UserInResponse,
-    UserWithToken,
+
 )
 from postmarker import core
 from app.database.sessions.mongo_client import template_collection, document_collection
