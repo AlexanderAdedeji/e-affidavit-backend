@@ -39,7 +39,7 @@ from app.schemas.affidavit_schema import (
     UpdateDocument,
 
     serialize_mongo_document,
-    template_individual_serializer,
+
     template_list_serialiser,
 )
 from app.repositories.court_system_repo import state_repo
@@ -408,7 +408,7 @@ async def get_template_for_document_creation(
         )
 
     #
-    template_obj = template_individual_serializer(template_obj)
+    template_obj = serialize_mongo_document(template_obj)
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{template_obj['name']} retrieved successfully",

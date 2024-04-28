@@ -36,10 +36,10 @@ class TemplateInResponse(SlimTemplateInResponse):
 
 class TemplateBase(TemplateInResponse):
 
-    is_disabled: bool
+    # is_disabled: bool
     created_by_id: str
     created_at: datetime
-    updated_at: datetime
+    # updated_at: datetime
 
     class Config:
         arbitrary_types_allowed = True
@@ -195,22 +195,9 @@ def document_individual_serializer(data) -> dict:
         return {}
 
 
-# def serialize_mongo_document(document):
-#     if isinstance(document, list):
-#         return [serialize_mongo_document(doc) for doc in document]
-#     if not isinstance(document, dict):
-#         return document
-#     serialized_document = {}
-#     for key, value in document.items():
-#         if isinstance(value, ObjectId):
-#             serialized_document[key] = str(value)
-#         elif isinstance(value, (dict, list)):
-#             serialized_document[key] = serialize_mongo_document(value)
-#         else:
-#             serialized_document[key] = value
-#     return serialized_document
 
-from bson import ObjectId
+
+
 
 
 def serialize_mongo_document(document):

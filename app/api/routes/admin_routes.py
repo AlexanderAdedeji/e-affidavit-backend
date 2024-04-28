@@ -862,7 +862,7 @@ async def get_template(template_id: str):
         )
 
     # Assuming individual_serialiser is a valid function
-    template_obj = template_individual_serializer(template_obj)
+    template_obj = serialize_mongo_document(template_obj)
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{template_obj['name']} retrieved successfully",
@@ -936,7 +936,7 @@ async def update_template(
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{updated_template['name']} template updated successfully",
-        data=template_individual_serializer(updated_template),
+        data=serialize_mongo_document(updated_template),
     )
 
 
