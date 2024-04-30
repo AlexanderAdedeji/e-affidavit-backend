@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List
 import uuid
 from app.repositories.category_repo import category_repo
-from app.schemas.category_schema import Category, CategoryCreate
+from app.schemas.category_schema import Category, CategoryCreate, CategoryInResponse
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
 
@@ -1021,20 +1021,22 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
 @router.get("/get_affidavit_categories")
 def get_categories(db: Session = Depends(get_db)):
     categories = category_repo.get_all(db)
-    return create_response(data=categories, status_code=status.HTTP_200_OK)
+    return create_response(
+        data=categories, status_code=status.HTTP_200_OK, message="None"
+    )
 
 
-@router.post("create_affidavit_category")
+@router.post("/create_affidavit_category")
 def create_category(
     category_name: Category,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    category_exists=  category_repo.get_by_name(db, name=category_name.name)
+    category_exists = category_repo.get_by_name(db, name=category_name.name)
     if category_exists:
         raise AlreadyExistsException(detail="Category with this name already exists.")
     category_in = CategoryCreate(
-        **category_name.dict(), created_by_id=current_user.id, id=uuid.uuid4()
+        **category_name.dict(), created_by_id=current_user.id, id=str(uuid.uuid4())
     )
 
     db_category = category_repo.create(db, obj_in=category_in)
@@ -1042,4 +1044,36 @@ def create_category(
         data=db_category,
         status_code=status.HTTP_201_CREATED,
         message=f"{db_category.name} Category Created Successfully",
+    )
+
+
+@router.get("/get_category/{catgory_id}")
+def get_category(category_id: str, db: Session = Depends(get_db)):
+    db_category = category_repo.get(db, id=category_id)
+    if not db_category:
+        raise DoesNotExistException(detail="This category does not exist.")
+    return create_response(
+        data=db_category,
+        status_code=status.HTTP_200_OK,
+        message=f"{db_category.name}  retrieved successfully",
+    )
+
+
+@router.put("/update_category/{category_id}")
+def update_category(category: CategoryInResponse, db: Session = Depends(get_db)):
+    """
+    Updates a category by ID. Only the `name` field can be updated. To change other fields, delete and re-add the
+    Updates a specific category by ID. Only the owner of the category can make changes to it.
+    """
+    db_category = category_repo.get(db, id=category.id)
+    if not db_category:
+        raise DoesNotExistException(detail="This category does not exist.")
+
+    new_db_category = category_repo.update(
+        db, db_obj=db_category, obj_in=category.dict(exclude_unset=True)
+    )
+    return create_response(
+        data=db_category,
+        status_code=status.HTTP_200_OK,
+        message=f"{db_category.name}  retrieved successfully",
     )
