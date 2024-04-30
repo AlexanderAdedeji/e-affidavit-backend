@@ -1,16 +1,14 @@
-
-from pydantic import  BaseModel
+from pydantic import BaseModel
 
 
 class Category(BaseModel):
-    name:str
+    name: str
 
 
 class CategoryInResponse(Category):
-    id:str
+    id: str
 
 
+class CategoryCreate(CategoryInResponse):
 
-class CategoryCreate(Category):
-    created_by_id:str
-    
+    created_by_id: str

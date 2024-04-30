@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 import uuid
 from app.repositories.category_repo import category_repo
+from app.schemas.category_schema import Category, CategoryCreate
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
 
@@ -606,7 +607,6 @@ def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
     response_model=GenericResponse[UserInResponse],
 )
 def retrieve_current_admin(
-
     current_user=Depends(get_currently_authenticated_user),
 ) -> UserInResponse:
     """
@@ -633,6 +633,7 @@ def retrieve_current_admin(
 ###################################################
 ##### COURT SYSTEM ###############
 #############################
+
 
 @router.get("/get_all_jurisdictions")
 async def get_all_jurisdictions(db: Session = Depends(get_db)):
@@ -870,6 +871,7 @@ async def get_template(template_id: str):
         data=template_obj,
     )
 
+
 @router.patch(
     "/disable_template/{template_id}",
     dependencies=[Depends(admin_permission_dependency)],
@@ -877,10 +879,10 @@ async def get_template(template_id: str):
     response_model=GenericResponse[TemplateBase],
 )
 async def disable_template(
-    template_id:str,
+    template_id: str,
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    template_dict = {"is_disabled":True, "updated_at": datetime.utcnow()}
+    template_dict = {"is_disabled": True, "updated_at": datetime.utcnow()}
     object_id = ObjectId(template_id)
     existing_template = await template_collection.find_one({"_id": object_id})
 
@@ -888,7 +890,6 @@ async def disable_template(
 
         raise HTTPException(status_code=404, detail="Template does not exist")
 
-    
     update_result = await template_collection.update_one(
         {"_id": existing_template["_id"]}, {"$set": template_dict}
     )
@@ -902,9 +903,7 @@ async def disable_template(
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{updated_template['name']} template deleted successfully",
-     
     )
-
 
 
 @router.patch(
@@ -914,10 +913,10 @@ async def disable_template(
     response_model=GenericResponse[TemplateBase],
 )
 async def enable_template(
-    template_id:str,
+    template_id: str,
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    template_dict = {"is_disabled":False, "updated_at": datetime.utcnow()}
+    template_dict = {"is_disabled": False, "updated_at": datetime.utcnow()}
     object_id = ObjectId(template_id)
     existing_template = await template_collection.find_one({"_id": object_id})
 
@@ -925,7 +924,6 @@ async def enable_template(
 
         raise HTTPException(status_code=404, detail="Template does not exist")
 
-    
     update_result = await template_collection.update_one(
         {"_id": existing_template["_id"]}, {"$set": template_dict}
     )
@@ -939,7 +937,6 @@ async def enable_template(
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{updated_template['name']} template Enabled successfully",
-     
     )
 
 
@@ -1026,3 +1023,23 @@ def get_categories(db: Session = Depends(get_db)):
     categories = category_repo.get_all(db)
     return create_response(data=categories, status_code=status.HTTP_200_OK)
 
+
+@router.post("create_affidavit_category")
+def create_category(
+    category_name: Category,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    category_exists=  category_repo.get_by_name(db, name=category_name.name)
+    if category_exists:
+        raise AlreadyExistsException(detail="Category with this name already exists.")
+    category_in = CategoryCreate(
+        **category_name.dict(), created_by_id=current_user.id, id=uuid.uuid4()
+    )
+
+    db_category = category_repo.create(db, obj_in=category_in)
+    return create_response(
+        data=db_category,
+        status_code=status.HTTP_201_CREATED,
+        message=f"{db_category.name} Category Created Successfully",
+    )
