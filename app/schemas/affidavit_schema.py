@@ -36,10 +36,10 @@ class TemplateInResponse(SlimTemplateInResponse):
 
 class TemplateBase(TemplateInResponse):
 
-    # is_disabled: bool
+    is_disabled:Optional[ bool] = False  # Is the template disabled?
     created_by_id: str
     created_at: datetime
-    # updated_at: datetime
+    updated_at: Optional[datetime.datetime] = None
 
     class Config:
         arbitrary_types_allowed = True

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List
 import uuid
+from app.repositories.category_repo import category_repo
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
 
@@ -1018,3 +1019,10 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
         status_code=status.HTTP_200_OK,
         message=f"{db_user.first_name } {db_user.last_name} de-activated successfully",
     )
+
+
+@router.get("/get_affidavit_categories")
+def get_categories(db: Session = Depends(get_db)):
+    categories = category_repo.get_all(db)
+    return create_response(data=categories, status_code=status.HTTP_200_OK)
+
