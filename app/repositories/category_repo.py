@@ -7,9 +7,10 @@ from commonLib.repositories.relational_repository import Base
 
 
 class CategoryRepositories(Base[AffidavitCategory]):
-    def get_by_name(self,db:Session, * name: str):
+    def get_by_name(self,db:Session, *, name: str):
         """Get category by its name"""
-        return db.query(AffidavitCategory).filter(AffidavitCategory.category == name).first()
+        pattern =f"%{name}%"
+        return db.query(AffidavitCategory).filter(AffidavitCategory.name.like(name)).first()
     
 
 

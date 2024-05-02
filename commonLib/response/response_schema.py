@@ -1,8 +1,6 @@
 from typing import Type, TypeVar, Generic, Optional
 from pydantic.generics import GenericModel
-from fastapi import FastAPI, Depends, HTTPException
-from pydantic import BaseModel, ValidationError
-from starlette.status import HTTP_200_OK
+
 
 T = TypeVar("T")
 
@@ -14,13 +12,6 @@ class GenericResponse(GenericModel, Generic[T]):
     data: Optional[T]
 
 
-# Dependency to dynamically create a response model based on the endpoint's return type
-# def create_reponse(data_model: Type[BaseModel]):
-#     def wrapper():
-#         return lambda message="", status="Success", data=None: GenericResponse[data_model](
-#             message=message, status=status, data=data
-#         )
-#     return wrapper
 
 
 def create_response(
@@ -29,4 +20,4 @@ def create_response(
     return GenericResponse[T](message=message, status_code=status_code, data=data)
 
 
-# response: GenericResponse[List[UserWithToken]] = Depends(response_model(List[UserWithToken])),
+

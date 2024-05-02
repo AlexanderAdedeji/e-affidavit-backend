@@ -2,7 +2,12 @@ from datetime import datetime
 from typing import List
 import uuid
 from app.repositories.category_repo import category_repo
-from app.schemas.category_schema import Category, CategoryCreate, CategoryInResponse
+from app.schemas.category_schema import (
+    Category,
+    CategoryCreate,
+    CategoryInResponse,
+    FullCategoryInResponse,
+)
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
 
@@ -1019,10 +1024,27 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/get_affidavit_categories")
-def get_categories(db: Session = Depends(get_db)):
+async def get_categories(db: Session = Depends(get_db)):
     categories = category_repo.get_all(db)
+    full_categories = []
+    for category in categories:
+        templates = await template_collection.find({"category_id": category.id}).to_list(length=1000)
+        full_category = FullCategoryInResponse(
+            name=category.name,
+            id=category.id,
+            created_by=SlimUserInResponse(
+                id=category.user.id,
+                first_name=category.user.first_name,
+                last_name=category.user.last_name,
+                email=category.user.email,
+            ),
+            date_created=category.CreatedAt,
+            templates=[serialize_mongo_document(template) for template in templates],
+        )
+        full_categories.append(full_category)
+  
     return create_response(
-        data=categories, status_code=status.HTTP_200_OK, message="None"
+        data=full_categories, status_code=status.HTTP_200_OK, message="Categories Retrieved Successfully"
     )
 
 
@@ -1034,14 +1056,17 @@ def create_category(
 ):
     category_exists = category_repo.get_by_name(db, name=category_name.name)
     if category_exists:
-        raise AlreadyExistsException(detail="Category with this name already exists.")
+        raise AlreadyExistsException(detail="A Category with this name or a similar name already exists.")
     category_in = CategoryCreate(
         **category_name.dict(), created_by_id=current_user.id, id=str(uuid.uuid4())
     )
 
     db_category = category_repo.create(db, obj_in=category_in)
     return create_response(
-        data=db_category,
+        data=CategoryInResponse(
+            name=db_category.name,
+            id=db_category.id
+        ),
         status_code=status.HTTP_201_CREATED,
         message=f"{db_category.name} Category Created Successfully",
     )

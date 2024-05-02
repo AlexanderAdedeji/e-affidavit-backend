@@ -50,7 +50,7 @@ class TemplateCreateForm(BaseModel):
     content: TemplateContent
     price: int
     description: str
-    category: str
+    category_id: str
 
 
 class TemplateCreate(TemplateCreateForm):
