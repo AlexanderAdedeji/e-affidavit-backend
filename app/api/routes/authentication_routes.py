@@ -14,7 +14,10 @@ from app.core.errors.exceptions import (
 )
 from app.core.services.jwt import get_user_email_from_token
 from app.repositories.user_repo import user_repo
-from app.schemas.email_schema import ResetPasswordEmailTemplateVariables, UserCreationTemplateVariables
+from app.schemas.email_schema import (
+    ResetPasswordEmailTemplateVariables,
+    UserCreationTemplateVariables,
+)
 
 from app.schemas.user_schema import (
     ResetPasswordSchema,
@@ -47,6 +50,19 @@ def check_if_user_exist(db: Session, user_in: UserCreate):
     return user_exist
 
 
+def get_frontend_url(user_type_name):
+    print(user_type_name)
+    """Retrieve the frontend URL based on the user type."""
+    user_type_to_url_map = {
+        settings.PUBLIC_USER_TYPE: settings.PUBLIC_FRONTEND_BASE_URL,
+        settings.ADMIN_USER_TYPE: settings.ADMIN_FRONTEND_BASE_URL,
+        settings.HEAD_OF_UNIT_USER_TYPE: settings.COURT_SYSTEM_FRONTEND_BASE_URL,
+        settings.COMMISSIONER_USER_TYPE: settings.COURT_SYSTEM_FRONTEND_BASE_URL,
+    }
+
+    return user_type_to_url_map.get(user_type_name)
+
+
 @router.post("/login", response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
@@ -69,7 +85,7 @@ def login(
         template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
         template_dict=template_dict,
         recipient=user.email,
-        background_tasks=background_tasks
+        background_tasks=background_tasks,
     )
 
     token = user.generate_jwt()
@@ -86,7 +102,9 @@ def login(
     )
 
 
-@router.post("/verify_email/", status_code=status.HTTP_200_OK, response_model=GenericResponse)
+@router.post(
+    "/verify_email/", status_code=status.HTTP_200_OK, response_model=GenericResponse
+)
 def verify_user(token: UserVerify, db: Session = Depends(get_db)):
     """
     Verify user route. Expects token sent in the email link.
@@ -171,19 +189,22 @@ def forgot_password(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
         )
 
+    front_end_url = get_frontend_url(user.user_type.name)
+
+    print(front_end_url)
     reset_jwt_token = user_repo.create_verification_token(db, email=user.email)
     template_dict = ResetPasswordEmailTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
-        reset_link=f"{settings.FRONTEND_BASE_URL}{settings.RESET_PASSWORD_URL}={reset_jwt_token}",
+        reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}={reset_jwt_token}",
     ).dict()
     email_service.send_email_with_template(
         # template_id=RESET_PASSWORD_TEMPLATE_ID,
+        db=db,
+        background_tasks=background_task,
         template_id="VERIFY_EMAIL_TEMPLATE_ID",
         template_dict=template_dict,
         recipient=user.email,
     )
-
-  
 
     return {
         "message": "Password reset link sent successfully",

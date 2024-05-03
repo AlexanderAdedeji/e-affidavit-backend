@@ -389,7 +389,7 @@ async def get_commissioners(
 
 
 @router.get(
-    "/accept-invite/{token}",
+    "/accept_invite/{token}",
     status_code=status.HTTP_200_OK,
     response_model=GenericResponse[AcceptedInviteResponse],
 )
@@ -1098,7 +1098,10 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
         db, db_obj=db_category, obj_in=category.dict(exclude_unset=True)
     )
     return create_response(
-        data=db_category,
+        data=CategoryInResponse(
+            name=new_db_category.name,
+            id=new_db_category.id
+        ),
         status_code=status.HTTP_200_OK,
         message=f"{db_category.name}  retrieved successfully",
     )

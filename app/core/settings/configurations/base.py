@@ -41,6 +41,9 @@ class CustomSettings(BaseSettings):
     VERIFY_EMAIL_LINK: str
     OPERATIONS_INVITE_TEMPLATE_ID: str
     JWT_EXPIRE_MINUTES: int
+    RESET_PASSWORD_URL:str
+
+
 
     class Config:
         base_dir = os.path.dirname(os.path.dirname(__file__))
