@@ -493,6 +493,6 @@ async def get_commissioner_report(
     )
     return create_response(
         status_code=status.HTTP_200_OK,
-        message="Commissioners retireved successfully",
+        message=f"{commissioner.first_name} {commissioner.last_name} report retireved successfully",
         data=commissioner_report,
     )
