@@ -1,7 +1,11 @@
 import datetime
 from typing import List
 import uuid
-from app.schemas.report_schema import CommissionersReport, DocumentReports
+from app.schemas.report_schema import (
+    CommissionerReport,
+    CommissionersReport,
+    DocumentReports,
+)
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -350,9 +354,50 @@ def get_unit_head(head_of_unit_id: str, db: Session = Depends(get_db)):
     )
 
 
+@router.get(
+    "/get_commissioner/{commissioner_id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+    response_model=GenericResponse[FullCommissionerInResponse],
+)
+def get_commissioner(
+    commissioner_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    db_commissioner = user_repo.get(db=db, id=commissioner_id)
+    if (
+        db_commissioner is None
+        or db_commissioner.user_type.name != settings.COMMISSIONER_USER_TYPE
+    ):
+        raise HTTPException(status_code=404, detail="Commissioner not found.")
+    if (
+        db_commissioner.commissioner_profile.court.jurisdiction_id
+        != current_user.head_of_unit.jurisdiction_id
+    ):
+        raise UnauthorizedEndpointException(
+            detail="You cannot view this commissioner's report"
+        )
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Profile retrieved successfully",
+        data=FullCommissionerInResponse(
+            first_name=db_commissioner.first_name,
+            last_name=db_commissioner.last_name,
+            email=db_commissioner.email,
+            is_active=db_commissioner.is_active,
+            court=CourtSystemInDB(
+                id=db_commissioner.commissioner_profile.court.id,
+                name=db_commissioner.commissioner_profile.court.name,
+            ),
+        ),
+    )
+
+
 @router.post(
     "/get_all_commissioners_report",
-    # response_model=GenericResponse[CommissionersReport],
+    response_model=GenericResponse[CommissionersReport],
     dependencies=[Depends(head_of_unit_permission_dependency)],
 )
 async def get_all_commissioners_report(
@@ -427,7 +472,7 @@ async def get_all_commissioners_report(
 
 @router.post(
     "/get_commissioner_report/{commissioner_id}",
-    # response_model=GenericResponse[CommissionersReport],
+    response_model=GenericResponse[CommissionerReport],
     dependencies=[Depends(head_of_unit_permission_dependency)],
 )
 async def get_commissioner_report(
