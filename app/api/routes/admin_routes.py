@@ -1,6 +1,9 @@
 from datetime import datetime
 from typing import List
+from unittest.util import safe_repr
 import uuid
+from app.api.routes.court_system_routes import populate_data
+from app.models.court_system_models import Court
 from app.repositories.category_repo import category_repo
 from app.schemas.category_schema import (
     Category,
@@ -52,7 +55,9 @@ from app.api.dependencies.authentication import (
     get_token_details,
 )
 from app.schemas.court_system_schema import (
+    CourtBase,
     CourtInResponse,
+    CourtSystemBase,
     CourtSystemInDB,
     JurisdictionInResponse,
     SlimCourtInResponse,
@@ -74,7 +79,11 @@ from app.schemas.user_schema import (
 )
 from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.database.sessions.mongo_client import document_collection
-from app.repositories.court_system_repo import jurisdiction_repo, court_repo
+from app.repositories.court_system_repo import (
+    state_repo,
+    court_repo,
+    jurisdiction_repo,
+)
 from app.core.services.email import email_service
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import create_response, GenericResponse
@@ -640,7 +649,10 @@ def retrieve_current_admin(
 #############################
 
 
-@router.get("/get_all_jurisdictions")
+@router.get(
+    "/get_all_jurisdictions",
+    dependencies=[Depends(admin_permission_dependency)],
+)
 async def get_all_jurisdictions(db: Session = Depends(get_db)):
     jurisdictions = jurisdiction_repo.get_all(db)
     return create_response(
@@ -719,8 +731,47 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
         ),
     )
 
+@router.get(
+    "/jurisdictions/{jurisdiction_id}/courts",
+    dependencies=[Depends(admin_permission_dependency)],
+)
+def get_courts_by_jurisdiction(
+    jurisdiction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
 
-@router.get("/get_court/{court_id}")
+    courts = db.query(Court).filter(Court.jurisdiction_id == id).all()
+    return create_response(
+        message=f" retrieved successfully",
+        status_code=status.HTTP_200_OK,
+        data=[
+            CourtBase(
+                id=court.id,
+                date_created=court.CreatedAt,
+                name=court.name,
+                state=CourtSystemInDB(
+                    id=court.jurisdiction.state.id, name=court.jurisdiction.state.name
+                ),
+                Jurisdiction=[
+                    CourtSystemInDB(
+                        id=court.jurisdiction.id, name=court.jurisdiction.name
+                    )
+                ],
+                head_of_unit=SlimUserInResponse(
+                    id=court.jurisdiction.head_of_unit.id,
+                    first_name=court.jurisdiction.head_of_unit.first_name,
+                    last_name=court.jurisdiction.head_of_unit.last_name,
+                    email=court.jurisdiction.head_of_unit.email,
+                ),
+            )
+            for court in courts
+        ],
+    )
+
+@router.get(
+    "/get_court/{court_id}", dependencies=[Depends(admin_permission_dependency)]
+)
 async def get_court(court_id: str, db: Session = Depends(get_db)):
     court = court_repo.get(db, id=court_id)
     court_documents = []
@@ -767,6 +818,78 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
             ],
         ),
     )
+
+
+@router.post(
+    "/create_state",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(admin_permission_dependency)],
+)
+def create_state(state: CourtSystemBase, db: Session = Depends(get_db)):
+
+    try:
+        state_exist = state_repo.get_by_field(
+            db=db, field_name="name", field_value=state.name
+        )
+        if state_exist:
+            raise AlreadyExistsException(f"{state.name} already exists")
+        new_state = state_repo.create(db, obj_in=state)
+        return create_response(
+            status_code=status.HTTP_201_CREATED,
+            message=f"{state.name} created successfully",
+            data=CourtSystemInDB(id=str(new_state.id), name=new_state.name),
+        )
+    except Exception as e:
+        logger.error("Something went wrong  while creating the state: {err}", err=e)
+        raise ServerException(detail="Something went wrong while creating the state")
+
+@router.get(
+    "/get_state/{id}",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[CourtSystemInDB],
+    dependencies=[Depends(admin_permission_dependency)],
+)
+def get_state(id: int, db: Session = Depends(get_db)):
+    """Get information on a specific state by its ID."""
+    try:
+
+        state = state_repo.get(db, id=id)
+        if not state:
+            raise DoesNotExistException(detail=f"State with id {id} does not exist.")
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="State Retrieved Successful",
+            data=CourtSystemInDB(id=str(state.id), name=state.name),
+        )
+
+    except Exception as e:
+        logger.error(e)
+
+
+
+@router.get(
+    "/get_states",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericResponse[List[CourtSystemInDB]],
+    dependencies=[Depends(admin_permission_dependency)],
+)
+def get_all_states(db: Session = Depends(get_db)):
+    """Return a list of all states"""
+    try:
+        states = state_repo.get_all(db)
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=[
+                CourtSystemInDB(id=str(state.id), name=state.name) for state in states
+            ],
+        )
+    except Exception as e:
+        logger.error(e)
+@router.get("/populate_court_system")
+def populate_court_system(db: Session = Depends(get_db)):
+    """Populates the database with data about states and their respective jurisdictions."""
+    populate_data(db)
 
 
 ##############
@@ -1028,7 +1151,9 @@ async def get_categories(db: Session = Depends(get_db)):
     categories = category_repo.get_all(db)
     full_categories = []
     for category in categories:
-        templates = await template_collection.find({"category_id": category.id}).to_list(length=1000)
+        templates = await template_collection.find(
+            {"category_id": category.id}
+        ).to_list(length=1000)
         full_category = FullCategoryInResponse(
             name=category.name,
             id=category.id,
@@ -1042,9 +1167,11 @@ async def get_categories(db: Session = Depends(get_db)):
             templates=[serialize_mongo_document(template) for template in templates],
         )
         full_categories.append(full_category)
-  
+
     return create_response(
-        data=full_categories, status_code=status.HTTP_200_OK, message="Categories Retrieved Successfully"
+        data=full_categories,
+        status_code=status.HTTP_200_OK,
+        message="Categories Retrieved Successfully",
     )
 
 
@@ -1056,17 +1183,16 @@ def create_category(
 ):
     category_exists = category_repo.get_by_name(db, name=category_name.name)
     if category_exists:
-        raise AlreadyExistsException(detail="A Category with this name or a similar name already exists.")
+        raise AlreadyExistsException(
+            detail="A Category with this name or a similar name already exists."
+        )
     category_in = CategoryCreate(
         **category_name.dict(), created_by_id=current_user.id, id=str(uuid.uuid4())
     )
 
     db_category = category_repo.create(db, obj_in=category_in)
     return create_response(
-        data=CategoryInResponse(
-            name=db_category.name,
-            id=db_category.id
-        ),
+        data=CategoryInResponse(name=db_category.name, id=db_category.id),
         status_code=status.HTTP_201_CREATED,
         message=f"{db_category.name} Category Created Successfully",
     )
@@ -1098,10 +1224,7 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
         db, db_obj=db_category, obj_in=category.dict(exclude_unset=True)
     )
     return create_response(
-        data=CategoryInResponse(
-            name=new_db_category.name,
-            id=new_db_category.id
-        ),
+        data=CategoryInResponse(name=new_db_category.name, id=new_db_category.id),
         status_code=status.HTTP_200_OK,
         message=f"{db_category.name}  retrieved successfully",
     )

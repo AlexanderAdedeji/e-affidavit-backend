@@ -49,6 +49,7 @@ from app.schemas.user_schema import (
 )
 from app.repositories.commissioner_profile_repo import comm_profile_repo
 from app.schemas.user_type_schema import UserTypeInDB
+from app.repositories.court_system_repo import court_repo
 from commonLib.response.response_schema import create_response, GenericResponse
 
 
@@ -188,6 +189,62 @@ async def get_all_courts(
     except Exception as e:
         # Consider adding logging or more specific error handling here
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
+
+
+@router.get(
+    "/get_court/{court_id}",
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+)
+def get__court(
+    court_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    """Get information about one specific court, You can access this rout as an Admin or Head of Unit,
+    as an admin you can view any court, if you are a head of unit you can only view court in your jurisdictions
+    """
+
+    court = court_repo.get(db, id=court_id)
+
+    if not court:
+        raise DoesNotExistException(detail=f"Court with id {court_id} deos not exists")
+    if (
+       current_user.head_of_unit.jurisdiction_id != court.jurisdiction_id
+    ):
+        raise UnauthorizedEndpointException(
+            detail="This court is not in your jurisdiction"
+        )
+
+    return create_response(
+        message=f"{court.name} retrieved successfully",
+        status_code=status.HTTP_200_OK,
+        data=CourtBase(
+            id=court.id,
+            date_created=court.CreatedAt,
+            name=court.name,
+            state=CourtSystemInDB(
+                id=court.jurisdiction.state.id, name=court.jurisdiction.state.name
+            ),
+            Jurisdiction=CourtSystemInDB(
+                id=court.jurisdiction.id, name=court.jurisdiction.name
+            ),
+            head_of_unit=SlimUserInResponse(
+                id=court.jurisdiction.head_of_unit.id,
+                first_name=court.jurisdiction.head_of_unit.user.first_name,
+                last_name=court.jurisdiction.head_of_unit.user.last_name,
+                email=court.jurisdiction.head_of_unit.user.email,
+            ),
+            commissioners=[
+                SlimUserInResponse(
+                    id=commissioner.user.id,
+                    first_name=commissioner.user.first_name,
+                    last_name=commissioner.user.last_name,
+                    email=commissioner.user.email,
+                )
+                for commissioner in court.commissioner_profile
+            ],
+        ),
+    )
 
 
 @router.get(

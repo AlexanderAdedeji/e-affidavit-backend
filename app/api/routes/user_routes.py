@@ -37,20 +37,16 @@ from app.schemas.affidavit_schema import (
     TemplateContent,
     TemplateInResponse,
     UpdateDocument,
-
     serialize_mongo_document,
-
     template_list_serialiser,
 )
 from app.repositories.court_system_repo import state_repo
 from app.schemas.email_schema import UserCreationTemplateVariables
 from app.schemas.stats_schema import PublicDashboardStat
 from app.schemas.user_schema import (
-
     UserCreate,
     UserCreateForm,
     UserInResponse,
-
 )
 from postmarker import core
 from app.database.sessions.mongo_client import template_collection, document_collection
@@ -252,28 +248,6 @@ async def get_my_latest_affidavits(
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching documents")
-
-
-# @router.get("/get_public_users")
-# def get_public_users(db: Session = Depends(get_db)):
-#     user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
-#     users = user_type.users
-#     return create_response(
-#         status_code=status.HTTP_200_OK,
-#         message="Public Users retrived Successfully",
-#         data=[
-#             UserInResponse(
-#                 email=user.email,
-#                 id=user.id,
-#                 first_name=user.first_name,
-#                 is_active=user.is_active,
-#                 last_name=user.last_name,
-#                 verify_token="",
-#                 user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
-#             )
-#             for user in users
-#         ],
-#     )
 
 
 @router.get("/get_document/{document_id}")
@@ -524,7 +498,7 @@ async def pay_for_document(
     )
 
 
-@router.get("/get_states")
+@router.get("/get_states", response_model=GenericResponse[List[CourtSystemInDB]])
 def get_states(db: Session = Depends(get_db)):
     states = state_repo.get_all(db)
 
@@ -535,7 +509,7 @@ def get_states(db: Session = Depends(get_db)):
     )
 
 
-@router.get("/get_jurisdictions_by_state/{state_id}")
+@router.get("/get_jurisdictions_by_state/{state_id}", response_model=GenericResponse[List[CourtSystemInDB]])
 def get_jurisdictions_by_states(state_id: int, db: Session = Depends(get_db)):
     jurisdictions = (
         db.query(Jurisdiction).filter(Jurisdiction.state_id == state_id).all()
@@ -550,7 +524,9 @@ def get_jurisdictions_by_states(state_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/get_courts_by_jursdiction/{jurisdiction_id}")
+@router.get(
+    "/get_courts_by_jursdiction/{jurisdiction_id}", response_model=GenericResponse[List[CourtSystemInDB]]
+)
 def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
     courts = db.query(Court).filter(Court.jurisdiction_id == jurisdiction_id).all()
     return create_response(
@@ -560,27 +536,6 @@ def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_d
     )
 
 
-# @router.get("/get_all_users")
-# def get_all_users(db: Session = Depends(get_db)):
-#     users = user_repo.get_all(db)
-
-#     return create_response(
-#         status_code=status.HTTP_200_OK,
-#         message="All Users retrieved successfully.",
-#         data=[
-#             AllUsers(
-#                 id=user.id,
-#                 first_name=user.first_name,
-#                 last_name=user.last_name,
-#                 email=user.email,
-#                 user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
-#                 date_created=user.CreatedAt,
-#                 is_active=user.is_active,
-#                 verify_token="",
-#             )
-#             for user in users
-#         ],
-#     )
 
 
 @router.post("/create_document")

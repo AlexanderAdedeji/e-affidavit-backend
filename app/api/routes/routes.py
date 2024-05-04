@@ -22,8 +22,8 @@ router.include_router(authentication_routes.router, tags=["Authentication"], pre
 # Routes for managing user types or roles
 router.include_router(user_type_routes.router, tags=["User Types"], prefix="/user_types")
 
-# Routes for court system-related operations
-router.include_router(court_system_routes.router, tags=["Court System"], prefix="/court_system")
+# # Routes for court system-related operations
+# router.include_router(court_system_routes.router, tags=["Court System"], prefix="/court_system")
 
 
 # Routes for managing user entities

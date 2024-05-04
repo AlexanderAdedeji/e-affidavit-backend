@@ -509,12 +509,3 @@ def get_courts_by_jurisdiction(
     )
 
 
-# @router.get("/states/{state_id}/jurisdiction")
-# def get_jurisdictions_by_state(db: Session = Depends(get_db)):
-#     return {}
-
-
-@router.get("/populate_court_system")
-def populate_court_system(db: Session = Depends(get_db)):
-    """Populates the database with data about states and their respective jurisdictions."""
-    populate_data(db)
