@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List
 from unittest.util import safe_repr
 import uuid
 from app.api.routes.court_system_routes import populate_data
 from app.models.court_system_models import Court
+from app.models.user_type_model import UserType
 from app.repositories.category_repo import category_repo
 from app.schemas.category_schema import (
     Category,
@@ -17,6 +18,7 @@ from loguru import logger
 from bson import ObjectId
 from app.core.services.invitation import process_user_invite
 from app.schemas.affidavit_schema import (
+    LastestAffidavits,
     SlimDocumentInResponse,
     SlimTemplateInResponse,
     TemplateBase,
@@ -73,6 +75,7 @@ from app.schemas.user_schema import (
     FullCommissionerInResponse,
     HeadOfUnitInResponse,
     InviteOperationsForm,
+    InviteResponse,
     OperationsCreateForm,
     UserCreate,
     UserInResponse,
@@ -365,6 +368,76 @@ async def get_commissioners(
         message="Commissioners retireved successfully",
         data=results,
     )
+
+
+@router.get(
+    "/get_latest_affidavits",
+      dependencies=[Depends(admin_permission_dependency)]
+)
+async def get_latest_affidavits(
+    db: Session = Depends(get_db),
+    # current_user: User = Depends(get_currently_authenticated_user),
+):
+    try:
+
+
+        pipeline = [
+        {
+            "$match": {
+                "$or": [{"status": "PAID"}, {"is_attested": True}],
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total_amount": {"$sum": "$amount_paid"},
+            }
+        },
+    ]
+        documents = (
+            await document_collection.aggregate(pipeline)
+            .sort("created_at", -1)
+            # .limit(5)
+            .to_list(length=5)
+        )
+        if not documents:
+            logger.info("No documents found")
+            return []
+
+        documents = serialize_mongo_document(documents)
+
+        enriched_documents = []
+        for document in documents:
+            court = court_repo.get(db, id=document["court_id"])
+            template = await template_collection.find_one(
+                {"_id": ObjectId(document["template_id"])}
+            )
+            document["court"] = court.name if court else "Unknown Court"
+            document["template"] = template["name"] if template else "Unknown Template"
+            enriched_documents.append(document)
+
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            data=  enriched_documents,
+            # data=[
+            #     LastestAffidavits(
+            #         name=document["name"],
+            #         court=document["court"],
+            #         template=document["template"],
+            #         id=document["id"],
+            #         status=document["status"],
+            #         created_at=document["created_at"],
+            #         price=document.get("price"),
+            #         attestation_date=str(document.get("attestation_date")),
+            #     )
+            #     for document in enriched_documents
+            # ],
+            message="Documents retrieved successfully",
+        )
+    except Exception as e:
+        logger.error(f"Error fetching documents: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching documents")
+
 
 
 # @router.get(
@@ -1228,3 +1301,49 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
         status_code=status.HTTP_200_OK,
         message=f"{db_category.name}  retrieved successfully",
     )
+
+
+
+@router.get("/invites", response_model=list[InviteResponse])
+def get_all_invites(db: Session = Depends(get_db)):
+    current_time = datetime.utcnow().replace(tzinfo=timezone.utc)  # Ensuring current_time is offset-aware and set to UTC
+    invites = db.query(
+        UserInvite.first_name, 
+        UserInvite.last_name, 
+        UserInvite.email, 
+        UserInvite.is_accepted, 
+        UserInvite.accepted_at, 
+        UserInvite.CreatedAt,
+
+        UserType.name.label("user_type"),
+        UserType.id.label("user_type_id")
+    ).join(UserType, UserInvite.user_type_id == UserType.id).all()  # Properly include user type in the query
+
+    result = []
+    for invite in invites:
+        # Adjust for offset-aware datetime comparison
+        created_at = invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
+        accepted_at = invite.accepted_at.replace(tzinfo=timezone.utc) if invite.accepted_at else None
+
+        if invite.is_accepted:
+            status = "ACCEPTED"
+        elif accepted_at is None and (current_time - created_at) < timedelta(hours=24):
+            status = "PENDING"
+        else:
+            status = "EXPIRED"
+
+        result.append(
+            InviteResponse(
+                first_name=invite.first_name,
+                last_name=invite.last_name,
+                email=invite.email,
+                status=status,
+                user_type=UserTypeInDB(
+                    name=invite.user_type,
+                    id=invite.user_type_id
+
+                )
+            )
+        )
+    
+    return result

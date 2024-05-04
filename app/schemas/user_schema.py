@@ -180,3 +180,14 @@ class PublicInResponse(UserInResponse):
     total_documents: List[SlimDocumentInResponse]
     total_amount: int
     date_created: datetime
+
+
+class InviteResponse(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    status: str
+    user_type: UserTypeInDB
+
+    class Config:
+        orm_mode = True
