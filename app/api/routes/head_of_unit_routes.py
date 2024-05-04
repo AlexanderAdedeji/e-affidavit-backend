@@ -1,7 +1,7 @@
 import datetime
 from typing import List
 import uuid
-from app.schemas.report_schema import CommissionersReport
+from app.schemas.report_schema import CommissionersReport, DocumentReports
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -263,7 +263,7 @@ async def create_head_of_unit(
             detail="Cannot use un-accepted invites for creating new accounts.",
         )
 
-    # Ensure the invite is for a commissioner
+    # Ensure the invite is for a Head of unit
     if db_invite.user_type.name != settings.HEAD_OF_UNIT_USER_TYPE:
         raise HTTPException(
             status_code=403,
@@ -350,7 +350,11 @@ def get_unit_head(head_of_unit_id: str, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/get_all_commissioners_report", response_model=GenericResponse[CommissionersReport],dependencies=[Depends(head_of_unit_permission_dependency)])
+@router.post(
+    "/get_all_commissioners_report",
+    # response_model=GenericResponse[CommissionersReport],
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+)
 async def get_all_commissioners_report(
     date_range: DateRange,
     db: Session = Depends(get_db),
@@ -421,4 +425,74 @@ async def get_all_commissioners_report(
     )
 
 
+@router.post(
+    "/get_commissioner_report/{commissioner_id}",
+    # response_model=GenericResponse[CommissionersReport],
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+)
+async def get_commissioner_report(
+    commissioner_id: str,
+    date_range: DateRange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    commissioner = user_repo.get(db, id=commissioner_id)
+    if (
+        commissioner.commissioner_profile.court.jurisdiction_id
+        != current_user.head_of_unit.jurisdiction_id
+    ):
+        raise UnauthorizedEndpointException(
+            detail="You cannot view this commissioner's report"
+        )
 
+    if date_range.from_date:
+        date_range.from_date = datetime.datetime.strptime(
+            date_range.from_date, "%Y-%m-%d"
+        )
+    if date_range.to_date:
+        date_range.to_date = datetime.datetime.strptime(
+            date_range.to_date, "%Y-%m-%d"
+        ) + datetime.timedelta(days=1)
+
+    query = {
+        "is_attested": True,
+        "commissioner_id": commissioner.id,
+        "attestation_date": {},
+    }
+    if date_range.from_date:
+        query["attestation_date"]["$gte"] = date_range.from_date
+    if date_range.to_date:
+        query["attestation_date"]["$lt"] = date_range.to_date
+    if not query["attestation_date"]:
+        del query["attestation_date"]
+    attested_documents = await document_collection.find(query).to_list(length=1000)
+
+    commissioner_report = CommissionersReport(
+        attested_documents=[
+            DocumentReports(
+                name=document.get("name", ""),
+                attestation_date=(
+                    document.get("attest") if document.get("attest", "") else None
+                ),
+                date_created=document.get("created_at", ""),
+            )
+            for document in attested_documents
+        ],
+        commissioner=FullCommissionerInResponse(
+            id=commissioner.id,
+            first_name=commissioner.first_name,
+            last_name=commissioner.last_name,
+            email=commissioner.email,
+            court=CourtSystemInDB(
+                id=commissioner.commissioner_profile.court.id,
+                name=commissioner.commissioner_profile.court.name,
+            ),
+            is_active=commissioner.is_active,
+            date_created=commissioner.CreatedAt,
+        ),
+    )
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Commissioners retireved successfully",
+        data=commissioner_report,
+    )

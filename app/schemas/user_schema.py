@@ -134,6 +134,7 @@ class CommissionerAttestation(BaseModel):
 
 
 class FullCommissionerInResponse(UserBase):
+    id:str
     email: EmailStr
     is_active: bool
 
