@@ -1,5 +1,7 @@
+import datetime
 from typing import List
 import uuid
+from app.schemas.report_schema import CommissionersReport
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -26,7 +28,7 @@ from app.schemas.affidavit_schema import (
     serialize_mongo_document,
 )
 from app.schemas.court_system_schema import CourtBase, CourtSystemInDB
-from app.schemas.shared_schema import SlimUserInResponse
+from app.schemas.shared_schema import DateRange, SlimUserInResponse
 from app.schemas.stats_schema import AdminDashboardStat, HeadOfUnitDashboardStat
 from app.schemas.user_schema import (
     CommissionerCreate,
@@ -48,6 +50,7 @@ from commonLib.response.response_schema import create_response, GenericResponse
 
 router = APIRouter()
 
+
 @router.get(
     "/get_dashboard_stats",
     # dependencies=[Depends(admin_permission_dependency)]
@@ -63,29 +66,33 @@ async def get_dashboard_stats(
     total_courts = head_of_unit_repo.get_courts_under_jurisdiction(
         db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
     )
-    
+
     total_affidavits = []
     total_revenue = 0
     total_commissioners = head_of_unit_repo.get_commissioners_under_jurisdiction(
         db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
     )
-    
+
     # Loop through each court and get affidavits and revenue
     for court in total_courts:
         pipeline = [
-            {"$match": {
-                "court_id": court.id,
-                "$or": [{"status": "PAID"}, {"is_attested": True}]
-            }},
-            {"$group": {
-                "_id": None,
-                "total_amount": {"$sum": "$price"},
-                "documents": {"$push": "$$ROOT"}
-            }}
+            {
+                "$match": {
+                    "court_id": court.id,
+                    "$or": [{"status": "PAID"}, {"is_attested": True}],
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_amount": {"$sum": "$price"},
+                    "documents": {"$push": "$$ROOT"},
+                }
+            },
         ]
         results = await document_collection.aggregate(pipeline).to_list(length=1)
         if results and results[0]:
-            total_revenue += results[0]['total_amount']
+            total_revenue += results[0]["total_amount"]
             documents = [
                 SlimDocumentInResponse(
                     id=str(document["_id"]),
@@ -95,7 +102,7 @@ async def get_dashboard_stats(
                     created_at=document.get("created_at", ""),
                     status=document.get("status", ""),
                 )
-                for document in results[0].get('documents', [])
+                for document in results[0].get("documents", [])
             ]
             total_affidavits.append(documents)
 
@@ -177,8 +184,6 @@ async def get_all_courts(
     except Exception as e:
         # Consider adding logging or more specific error handling here
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
-
-
 
 
 @router.get(
@@ -343,3 +348,77 @@ def get_unit_head(head_of_unit_id: str, db: Session = Depends(get_db)):
             ),
         ),
     )
+
+
+@router.post("/get_all_commissioners_report", response_model=GenericResponse[CommissionersReport],dependencies=[Depends(head_of_unit_permission_dependency)])
+async def get_all_commissioners_report(
+    date_range: DateRange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    commissioner_profiles = head_of_unit_repo.get_commissioners_under_jurisdiction(
+        db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+    )
+    results = []
+    if date_range.from_date:
+        date_range.from_date = datetime.datetime.strptime(
+            date_range.from_date, "%Y-%m-%d"
+        )
+    if date_range.to_date:
+        date_range.to_date = datetime.datetime.strptime(
+            date_range.to_date, "%Y-%m-%d"
+        ) + datetime.timedelta(days=1)
+
+    commissioners = [commissioner.user for commissioner in commissioner_profiles]
+    for commissioner in commissioners:
+
+        query = {
+            "is_attested": True,
+            "commissioner_id": commissioner.id,
+            "attestation_date": {},
+        }
+        if date_range.from_date:
+            query["attestation_date"]["$gte"] = date_range.from_date
+        if date_range.to_date:
+            query["attestation_date"]["$lt"] = date_range.to_date
+        if not query["attestation_date"]:
+            del query["attestation_date"]
+        attested_documents = await document_collection.find(query).to_list(length=1000)
+
+        commissioner_report = CommissionersReport(
+            attested_documents=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=(
+                        document.get("attest") if document.get("attest", "") else None
+                    ),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in attested_documents
+            ],
+            commissioner=FullCommissionerInResponse(
+                id=commissioner.id,
+                first_name=commissioner.first_name,
+                last_name=commissioner.last_name,
+                email=commissioner.email,
+                court=CourtSystemInDB(
+                    id=commissioner.commissioner_profile.court.id,
+                    name=commissioner.commissioner_profile.court.name,
+                ),
+                is_active=commissioner.is_active,
+                date_created=commissioner.CreatedAt,
+            ),
+        )
+
+        results.append(commissioner_report)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Commissioners retireved successfully",
+        data=results,
+    )
+
+
+
