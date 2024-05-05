@@ -1304,9 +1304,9 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
 
 
 
-@router.get("/invites", response_model=list[InviteResponse])
+@router.get("/get_invites", response_model=GenericResponse[List[InviteResponse]])
 def get_all_invites(db: Session = Depends(get_db)):
-    current_time = datetime.utcnow().replace(tzinfo=timezone.utc)  # Ensuring current_time is offset-aware and set to UTC
+    current_time = datetime.utcnow().replace(tzinfo=timezone.utc)  
     invites = db.query(
         UserInvite.first_name, 
         UserInvite.last_name, 
@@ -1317,7 +1317,7 @@ def get_all_invites(db: Session = Depends(get_db)):
 
         UserType.name.label("user_type"),
         UserType.id.label("user_type_id")
-    ).join(UserType, UserInvite.user_type_id == UserType.id).all()  # Properly include user type in the query
+    ).join(UserType, UserInvite.user_type_id == UserType.id).all()  
 
     result = []
     for invite in invites:
@@ -1326,18 +1326,18 @@ def get_all_invites(db: Session = Depends(get_db)):
         accepted_at = invite.accepted_at.replace(tzinfo=timezone.utc) if invite.accepted_at else None
 
         if invite.is_accepted:
-            status = "ACCEPTED"
+            invite_status = "ACCEPTED"
         elif accepted_at is None and (current_time - created_at) < timedelta(hours=24):
-            status = "PENDING"
+            invite_status = "PENDING"
         else:
-            status = "EXPIRED"
+            invite_status = "EXPIRED"
 
         result.append(
             InviteResponse(
                 first_name=invite.first_name,
                 last_name=invite.last_name,
                 email=invite.email,
-                status=status,
+                status=invite_status,
                 user_type=UserTypeInDB(
                     name=invite.user_type,
                     id=invite.user_type_id
@@ -1346,4 +1346,8 @@ def get_all_invites(db: Session = Depends(get_db)):
             )
         )
     
-    return result
+    return create_response(
+        data= result,
+        message="User invites retrieved successfully",
+     status_code=status.HTTP_200_OK,
+    )
