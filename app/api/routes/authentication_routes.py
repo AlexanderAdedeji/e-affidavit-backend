@@ -1,5 +1,8 @@
 from datetime import timedelta
 from typing import List
+from app.api.dependencies.authentication import get_currently_authenticated_user
+from app.models.user_model import User
+from app.schemas.authentication_schema import ChangePassword
 from postmarker import core
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from app.core.settings.configurations import settings
@@ -11,6 +14,7 @@ from app.core.errors.exceptions import (
     DisallowedLoginException,
     DoesNotExistException,
     IncorrectLoginException,
+    UnauthorizedEndpointException,
 )
 from app.core.services.jwt import get_user_email_from_token
 from app.repositories.user_repo import user_repo
@@ -30,7 +34,7 @@ from app.schemas.user_schema import (
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
 from app.core.services.email import email_service
-
+from app.core.settings.security import security
 
 router = APIRouter()
 
@@ -206,10 +210,11 @@ def forgot_password(
         recipient=user.email,
     )
 
-    return {
-        "message": "Password reset link sent successfully",
-        "token": reset_jwt_token,
-    }
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Password reset link sent successfully",
+        data=reset_jwt_token,
+    )
 
 
 @router.post("/reset_password", status_code=status.HTTP_200_OK)
@@ -236,4 +241,33 @@ def reset_password(
     user = user_repo.update_password(db, user, password)
     token = user.generate_jwt()
 
-    return token
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Password reset link sent successfully",
+        data=token,
+    )
+
+
+@router.patch("/change_password", response_model=GenericResponse[GenericResponse])
+def change_password(
+    password_in: ChangePassword,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    if not current_user.verify_password(password_in.old_password):
+        raise UnauthorizedEndpointException(detail="Incorrect Password")
+
+    user_repo.update(
+        db,
+        db_obj=current_user,
+        obj_in={
+            "hashed_password": security.get_password_hash(
+                password=password_in.new_password
+            )
+        },
+    )
+
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Password Changed  successfully",
+    )
