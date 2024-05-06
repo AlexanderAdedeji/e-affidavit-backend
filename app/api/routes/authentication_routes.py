@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import List
 from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.models.user_model import User
-from app.schemas.authentication_schema import ChangePassword
+from app.schemas.authentication_schema import ChangePassword, UserUpdate
 from postmarker import core
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from app.core.settings.configurations import settings
@@ -202,12 +202,11 @@ def forgot_password(
         reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}{reset_jwt_token}",
     ).dict()
 
-    print(template_dict['reset_link'])
+    print(template_dict["reset_link"])
     email_service.send_email_with_template(
         template_id=settings.RESET_PASSWORD_TEMPLATE_ID,
         db=db,
         background_tasks=background_task,
-    
         template_dict=template_dict,
         recipient=user.email,
     )
@@ -230,13 +229,13 @@ def reset_password(
     token = reset_password_data.token
     password = reset_password_data.password
     email = get_user_email_from_token(token)
-    
+
     if not email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
     user = user_repo.get_by_email(db, email=email)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
@@ -248,7 +247,6 @@ def reset_password(
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Password changed successfully",
-    
     )
 
 
@@ -274,4 +272,28 @@ def change_password(
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Password Changed  successfully",
+    )
+
+
+@router.patch("/update_user_profile")
+def update_user(
+    user_in: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    update_user = user_repo.update(db, db_obj=current_user, obj_in=user_in)
+
+    return create_response(
+        message="Account Profile Updated Successfully",
+        status_code=status.HTTP_200_OK,
+        data=UserInResponse(
+            id=update_user.id,
+            first_name=update_user.first_name,
+            last_name=update_user.last_name,
+            email=update_user.email,
+            is_active=update_user.is_active,
+            user_type=UserTypeInDB(
+                id=update_user.user_type_id, name=update_user.user_type.name
+            ),
+        ),
     )

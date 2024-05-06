@@ -50,7 +50,7 @@ class UserInResponse(UserBase):
     is_active: bool
     email: EmailStr
     user_type: UserTypeInDB
-    verify_token: Optional[str]
+    verify_token: Optional[str] =None
 
 
 class AllUsers(UserInResponse):
