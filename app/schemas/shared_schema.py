@@ -11,6 +11,7 @@ class SlimUserInResponse(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    
 
 
 class UsersWithSharedType(BaseModel):

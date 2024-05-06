@@ -50,7 +50,7 @@ class User(Base):
         foreign_keys="AffidavitCategory.created_by_id",
         back_populates="user",
     )
-
+    # payments = relationship("Payments",foreign_keys="Payments.user_id",back_populates="user")
     @property
     def is_superuser(self):
         return self.user_type.name == SUPERUSER_USER_TYPE

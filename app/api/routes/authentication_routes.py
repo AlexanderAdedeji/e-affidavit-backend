@@ -199,13 +199,15 @@ def forgot_password(
     reset_jwt_token = user_repo.create_verification_token(db, email=user.email)
     template_dict = ResetPasswordEmailTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
-        reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}={reset_jwt_token}",
+        reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}{reset_jwt_token}",
     ).dict()
+
+    print(template_dict['reset_link'])
     email_service.send_email_with_template(
-        # template_id=RESET_PASSWORD_TEMPLATE_ID,
+        template_id=settings.RESET_PASSWORD_TEMPLATE_ID,
         db=db,
         background_tasks=background_task,
-        template_id="VERIFY_EMAIL_TEMPLATE_ID",
+    
         template_dict=template_dict,
         recipient=user.email,
     )
@@ -228,11 +230,13 @@ def reset_password(
     token = reset_password_data.token
     password = reset_password_data.password
     email = get_user_email_from_token(token)
+    
     if not email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
     user = user_repo.get_by_email(db, email=email)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
@@ -243,8 +247,8 @@ def reset_password(
 
     return create_response(
         status_code=status.HTTP_200_OK,
-        message="Password reset link sent successfully",
-        data=token,
+        message="Password changed successfully",
+    
     )
 
 

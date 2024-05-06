@@ -115,7 +115,7 @@ def create_user(
         new_user = user_repo.create(obj_in=user_in, db=db)
         verify_token = user_repo.create_verification_token(email=new_user.email, db=db)
         verification_link = (
-            f"{PUBLIC_FRONTEND_BASE_URL}{VERIFY_EMAIL_LINK}/{verify_token}"
+            f"{PUBLIC_FRONTEND_BASE_URL}{VERIFY_EMAIL_LINK}{verify_token}"
         )
         template_dict = UserCreationTemplateVariables(
             name=f"{new_user.first_name} {new_user.last_name}",
@@ -332,7 +332,7 @@ async def get_templates():
             message="No templates found",
             data=[],
         )
-    templates = template_list_serialiser(templates)
+    templates = serialize_mongo_document(templates)
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"Templates retrieved successfully",
@@ -343,7 +343,7 @@ async def get_templates():
                 description=template["description"],
                 content=template["content"],
                 price=template["price"],
-                category=template["category"],
+                category_id=template["category_id"],
             )
             for template in templates
         ],
@@ -392,7 +392,7 @@ async def get_template_for_document_creation(
             description=template_obj["description"],
             content=template_obj["content"],
             price=template_obj["price"],
-            category=template_obj["category"],
+            category_id=template_obj["category_id"],
         ),
     )
 

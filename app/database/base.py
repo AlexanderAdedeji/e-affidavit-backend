@@ -7,5 +7,6 @@ from app.models.head_of_unit_model import HeadOfUnit
 from app.models.user_type_model import UserType
 from app.models.user_model import User
 from app.models.affidavit_models import AffidavitCategory
+from app.models.payment_model import Payment
 
 

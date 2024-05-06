@@ -26,7 +26,7 @@ class SlimTemplateInResponse(BaseModel):
     name: str
     price: int
     description: str
-    category: str
+    category_id: str
 
 
 class TemplateInResponse(SlimTemplateInResponse):

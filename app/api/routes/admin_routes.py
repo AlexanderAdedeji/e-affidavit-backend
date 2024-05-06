@@ -1027,7 +1027,7 @@ async def get_templates():
         return create_response(
             status_code=status.HTTP_200_OK,
             message="Templates retrieved successfully",
-            data=template_list_serialiser(templates),
+            data=serialize_mongo_document(templates),
         )
 
     except Exception as e:
