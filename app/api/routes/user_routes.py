@@ -545,7 +545,7 @@ async def create_document(
 ) -> Any:
     document_name = generate_document_name()
     document_qr_code_url = (
-        f"https://e-affidavit-public.vercel.app/verify-document/{document_name}"
+        f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
     )
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
     document_dict = document_in.dict()
