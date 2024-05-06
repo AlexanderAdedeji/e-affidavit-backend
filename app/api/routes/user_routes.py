@@ -32,6 +32,7 @@ from app.schemas.affidavit_schema import (
     DocumentCreateForm,
     DocumentPayment,
     LastestAffidavits,
+    ReceiptInResponse,
     SlimDocumentInResponse,
     TemplateBase,
     TemplateContent,
@@ -198,8 +199,7 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
 
 
 @router.get(
-    "/get_my_latest_affidavits",
-    #   dependencies=[Depends(authenticated_user_dependencies)]
+    "/get_my_latest_affidavits", dependencies=[Depends(authenticated_user_dependencies)]
 )
 async def get_my_latest_affidavits(
     db: Session = Depends(get_db),
@@ -278,6 +278,57 @@ async def get_document(
             status_code=status.HTTP_200_OK,
             message=f"{document['name']} retrieve successfully",
             data=document,
+        )
+
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching the document",
+        )
+
+
+@router.get("/get_receipt/{document_id}")
+async def get_receipt(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    if not ObjectId.is_valid(document_id):
+        logger.error(f"Invalid ObjectId format: {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document ID format"
+        )
+
+    try:
+        document = await document_collection.find_one(
+            {"_id": ObjectId(document_id), "created_by_id": current_user.id}
+        )
+        if not document:
+            logger.error(
+                f"Could not find document by ID {document_id} for the user ID {current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            )
+
+        document = serialize_mongo_document(document)
+        court = court_repo.get(db, document["court_id"])
+
+        db_template = await template_collection.find_one(
+            {"_id": ObjectId(document["template_id"])}
+        )
+        template = serialize_mongo_document(db_template)
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message=f"{document['name']} retrieve successfully",
+            data=ReceiptInResponse(
+                court_name=court.name,
+                document_name=document["name"],
+                template_name=template["name"],
+                qr_code=document["qr_code"],
+                date_created=str(document["updated_at"]),
+            ),
         )
 
     except Exception as e:
@@ -509,7 +560,10 @@ def get_states(db: Session = Depends(get_db)):
     )
 
 
-@router.get("/get_jurisdictions_by_state/{state_id}", response_model=GenericResponse[List[CourtSystemInDB]])
+@router.get(
+    "/get_jurisdictions_by_state/{state_id}",
+    response_model=GenericResponse[List[CourtSystemInDB]],
+)
 def get_jurisdictions_by_states(state_id: int, db: Session = Depends(get_db)):
     jurisdictions = (
         db.query(Jurisdiction).filter(Jurisdiction.state_id == state_id).all()
@@ -525,7 +579,8 @@ def get_jurisdictions_by_states(state_id: int, db: Session = Depends(get_db)):
 
 
 @router.get(
-    "/get_courts_by_jursdiction/{jurisdiction_id}", response_model=GenericResponse[List[CourtSystemInDB]]
+    "/get_courts_by_jursdiction/{jurisdiction_id}",
+    response_model=GenericResponse[List[CourtSystemInDB]],
 )
 def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
     courts = db.query(Court).filter(Court.jurisdiction_id == jurisdiction_id).all()
@@ -534,8 +589,6 @@ def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_d
         message=f"{len(courts)} States Retrieved Successfully!",
         data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
     )
-
-
 
 
 @router.post("/create_document")

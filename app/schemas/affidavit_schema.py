@@ -8,6 +8,15 @@ from bson import ObjectId
 from app.core.errors.exceptions import ServerException
 
 
+
+class ReceiptInResponse(BaseModel):
+    court_name:str
+    document_name:str
+    template_name:str
+    date_created:str
+    qr_code:str
+
+
 class Field(BaseModel):
     id: str
     name: str
