@@ -11,12 +11,11 @@ class SlimUserInResponse(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    is_active:Optional[bool] = None
     
 
 
-class UsersWithSharedType(BaseModel):
-    users: List[SlimUserInResponse]
-    user_type: Optional[UserTypeInDB]
+
 
 
 class DateRange(BaseModel):

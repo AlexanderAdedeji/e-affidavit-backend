@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.schemas.affidavit_schema import SlimDocumentInResponse
-from app.schemas.shared_schema import SlimUserInResponse, UsersWithSharedType
+from app.schemas.shared_schema import SlimUserInResponse
 
 
 class CourtSystemBase(BaseModel):

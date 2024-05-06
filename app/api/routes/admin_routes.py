@@ -851,13 +851,16 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
     if not court:
         raise DoesNotExistException(detail="Court does not exist")
 
-    document_in = await document_collection.find(
+    db_document = await document_collection.find(
         {
             "court_id": court.id,
             "status": {"$in": ["PAID", "ATTESTED"]},
         }
     ).to_list(length=1000)
-    court_documents.extend(serialize_mongo_document(document_in))
+    # db_template = await template_collection.find({
+    #     "_id": ObjectId(document_in['document_in'])
+    # })
+    court_documents.extend(serialize_mongo_document(db_document))
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"{court.name} Retrieved successfully",
@@ -874,6 +877,7 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
                     first_name=commissioner.first_name,
                     last_name=commissioner.last_name,
                     email=commissioner.email,
+                    is_active= commissioner.is_active
                 )
                 for commissioner_profile in court.commissioner_profile
                 for commissioner in [commissioner_profile.user]
