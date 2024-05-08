@@ -19,7 +19,5 @@ class SlimUserInResponse(BaseModel):
 
 
 class DateRange(BaseModel):
-    from_date: Optional[str] = (
-        Query(None, description="Start date in YYYY-MM-DD format"),
-    )
-    to_date: Optional[str] = Query(None, description="End date in YYYY-MM-DD format")
+    from_date: Optional[str] = ""
+    to_date: Optional[str] = ""

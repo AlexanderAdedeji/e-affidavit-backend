@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class DocumentReports(BaseModel):
     name: str
     attested_date: str
+    date_created:str
 
 
 class CommissionersReport(BaseModel):

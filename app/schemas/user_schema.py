@@ -137,8 +137,8 @@ class FullCommissionerInResponse(UserBase):
     id:str
     email: EmailStr
     is_active: bool
-
     court: CourtSystemInDB
+    attested_documents: Optional[List[SlimDocumentInResponse]] = None
 
 
 class FullCommissionerProfile(FullCommissionerInResponse):

@@ -208,9 +208,7 @@ def get__court(
 
     if not court:
         raise DoesNotExistException(detail=f"Court with id {court_id} deos not exists")
-    if (
-       current_user.head_of_unit.jurisdiction_id != court.jurisdiction_id
-    ):
+    if current_user.head_of_unit.jurisdiction_id != court.jurisdiction_id:
         raise UnauthorizedEndpointException(
             detail="This court is not in your jurisdiction"
         )
@@ -440,6 +438,7 @@ def get_commissioner(
         status_code=status.HTTP_200_OK,
         message="Profile retrieved successfully",
         data=FullCommissionerInResponse(
+            id=db_commissioner.id,
             first_name=db_commissioner.first_name,
             last_name=db_commissioner.last_name,
             email=db_commissioner.email,
@@ -454,7 +453,7 @@ def get_commissioner(
 
 @router.post(
     "/get_all_commissioners_report",
-    response_model=GenericResponse[CommissionersReport],
+    # response_model=GenericResponse[CommissionersReport],
     dependencies=[Depends(head_of_unit_permission_dependency)],
 )
 async def get_all_commissioners_report(
@@ -476,6 +475,8 @@ async def get_all_commissioners_report(
         ) + datetime.timedelta(days=1)
 
     commissioners = [commissioner.user for commissioner in commissioner_profiles]
+
+    return commissioners
     for commissioner in commissioners:
 
         query = {
@@ -529,7 +530,7 @@ async def get_all_commissioners_report(
 
 @router.post(
     "/get_commissioner_report/{commissioner_id}",
-    response_model=GenericResponse[CommissionerReport],
+    # response_model=GenericResponse[CommissionerReport],
     dependencies=[Depends(head_of_unit_permission_dependency)],
 )
 async def get_commissioner_report(
@@ -538,7 +539,11 @@ async def get_commissioner_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
+    print(commissioner_id)
     commissioner = user_repo.get(db, id=commissioner_id)
+
+    if not commissioner:
+        raise DoesNotExistException(detail="This commissioner does not exist")
     if (
         commissioner.commissioner_profile.court.jurisdiction_id
         != current_user.head_of_unit.jurisdiction_id
@@ -548,14 +553,14 @@ async def get_commissioner_report(
         )
 
     if date_range.from_date:
-        date_range.from_date = datetime.datetime.strptime(
-            date_range.from_date, "%Y-%m-%d"
-        )
-    if date_range.to_date:
-        date_range.to_date = datetime.datetime.strptime(
-            date_range.to_date, "%Y-%m-%d"
-        ) + datetime.timedelta(days=1)
+        date_range.from_date = d = datetime.datetime.strptime(date_range.from_date, "%m/%d/%Y")
+    else:
+        date_range.from_date = None
 
+    if date_range.to_date:
+        date_range.to_date = d = datetime.datetime.strptime(date_range.to_date, "%m/%d/%Y")
+    else:
+        date_range.to_date = None
     query = {
         "is_attested": True,
         "commissioner_id": commissioner.id,
