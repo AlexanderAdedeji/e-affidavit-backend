@@ -476,7 +476,7 @@ async def get_all_commissioners_report(
 
     commissioners = [commissioner.user for commissioner in commissioner_profiles]
 
-    return commissioners
+    
     for commissioner in commissioners:
 
         query = {
@@ -552,6 +552,8 @@ async def get_commissioner_report(
             detail="You cannot view this commissioner's report"
         )
 
+
+
     if date_range.from_date:
         date_range.from_date = d = datetime.datetime.strptime(date_range.from_date, "%m/%d/%Y")
     else:
@@ -574,14 +576,14 @@ async def get_commissioner_report(
         del query["attestation_date"]
     attested_documents = await document_collection.find(query).to_list(length=1000)
 
-    commissioner_report = CommissionersReport(
+    commissioner_report = CommissionerReport(
         attested_documents=[
             DocumentReports(
                 name=document.get("name", ""),
-                attestation_date=(
-                    document.get("attest") if document.get("attest", "") else None
+                attested_date=(
+                    document.get("attestation_date", "") 
                 ),
-                date_created=document.get("created_at", ""),
+                date_created=(document.get("created_at", "")),
             )
             for document in attested_documents
         ],
@@ -594,8 +596,8 @@ async def get_commissioner_report(
                 id=commissioner.commissioner_profile.court.id,
                 name=commissioner.commissioner_profile.court.name,
             ),
-            is_active=commissioner.is_active,
-            date_created=commissioner.CreatedAt,
+            is_active=str(commissioner.is_active),
+            date_created=str(commissioner.CreatedAt),
         ),
     )
     return create_response(

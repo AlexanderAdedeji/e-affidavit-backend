@@ -135,6 +135,10 @@ def create_user(
             background_tasks=background_tasks,
         )
 
+
+
+
+
     except IntegrityError as e:
         logger.error(f"Error creating user: {e}")
         raise HTTPException(
@@ -614,6 +618,7 @@ async def create_document(
             "created_by_id": current_user.id,
         }
     )
+
 
     document_obj = DocumentCreate(**document_dict)
 

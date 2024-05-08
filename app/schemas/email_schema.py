@@ -31,6 +31,7 @@ class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
 
 
 class UserActivationTemplateVariables(EmailTemplateVariables):
+
     pass
 
 
@@ -42,7 +43,7 @@ class UserCreationTemplateVariables(EmailTemplateVariables):
     pass
 
 
-class OperationsInviteTemplateVariables():
+class OperationsInviteTemplateVariables(BaseModel):
     invite_url:str
     name:str
     organisation:str

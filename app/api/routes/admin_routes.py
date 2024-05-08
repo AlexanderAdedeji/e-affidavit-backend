@@ -577,7 +577,7 @@ async def get_all_admins(db: Session = Depends(get_db)):
                 name=template.get("name", ""),
                 price=template.get("price", 0),
                 description=template.get("description", ""),
-                category=template.get("category", ""),
+                category_id=template.get("category", ""),
             )
             for template in templates_created
         ]
