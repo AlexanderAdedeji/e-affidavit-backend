@@ -14,3 +14,8 @@ class UserUpdate(BaseModel):
     address: Optional[str]=None
     phone: Optional[str]=None
     password: Optional[str] = None
+
+
+
+
+

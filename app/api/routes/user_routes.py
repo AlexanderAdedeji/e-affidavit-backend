@@ -7,7 +7,9 @@ from app.core.services.utils.utils import (
     is_valid_objectid,
 )
 from app.models.court_system_models import Court, Jurisdiction
+from app.schemas.category_schema import CategoryInResponse, FullCategoryInResponse
 from app.schemas.court_system_schema import CourtSystemInDB
+from app.schemas.shared_schema import SlimUserInResponse
 from bson import ObjectId
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -23,6 +25,8 @@ from app.core.errors.exceptions import (
     DoesNotExistException,
     UnauthorizedEndpointException,
 )
+
+from app.repositories.category_repo import category_repo
 from app.core.services.email import email_service
 from app.models.user_model import User
 from app.repositories.user_repo import user_repo
@@ -649,3 +653,20 @@ async def generate_qr_code(name: str) -> Any:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error generating QR code")
+
+
+@router.get("/get_affidavit_categories")
+async def get_categories(db: Session = Depends(get_db)):
+    categories = category_repo.get_all(db)
+
+    return create_response(
+        data=[
+            CategoryInResponse(
+                name=category.name,
+                id=category.id,
+            )
+            for category in categories
+        ],
+        status_code=status.HTTP_200_OK,
+        message="Categories Retrieved Successfully",
+    )
