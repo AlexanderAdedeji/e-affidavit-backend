@@ -189,7 +189,7 @@ def retrieve_current_user(
 async def get_documents(current_user: User = Depends(get_currently_authenticated_user)):
     try:
         documents = (
-            await document_collection.find({"created_by_id": current_user.id})
+            await document_collection.find({"created_by_id": current_user.id, "is_archived":False})
             .sort("created_at", -1)
             .to_list(length=100)
         )  # Set a reasonable limit
