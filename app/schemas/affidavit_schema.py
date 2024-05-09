@@ -82,6 +82,7 @@ class DocumentBase(BaseModel):
     amount_paid: int
     payment_ref: str
     created_at: str
+    is_archived:bool
     updated_at: str
 
 
