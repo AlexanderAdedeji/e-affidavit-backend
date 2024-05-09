@@ -482,6 +482,47 @@ async def delete_document(
     )
 
 
+@router.patch("/archive_document/{document_id}")
+async def toggle_archive_document(
+    document_id: str, current_user: User = Depends(get_currently_authenticated_user)
+):
+    document = await document_collection.find_one({"_id": ObjectId(document_id)})
+    if not document:
+        raise DoesNotExistException(detail="This document does not exist")
+
+    if document["created_by_id"] != str(current_user.id):
+        raise UnauthorizedEndpointException(
+            detail="You are not authorised to delete this document"
+        )
+    if document["is_archived"]:
+        document["is_archived"] = False
+    else:
+        document["is_archived"] = True
+
+    document.update()
+
+    update_result = await document_collection.update_one(
+            {"_id": ObjectId(document_id)}, {"$set": document}
+        )
+
+    if update_result.modified_count == 0:
+            raise HTTPException(
+                status_code=404, detail="Document not found or no update made."
+            )
+
+    updated_document = await document_collection.find_one(
+            {"_id": ObjectId(document_id)}
+        )
+    if not updated_document:
+            raise HTTPException(status_code=404, detail="Document not found after update.")
+    attested_document = serialize_mongo_document(updated_document)
+    return create_response(
+            status_code=status.HTTP_200_OK,
+            message=f"{attested_document['name'] } has been archived successfully",
+     
+        )
+
+
 @router.patch("/update_document/{document_id}")
 async def update_document(
     document_id: str,
