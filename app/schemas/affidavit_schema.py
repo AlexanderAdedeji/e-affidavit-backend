@@ -140,6 +140,7 @@ class DocumentCreate(DocumentCreateForm):
     qr_code: str
     created_at: datetime = datetime.datetime.now(datetime.timezone.utc)
     status: str
+    is_archived:bool =False
 
     class Config:
         arbitrary_types_allowed = True
