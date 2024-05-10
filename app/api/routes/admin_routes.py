@@ -724,6 +724,7 @@ def retrieve_current_admin(
 )
 async def get_all_jurisdictions(db: Session = Depends(get_db)):
     jurisdictions = jurisdiction_repo.get_all(db)
+
     return create_response(
         message="Jurisdictions retrieved Successfully",
         status_code=status.HTTP_200_OK,
@@ -733,6 +734,11 @@ async def get_all_jurisdictions(db: Session = Depends(get_db)):
                 name=jurisdiction.name,
                 courts=len(jurisdiction.courts),
                 date_created=jurisdiction.CreatedAt,
+                head_of_unit=(
+                    f"{jurisdiction.head_of_unit.user.first_name} {jurisdiction.head_of_unit.user.last_name}"
+                    if jurisdiction.head_of_unit
+                    else "N/A"
+                ),
             )
             for jurisdiction in jurisdictions
         ],
@@ -808,10 +814,9 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
 def get_courts_by_jurisdiction(
     jurisdiction_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_currently_authenticated_user),
 ):
 
-    courts = db.query(Court).filter(Court.jurisdiction_id == id).all()
+    courts = db.query(Court).filter(Court.jurisdiction_id == jurisdiction_id).all()
     return create_response(
         message=f" retrieved successfully",
         status_code=status.HTTP_200_OK,
@@ -1311,8 +1316,8 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
 def get_all_invites(db: Session = Depends(get_db)):
     current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     invites = (
-        db.query(UserInvite.id,
-
+        db.query(
+            UserInvite.id,
             UserInvite.first_name,
             UserInvite.last_name,
             UserInvite.email,
@@ -1347,7 +1352,7 @@ def get_all_invites(db: Session = Depends(get_db)):
 
         result.append(
             InviteResponse(
-                id= invite.id,
+                id=invite.id,
                 first_name=invite.first_name,
                 last_name=invite.last_name,
                 email=invite.email,

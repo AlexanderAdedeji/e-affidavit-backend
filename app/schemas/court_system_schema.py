@@ -54,6 +54,7 @@ class JurisdictionInResponse(JurisdictionBase):
 class SlimJurisdictionInResponse(BaseModel):
     id: str
     date_created: datetime
+    head_of_unit:str
     courts: int
     name: str
 
