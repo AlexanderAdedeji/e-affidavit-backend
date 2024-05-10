@@ -154,7 +154,7 @@ def create_user(
             first_name=new_user.first_name,
             last_name=new_user.last_name,
             email=new_user.email,
-            verify_token=verify_token,
+           
             is_active=new_user.is_active,
             user_type=UserTypeInDB(name=user_type.name, id=user_type.id),
         ),

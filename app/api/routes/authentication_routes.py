@@ -81,17 +81,6 @@ def login(
     if not user.is_active:
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
 
-    template_dict = UserCreationTemplateVariables(
-        name=f"{user.first_name} {user.last_name}",
-    ).dict()
-
-    email_service.send_email_with_template(
-        db=db,
-        template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
-        template_dict=template_dict,
-        recipient=user.email,
-        background_tasks=background_tasks,
-    )
 
     token = user.generate_jwt()
     return create_response(
@@ -165,6 +154,15 @@ def resend_token(
     return create_response(
         message="Verification link sent successfully",
         status_code=status.HTTP_200_OK,
+        data=UserInResponse(
+            id=user.id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+           
+            is_active=user.is_active,
+            user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
+        ),
     )
 
 

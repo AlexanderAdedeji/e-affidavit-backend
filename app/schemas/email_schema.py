@@ -5,7 +5,7 @@ from app.core.settings.configurations import settings
 
 class Email(BaseModel):
     template_id: str
-    template_dict: dict
+    template_dict: str
     recipient: str
     sender: str
 
