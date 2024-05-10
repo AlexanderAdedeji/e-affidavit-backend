@@ -371,8 +371,7 @@ async def get_commissioners(
 
 
 @router.get(
-    "/get_latest_affidavits",
-      dependencies=[Depends(admin_permission_dependency)]
+    "/get_latest_affidavits", dependencies=[Depends(admin_permission_dependency)]
 )
 async def get_latest_affidavits(
     db: Session = Depends(get_db),
@@ -380,23 +379,21 @@ async def get_latest_affidavits(
 ):
     try:
 
-
         pipeline = [
-        {
-            "$match": {
-                "$or": [{"status": "PAID"}, {"is_attested": True}],
-            }
-        },
-        {
-            "$group": {
-                "_id": None,
-                "total_amount": {"$sum": "$amount_paid"},
-            }
-        },
-    ]
+            {
+                "$match": {
+                    "$or": [{"status": "PAID"}, {"is_attested": True}],
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_amount": {"$sum": "$amount_paid"},
+                }
+            },
+        ]
         documents = (
-            await document_collection.aggregate(pipeline)
-            .sort("created_at", -1)
+            await document_collection.aggregate(pipeline).sort("created_at", -1)
             # .limit(5)
             .to_list(length=5)
         )
@@ -418,7 +415,7 @@ async def get_latest_affidavits(
 
         return create_response(
             status_code=status.HTTP_200_OK,
-            data=  enriched_documents,
+            data=enriched_documents,
             # data=[
             #     LastestAffidavits(
             #         name=document["name"],
@@ -437,7 +434,6 @@ async def get_latest_affidavits(
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
         raise HTTPException(status_code=500, detail="Error fetching documents")
-
 
 
 # @router.get(
@@ -804,6 +800,7 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
         ),
     )
 
+
 @router.get(
     "/jurisdictions/{jurisdiction_id}/courts",
     dependencies=[Depends(admin_permission_dependency)],
@@ -842,6 +839,7 @@ def get_courts_by_jurisdiction(
         ],
     )
 
+
 @router.get(
     "/get_court/{court_id}", dependencies=[Depends(admin_permission_dependency)]
 )
@@ -877,7 +875,7 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
                     first_name=commissioner.first_name,
                     last_name=commissioner.last_name,
                     email=commissioner.email,
-                    is_active= commissioner.is_active
+                    is_active=commissioner.is_active,
                 )
                 for commissioner_profile in court.commissioner_profile
                 for commissioner in [commissioner_profile.user]
@@ -920,6 +918,7 @@ def create_state(state: CourtSystemBase, db: Session = Depends(get_db)):
         logger.error("Something went wrong  while creating the state: {err}", err=e)
         raise ServerException(detail="Something went wrong while creating the state")
 
+
 @router.get(
     "/get_state/{id}",
     status_code=status.HTTP_200_OK,
@@ -943,7 +942,6 @@ def get_state(id: int, db: Session = Depends(get_db)):
         logger.error(e)
 
 
-
 @router.get(
     "/get_states",
     status_code=status.HTTP_200_OK,
@@ -963,6 +961,8 @@ def get_all_states(db: Session = Depends(get_db)):
         )
     except Exception as e:
         logger.error(e)
+
+
 @router.get("/populate_court_system")
 def populate_court_system(db: Session = Depends(get_db)):
     """Populates the database with data about states and their respective jurisdictions."""
@@ -1307,27 +1307,36 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
     )
 
 
-
 @router.get("/get_invites", response_model=GenericResponse[List[InviteResponse]])
 def get_all_invites(db: Session = Depends(get_db)):
-    current_time = datetime.utcnow().replace(tzinfo=timezone.utc)  
-    invites = db.query(
-        UserInvite.first_name, 
-        UserInvite.last_name, 
-        UserInvite.email, 
-        UserInvite.is_accepted, 
-        UserInvite.accepted_at, 
-        UserInvite.CreatedAt,
+    current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+    invites = (
+        db.query(UserInvite.id,
 
-        UserType.name.label("user_type"),
-        UserType.id.label("user_type_id")
-    ).join(UserType, UserInvite.user_type_id == UserType.id).all()  
+            UserInvite.first_name,
+            UserInvite.last_name,
+            UserInvite.email,
+            UserInvite.is_accepted,
+            UserInvite.accepted_at,
+            UserInvite.CreatedAt,
+            UserType.name.label("user_type"),
+            UserType.id.label("user_type_id"),
+        )
+        .join(UserType, UserInvite.user_type_id == UserType.id)
+        .all()
+    )
 
     result = []
     for invite in invites:
         # Adjust for offset-aware datetime comparison
-        created_at = invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
-        accepted_at = invite.accepted_at.replace(tzinfo=timezone.utc) if invite.accepted_at else None
+        created_at = (
+            invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
+        )
+        accepted_at = (
+            invite.accepted_at.replace(tzinfo=timezone.utc)
+            if invite.accepted_at
+            else None
+        )
 
         if invite.is_accepted:
             invite_status = "ACCEPTED"
@@ -1338,20 +1347,27 @@ def get_all_invites(db: Session = Depends(get_db)):
 
         result.append(
             InviteResponse(
+                id= invite.id,
                 first_name=invite.first_name,
                 last_name=invite.last_name,
                 email=invite.email,
                 status=invite_status,
-                user_type=UserTypeInDB(
-                    name=invite.user_type,
-                    id=invite.user_type_id
-
-                )
+                user_type=UserTypeInDB(name=invite.user_type, id=invite.user_type_id),
             )
         )
-    
+
     return create_response(
-        data= result,
+        data=result,
         message="User invites retrieved successfully",
-     status_code=status.HTTP_200_OK,
+        status_code=status.HTTP_200_OK,
+    )
+
+
+@router.delete("/delete_invite/{invite_id}", response_model=GenericResponse)
+def delete_invite(invite_id: str, db: Session = Depends(get_db)):
+    deleted_invite = user_invite_repo.remove(db, id=invite_id)
+
+    return create_response(
+        message=f"Invite to {deleted_invite.first_name} {deleted_invite.last_name} deleted successfully",
+        status_code=status.HTTP_200_OK,
     )
