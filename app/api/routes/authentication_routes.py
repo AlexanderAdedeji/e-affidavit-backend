@@ -182,14 +182,15 @@ def forgot_password(
 
     front_end_url = get_frontend_url(user.user_type.name)
 
-    print(front_end_url)
-    reset_jwt_token = user_repo.create_verification_token(db, email=user.email)
+
+    reset_jwt_token = user_repo.create_reset_password_token(db, email=user.email)
     template_dict = ResetPasswordEmailTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
         reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}{reset_jwt_token}",
+
     ).dict()
 
-    print(template_dict["reset_link"])
+   
     email_service.send_email_with_template(
         template_id=settings.RESET_PASSWORD_TEMPLATE_ID,
         db=db,

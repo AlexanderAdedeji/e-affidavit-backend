@@ -25,7 +25,7 @@ class EmailTemplateVariables(BaseModel):
 
 class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
     reset_link: str
-    valid_for: Optional[int] = settings.RESET_TOKEN_EXPIRE_MINUTES
+    valid_for: Optional[int] = int(settings.RESET_TOKEN_EXPIRE_MINUTES) / 1000
 
 
 
@@ -47,5 +47,7 @@ class UserVerificationTemplateVariables(UserCreationTemplateVariables):
 class OperationsInviteTemplateVariables(BaseModel):
     invite_url:str
     name:str
-    organisation:str
+    invite_sender_name:str
+    invite_sender_organization_name:str
+  
     user_role:str

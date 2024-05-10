@@ -35,7 +35,9 @@ class UserRepositories(Base[User]):
     def create_verification_token(self, db: Session, *, email):
         user = db.query(User).filter(User.email == email).first()
         return user.generate_verification_token()
-
+    def create_reset_password_token(self, db: Session, *, email):
+        user = db.query(User).filter(User.email == email).first()
+        return user.generate_verification_token()
     def activate(self, db: Session, *, db_obj: User) -> User:
         return self._set_activation_status(db=db, db_obj=db_obj, status=True)
 
