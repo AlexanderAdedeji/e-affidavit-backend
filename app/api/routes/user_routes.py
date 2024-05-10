@@ -798,6 +798,8 @@ async def extract_text_from_document(document_id: str) -> str:
     return result
 
 
+
+
 # @router.get("/extract_text_from_document/{document_id}")
 # async def extract_text_from_document(document_id: str) -> str:
 

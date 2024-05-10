@@ -5,7 +5,7 @@ from app.core.settings.configurations import settings
 
 class Email(BaseModel):
     template_id: str
-    template_dict: str
+    template_dict: dict
     recipient: str
     sender: str
 
@@ -31,7 +31,6 @@ class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
 
 
 class UserActivationTemplateVariables(EmailTemplateVariables):
-
     pass
 
 
@@ -40,9 +39,11 @@ class UserDeactivationTemplateVariables(EmailTemplateVariables):
 
 
 class UserCreationTemplateVariables(EmailTemplateVariables):
+    action_url:str
+  
+
+class UserVerificationTemplateVariables(UserCreationTemplateVariables):
     pass
-
-
 class OperationsInviteTemplateVariables(BaseModel):
     invite_url:str
     name:str

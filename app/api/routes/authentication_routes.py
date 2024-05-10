@@ -21,6 +21,7 @@ from app.repositories.user_repo import user_repo
 from app.schemas.email_schema import (
     ResetPasswordEmailTemplateVariables,
     UserCreationTemplateVariables,
+    UserVerificationTemplateVariables,
 )
 
 from app.schemas.user_schema import (
@@ -127,21 +128,10 @@ def verify_user(token: UserVerify, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Something went wrong!",
         )
-    token = user.generate_jwt()
-    verification_link = ""
 
     return create_response(
         message="Email Verification Successful",
         status_code=status.HTTP_202_ACCEPTED,
-        data=UserInResponse(
-            id=user.id,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            email=user.email,
-            is_active=user.is_active,
-            user_type=UserTypeInDB(id=user.user_type_id, name=user.user_type.name),
-            verify_token=token,
-        ),
     )
 
 
@@ -158,23 +148,22 @@ def resend_token(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
         )
-
+    front_end_url = get_frontend_url(user.user_type.name)
     verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
-    # verification_link = f"{FRONTEND_BASE_URL}{VERIFY_EMAIL_LINK}={verify_jwt_token}"
-    # template_dict = UserverifyTemplateVariables(
-    #     name=f"{user.first_name} {user.last_name}", verify_url=verification_link
-    # ).dict()
-    # background_task.add_task(
-    #     send_email_with_template,
-    #     client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
-    #     template_id=VERIFY_EMAIL_TEMPLATE_ID,
-    #     template_dict=template_dict,
-    #     recipient=user.email,
-    # )
+    verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}={verify_jwt_token}"
+    template_dict = UserVerificationTemplateVariables(
+        name=f"{user.first_name} {user.last_name}", action_url=verification_link
+    ).dict()
+    background_task.add_task(
+        email_service.send_email_with_template,
+        client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
+        template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
+        template_dict=template_dict,
+        recipient=user.email,
+    )
 
     return create_response(
         message="Verification link sent successfully",
-        data=verify_jwt_token,
         status_code=status.HTTP_200_OK,
     )
 
