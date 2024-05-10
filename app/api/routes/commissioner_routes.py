@@ -1,7 +1,8 @@
 import datetime
 from typing import List
 import uuid
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from app.schemas.email_schema import UserCreationTemplateVariables
+from fastapi import APIRouter, Body, Depends, HTTPException, status,BackgroundTasks
 from bson import ObjectId
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -50,7 +51,7 @@ from app.database.sessions.mongo_client import document_collection
 from app.repositories.commissioner_profile_repo import comm_profile_repo
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
-
+from app.core.services.email import email_service
 
 router = APIRouter()
 
@@ -122,6 +123,7 @@ async def get_commissioners(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_commissioner(
     commissioner_in: OperationsCreateForm,
+    background_tasks:BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     # Validate the invitation
@@ -167,6 +169,22 @@ async def create_commissioner(
             comm_profile_repo.create(db=db, obj_in=commissioner_profile_in)
         verify_token = user_repo.create_verification_token(
             email=db_commissioner.email, db=db
+        )
+        
+        verification_link = (
+            f"{settings.COURT_SYSTEM_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
+        )
+        template_dict = UserCreationTemplateVariables(
+            name=f"{db_commissioner.first_name} {db_commissioner.last_name}",
+            action_url=verification_link,
+        ).dict()
+        print(verification_link)
+        email_service.send_email_with_template(
+            db=db,
+            template_id=settings.CREATE_ACCOUNT_TEMPLATE_ID,
+            template_dict=template_dict,
+            recipient=db_commissioner.email,
+            background_tasks=background_tasks,
         )
         return create_response(
             status_code=status.HTTP_201_CREATED,

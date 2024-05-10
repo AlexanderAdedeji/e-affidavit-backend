@@ -466,7 +466,7 @@ async def get_latest_affidavits(
 #     )
 
 
-@router.get(
+@router.put(
     "/accept_invite/{token}",
     status_code=status.HTTP_200_OK,
     response_model=GenericResponse[AcceptedInviteResponse],

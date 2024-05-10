@@ -1,12 +1,13 @@
 import datetime
 from typing import List
 import uuid
+from app.schemas.email_schema import UserCreationTemplateVariables
 from app.schemas.report_schema import (
     CommissionerReport,
     CommissionersReport,
     DocumentReports,
 )
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from loguru import logger
 from sqlalchemy.orm import Session
 from app.api.dependencies.authentication import (
@@ -51,6 +52,7 @@ from app.repositories.commissioner_profile_repo import comm_profile_repo
 from app.schemas.user_type_schema import UserTypeInDB
 from app.repositories.court_system_repo import court_repo
 from commonLib.response.response_schema import create_response, GenericResponse
+from app.core.services.email import email_service
 
 
 router = APIRouter()
@@ -310,6 +312,7 @@ async def get_commissioners(
 )
 async def create_head_of_unit(
     head_of_unit_in: OperationsCreateForm,
+    background_tasks:BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     # Validate the invitation
@@ -355,6 +358,21 @@ async def create_head_of_unit(
             head_of_unit_repo.create(db=db, obj_in=head_of_unit_in)
         verify_token = user_repo.create_verification_token(
             email=db_head_of_unit.email, db=db
+        )
+        verification_link = (
+            f"{settings.COURT_SYSTEM_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
+        )
+        template_dict = UserCreationTemplateVariables(
+            name=f"{db_head_of_unit.first_name} {db_head_of_unit.last_name}",
+            action_url=verification_link,
+        ).dict()
+        print(verification_link)
+        email_service.send_email_with_template(
+            db=db,
+            template_id=settings.CREATE_ACCOUNT_TEMPLATE_ID,
+            template_dict=template_dict,
+            recipient=db_head_of_unit.email,
+            background_tasks=background_tasks,
         )
         return create_response(
             status_code=status.HTTP_201_CREATED,

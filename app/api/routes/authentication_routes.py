@@ -199,6 +199,8 @@ def forgot_password(
         recipient=user.email,
     )
 
+    
+
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Password reset link sent successfully",

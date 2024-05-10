@@ -42,7 +42,8 @@ class CustomSettings(BaseSettings):
     OPERATIONS_INVITE_TEMPLATE_ID: str
     JWT_EXPIRE_MINUTES: int
     RESET_PASSWORD_URL:str
-    sender_name:str
+    SENDER_NAME:str
+    ACCEPT_INVITE_URL:str
 
 
 

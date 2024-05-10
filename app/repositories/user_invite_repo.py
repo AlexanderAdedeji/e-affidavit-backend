@@ -13,6 +13,6 @@ class UserInviteRepositories(Base[UserInvite]):
     def mark_invite_as_accepted( self, db: Session, *, db_obj: UserInvite):
         if db_obj.is_accepted:
             return db_obj
-        return super().update(db, db_obj=db_obj, obj_in={"is_accepted": True, "accepted_at":datetime.datetime.now()})
+        return super().update(db, db_obj=db_obj, obj_in={"is_accepted": True, "accepted_at":datetime.now()})
 
 user_invite_repo = UserInviteRepositories(UserInvite)

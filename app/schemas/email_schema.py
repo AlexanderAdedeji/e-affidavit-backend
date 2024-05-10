@@ -49,5 +49,5 @@ class OperationsInviteTemplateVariables(BaseModel):
     name:str
     invite_sender_name:str
     invite_sender_organization_name:str
-  
+    
     user_role:str

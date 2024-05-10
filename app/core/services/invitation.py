@@ -39,7 +39,7 @@ async def process_user_invite(
         operations = determine_operations_base_url(new_invite.user_type_id)
 
         send_invitation_email(
-            background_tasks, new_invite, organisation, operations, token,db
+            background_tasks, new_invite, organisation, operations, token,db, current_user
         )
     except Exception as e:
         logger.error(f"Failed to process invitation for {user.email}: {str(e)}")
@@ -71,14 +71,18 @@ def send_invitation_email(
     organisation: str,
     operations: str,
     token: str,
-    db:Session
+   
+    db:Session,
+     current_user:User
 ):
     template_dict = {
         "name": f"{invite.first_name} {invite.last_name}",
-        "organisation": organisation,
-        "invite_url": f"{operations}/invite={token}",
-        "user_role": invite.user_type.name.capitalize(),  # Ensure 'user_type.name' is correct
+        "invite_sender_organization_name": organisation,
+        "invite_url": f"{operations}{settings.ACCEPT_INVITE_URL}{token}",
+        "user_role": invite.user_type.name.capitalize(), 
+        "invite_sender_name": f"{current_user.first_name}"
     }
+    print(template_dict["invite_url"])
 
     email_service.send_email_with_template(
         db=db,
