@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List
+from typing import Any, Dict, List
 import uuid
 from app.core.services.utils.utils import (
     generate_document_name,
@@ -207,7 +207,8 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
 
 
 
-@router.get("/my_archived_documents", dependencies=[Depends(authenticated_user_dependencies)])
+
+@router.get("/get_archived_documents", dependencies=[Depends(authenticated_user_dependencies)])
 async def get_documents(current_user: User = Depends(get_currently_authenticated_user)):
     try:
         documents = (
@@ -236,7 +237,7 @@ async def get_my_latest_affidavits(
 ):
     try:
         documents = (
-            await document_collection.find({"created_by_id": current_user.id})
+            await document_collection.find({"created_by_id": current_user.id,"is_archived":False})
             .sort("created_at", -1)
             .limit(5)
             .to_list(length=5)
@@ -503,7 +504,7 @@ async def delete_document(
     )
 
 
-@router.patch("/archive_document/{document_id}")
+@router.put("/archive_document/{document_id}")
 async def toggle_archive_document(
     document_id: str, current_user: User = Depends(get_currently_authenticated_user)
 ):
@@ -737,3 +738,122 @@ async def get_categories(db: Session = Depends(get_db)):
         status_code=status.HTTP_200_OK,
         message="Categories Retrieved Successfully",
     )
+
+
+
+
+
+def extract_text_from_children(children: List[Dict[str, Any]]) -> str:
+    """
+    Recursively extract text from children nodes.
+    """
+    text = ""
+    for child in children:
+        logger.info(f"Processing child: {child}")
+        if 'text' in child:
+            text += child['text']
+        elif 'type' in child and child['type'] == 'field':
+            # Use content if available, otherwise use label
+            field_content = child.get('content', '').strip()
+            text += field_content if field_content else child.get('label', '')
+        elif 'children' in child:
+            # Recursively process nested children
+            text += extract_text_from_children(child['children'])
+        # Limit to 400 characters
+        if len(text) >= 400:
+            return text[:400]
+    return text
+
+@router.get("/extract_text_from_document/{document_id}")
+async def extract_text_from_document(document_id: str) -> str:
+    if not ObjectId.is_valid(document_id):
+        logger.error(f"Invalid ObjectId format: {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document ID format"
+        )
+
+    document = await document_collection.find_one({"_id": ObjectId(document_id)})
+    if not document:
+        logger.error(f"Could not find document by ID {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
+
+    logger.info(f"Document found: {document}")
+
+    template_data = document.get('document_data', {}).get('template_data', [])
+    content_area = next((item for item in template_data if item.get('id') == 'content-area'), None)
+
+    if content_area:
+        logger.info(f"Content Area found: {content_area}")
+        result = extract_text_from_children(content_area.get('children', []))
+    else:
+        logger.info("No content area found.")
+        result = ""
+
+    if not result:
+        logger.info("No text extracted or content area not found.")
+    
+    logger.info(f"Final extracted text: {result}")
+    return result
+
+
+# @router.get("/extract_text_from_document/{document_id}")
+# async def extract_text_from_document(document_id: str) -> str:
+
+
+    if not ObjectId.is_valid(document_id):
+        logger.error(f"Invalid ObjectId format: {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document ID format"
+        )
+
+
+    document = await document_collection.find_one({"_id": ObjectId(document_id)})
+    if not document:
+        logger.error(
+                f"Could not find document by ID {document_id} for the user ID"
+            )
+        raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            )
+
+    # document = serialize_mongo_document(document)
+    # Initialize result variable to collect the text
+    result = ""
+    content_area = None
+
+    template_data = document.get('document_data', {}).get('template_data', [])
+    logger.info(f"Template Data: {template_data}")
+
+    # Loop through template_data to find the 'content-area' block
+    for item in template_data:
+        if item.get('id') == 'content-area':
+            content_area = item
+            break
+    
+    if content_area:
+        logger.info(f"Content Area found: {content_area}")
+        # Iterate through children of the content-area to concatenate text
+        for child in content_area.get('children', []):
+            logger.info(f"Processing child: {child}")
+            if 'text' in child:
+                print("hello")
+                print(child['text'])
+                result += child['text']
+                logger.info(f"Appended text: {child['text']}")
+            elif 'type' in child and child['type'] == 'field':
+                field_content = child.get('content', '').strip()
+                text_to_add = field_content if field_content else child.get('label', '')
+                result += text_to_add
+                logger.info(f"Appended field content/label: {text_to_add}")
+            # Limit to 400 characters
+            if len(result) >= 400:
+                logger.info(f"Result trimmed to 400 characters: {result[:400]}")
+                return result[:400]
+
+    if not result:
+        logger.info("No text extracted or content area not found.")
+
+    logger.info(f"Final extracted text: {result}")
+    return result
