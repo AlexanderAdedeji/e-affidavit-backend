@@ -65,7 +65,10 @@ from app.schemas.court_system_schema import (
     SlimCourtInResponse,
     SlimJurisdictionInResponse,
 )
-from app.schemas.email_schema import OperationsInviteTemplateVariables
+from app.schemas.email_schema import (
+    OperationsInviteTemplateVariables,
+    UserCreationTemplateVariables,
+)
 from app.schemas.user_schema import (
     AcceptedInviteResponse,
     AdminInResponse,
@@ -639,7 +642,11 @@ async def get_all_admins(db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
     response_model=GenericResponse[UserInResponse],
 )
-def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
+def create_admin(
+    admin_in: OperationsCreateForm,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     db_invite = user_invite_repo.get(db, id=admin_in.invite_id)
     if not db_invite:
         raise DoesNotExistException(detail="Invitation does not exist or is invalid.")
@@ -662,9 +669,25 @@ def create_admin(admin_in: OperationsCreateForm, db: Session = Depends(get_db)):
         email=db_invite.email,
     )
 
+
+
+
     try:
         new_admin = user_repo.create(db=db, obj_in=admin_obj)
         verify_token = user_repo.create_verification_token(email=new_admin.email, db=db)
+        verification_link = f"{settings.ADMIN_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
+        template_dict = UserCreationTemplateVariables(
+            name=f"{new_admin.first_name} {new_admin.last_name}",
+            action_url=verification_link,
+        ).dict()
+        print(verification_link)
+        email_service.send_email_with_template(
+            db=db,
+            template_id=settings.CREATE_ACCOUNT_TEMPLATE_ID,
+            template_dict=template_dict,
+            recipient=new_admin.email,
+            background_tasks=background_tasks,
+        )
         return create_response(
             status_code=status.HTTP_201_CREATED,
             message="Account created successfully",

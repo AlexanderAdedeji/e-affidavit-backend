@@ -6,6 +6,7 @@ from postmarker import core
 from app.core.services.jwt import generate_invitation_token
 from app.models.user_model import User
 from app.repositories.user_invite_repo import user_invite_repo
+from app.repositories.user_type_repo import user_type_repo
 from app.schemas.user_schema import CreateInvite, InviteOperationsForm
 from sqlalchemy.orm import Session
 
@@ -35,8 +36,9 @@ async def process_user_invite(
 
     try:
         new_invite = user_invite_repo.create(db, obj_in=invite_in)
+      
         organisation = determine_organisation(new_invite)
-        operations = determine_operations_base_url(new_invite.user_type_id)
+        operations = determine_operations_base_url(new_invite.user_type.name)
 
         send_invitation_email(
             background_tasks, new_invite, organisation, operations, token,db, current_user
@@ -57,10 +59,10 @@ def determine_organisation(user: InviteOperationsForm) -> str:
     return "E-AFFIDAVIT"
 
 
-def determine_operations_base_url(user_type_id: str) -> str:
+def determine_operations_base_url(user_type: str) -> str:
     return (
         settings.ADMIN_FRONTEND_BASE_URL
-        if user_type_id == settings.ADMIN_USER_TYPE
+        if user_type == settings.ADMIN_USER_TYPE
         else settings.COURT_SYSTEM_FRONTEND_BASE_URL
     )
 
