@@ -206,7 +206,7 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
 @router.get(
     "/get_archived_documents", dependencies=[Depends(authenticated_user_dependencies)]
 )
-async def get_documents(current_user: User = Depends(get_currently_authenticated_user)):
+async def get_archived_documents(current_user: User = Depends(get_currently_authenticated_user)):
     try:
         documents = await document_collection.find(
             {"created_by_id": current_user.id, "is_archived": True}
@@ -217,7 +217,7 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
         return create_response(
             status_code=status.HTTP_200_OK,
             data=serialize_mongo_document(documents),
-            message=f"Documents retrieved successfully",
+            message=f"Archived documents retrieved successfully",
         )
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
@@ -517,11 +517,11 @@ async def toggle_archive_document(
         )
     if document["is_archived"]:
         document["is_archived"] = False
-        message = (f"{document['name'] } has been restored successfully",)
+        message =f"{document['name'] } has been restored successfully"
 
     else:
         document["is_archived"] = True
-        message = (f"{document['name'] } has been archived successfully",)
+        message = f"{document['name'] } has been archived successfully"
 
     document.update()
 
