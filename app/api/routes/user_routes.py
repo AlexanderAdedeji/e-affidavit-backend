@@ -74,16 +74,16 @@ async def get_dashboard_stats(
 ):
 
     total_saved = await document_collection.count_documents(
-        {"created_by_id": current_user.id, "status": "SAVED"}
+        {"created_by_id": current_user.id, "status": "SAVED", "is_archived": False}
     )
     total_paid = await document_collection.count_documents(
-        {"created_by_id": current_user.id, "status": "PAID"}
+        {"created_by_id": current_user.id, "status": "PAID","is_archived": False}
     )
     total_attested = await document_collection.count_documents(
-        {"created_by_id": current_user.id, "status": "ATTESTED"}
+        {"created_by_id": current_user.id, "status": "ATTESTED","is_archived": False}
     )
     total_documents = await document_collection.count_documents(
-        {"created_by_id": current_user.id}
+        {"created_by_id": current_user.id, "is_archived": False}
     )
 
     return create_response(
