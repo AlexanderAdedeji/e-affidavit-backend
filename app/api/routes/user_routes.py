@@ -2,6 +2,7 @@ import datetime
 from typing import Any, Dict, List
 import uuid
 from app.core.services.utils.utils import (
+    extract_preview_text_from_document,
     generate_document_name,
     generate_qr_code_base64,
     is_valid_objectid,
@@ -661,36 +662,42 @@ def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_d
         data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
     )
 
-
 @router.post("/create_document")
 async def create_document(
     document_in: DocumentCreateForm,
     current_user: User = Depends(get_currently_authenticated_user),
 ) -> Any:
     document_name = generate_document_name()
-    document_qr_code_url = (
-        f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
-    )
+    document_qr_code_url = f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
-    document_dict = document_in.dict()
-    document_dict.update(
-        {
+    
+    try:
+        # Validate and update document data
+        document_dict = document_in.dict()
+        document_dict.update({
             "name": document_name,
+            "preview_text": extract_preview_text_from_document(document_dict),
             "status": "SAVED",
             "qr_code": qr_code_base64,
             "created_by_id": current_user.id,
-        }
-    )
+        })
 
-    document_obj = DocumentCreate(**document_dict)
+        # Create DocumentCreate instance
+        document_obj = DocumentCreate(**document_dict)
 
-    try:
+        # Insert document into the collection
         result = await document_collection.insert_one(document_obj.dict())
         if not result.acknowledged:
             logger.error("Failed to insert document")
-            raise HTTPException(status_code=500, detail="Failed to create document")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create document")
 
+        # Retrieve the newly created document
         new_document = await document_collection.find_one({"_id": result.inserted_id})
+        if not new_document:
+            logger.error("Failed to retrieve the created document")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found after creation")
+
+        logger.info(f"Document {new_document['name']} created successfully")
         return create_response(
             status_code=status.HTTP_201_CREATED,
             message=f"Document {new_document['name']} created successfully.",
@@ -699,27 +706,14 @@ async def create_document(
 
     except Exception as e:
         logger.error(f"Error creating document: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error creating document")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error creating document")
 
 
-@router.get("/generate_qr_code")
-async def generate_qr_code(name: str) -> Any:
-    """
-    Generate a QR code for the provided name.
-    """
-    try:
 
-        qr_code_url = f"https://e-affidavit-public.vercel.app/verify-document/{name}"
 
-        qr_code_base64 = generate_qr_code_base64(qr_code_url)
 
-        return {
-            "name": name,
-            "qr_code_url": qr_code_url,
-            "qr_code_base64": qr_code_base64,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error generating QR code")
+
+
 
 
 @router.get("/get_affidavit_categories")
@@ -739,115 +733,25 @@ async def get_categories(db: Session = Depends(get_db)):
     )
 
 
-def extract_text_from_children(children: List[Dict[str, Any]]) -> str:
-    """
-    Recursively extract text from children nodes.
-    """
-    text = ""
-    for child in children:
-        logger.info(f"Processing child: {child}")
-        if "text" in child:
-            text += child["text"]
-        elif "type" in child and child["type"] == "field":
-            # Use content if available, otherwise use label
-            field_content = child.get("content", "").strip()
-            text += field_content if field_content else child.get("label", "")
-        elif "children" in child:
-            # Recursively process nested children
-            text += extract_text_from_children(child["children"])
-        # Limit to 400 characters
-        if len(text) >= 400:
-            return text[:400]
-    return text
+# def extract_text_from_children(children: List[Dict[str, Any]]) -> str:
+#     """
+#     Recursively extract text from children nodes.
+#     """
+#     text = ""
+#     for child in children:
+#         logger.info(f"Processing child: {child}")
+#         if "text" in child:
+#             text += child["text"]
+#         elif "type" in child and child["type"] == "field":
+#             # Use content if available, otherwise use label
+#             field_content = child.get("content", "").strip()
+#             text += field_content if field_content else child.get("label", "")
+#         elif "children" in child:
+#             # Recursively process nested children
+#             text += extract_text_from_children(child["children"])
+#         # Limit to 400 characters
+#         if len(text) >= 400:
+#             return text[:400]
+#     return text
 
 
-@router.get("/extract_text_from_document/{document_id}")
-async def extract_text_from_document(document_id: str) -> str:
-    if not ObjectId.is_valid(document_id):
-        logger.error(f"Invalid ObjectId format: {document_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document ID format"
-        )
-
-    document = await document_collection.find_one({"_id": ObjectId(document_id)})
-    if not document:
-        logger.error(f"Could not find document by ID {document_id}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
-        )
-
-    logger.info(f"Document found: {document}")
-
-    template_data = document.get("document_data", {}).get("template_data", [])
-    content_area = next(
-        (item for item in template_data if item.get("id") == "content-area"), None
-    )
-
-    if content_area:
-        logger.info(f"Content Area found: {content_area}")
-        result = extract_text_from_children(content_area.get("children", []))
-    else:
-        logger.info("No content area found.")
-        result = ""
-
-    if not result:
-        logger.info("No text extracted or content area not found.")
-
-    logger.info(f"Final extracted text: {result}")
-    return result
-
-    # @router.get("/extract_text_from_document/{document_id}")
-    # async def extract_text_from_document(document_id: str) -> str:
-
-    if not ObjectId.is_valid(document_id):
-        logger.error(f"Invalid ObjectId format: {document_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document ID format"
-        )
-
-    document = await document_collection.find_one({"_id": ObjectId(document_id)})
-    if not document:
-        logger.error(f"Could not find document by ID {document_id} for the user ID")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
-        )
-
-    # document = serialize_mongo_document(document)
-    # Initialize result variable to collect the text
-    result = ""
-    content_area = None
-
-    template_data = document.get("document_data", {}).get("template_data", [])
-    logger.info(f"Template Data: {template_data}")
-
-    # Loop through template_data to find the 'content-area' block
-    for item in template_data:
-        if item.get("id") == "content-area":
-            content_area = item
-            break
-
-    if content_area:
-        logger.info(f"Content Area found: {content_area}")
-        # Iterate through children of the content-area to concatenate text
-        for child in content_area.get("children", []):
-            logger.info(f"Processing child: {child}")
-            if "text" in child:
-                print("hello")
-                print(child["text"])
-                result += child["text"]
-                logger.info(f"Appended text: {child['text']}")
-            elif "type" in child and child["type"] == "field":
-                field_content = child.get("content", "").strip()
-                text_to_add = field_content if field_content else child.get("label", "")
-                result += text_to_add
-                logger.info(f"Appended field content/label: {text_to_add}")
-            # Limit to 400 characters
-            if len(result) >= 400:
-                logger.info(f"Result trimmed to 400 characters: {result[:400]}")
-                return result[:400]
-
-    if not result:
-        logger.info("No text extracted or content area not found.")
-
-    logger.info(f"Final extracted text: {result}")
-    return result

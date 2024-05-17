@@ -76,6 +76,7 @@ class DocumentBase(BaseModel):
     id: str
     user_id: str
     commissioner_id: str
+    preview_text:str
     is_attested: bool
     attestation_date: Optional[datetime.datetime]
     status: str
@@ -138,6 +139,7 @@ class DocumentCreate(DocumentCreateForm):
     created_by_id: str
     name: str
     qr_code: str
+    preview_text:str
     created_at: datetime = datetime.datetime.now(datetime.timezone.utc)
     status: str
     is_archived:bool =False

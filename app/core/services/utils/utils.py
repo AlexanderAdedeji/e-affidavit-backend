@@ -1,9 +1,10 @@
 import string
 import random
+from typing import Any, Dict, List
 import qrcode
 from io import BytesIO
 from bson import ObjectId
-
+from loguru import logger
 from base64 import b64encode
 
 
@@ -33,3 +34,52 @@ def is_valid_objectid(objectid: str) -> bool:
         return True
     except (TypeError, ValueError):
         return False
+    
+
+def extract_preview_text_from_document(document: Dict[str, Any]) -> str:
+    """
+    Recursively extract text from children nodes within the given document.
+    """
+    text = ""
+    children = []
+
+    # Retrieve template data and find content area
+    template_data = document.get("document_data", {}).get("template_data", [])
+    content_area = next(
+        (item for item in template_data if item.get("id") == "content-area"), None
+    )
+
+    if content_area:
+        logger.info(f"Content Area found: {content_area}")
+        children = content_area.get("children", [])
+    else:
+        logger.info("No content area found.")
+        return ""
+
+    def extract_preview_text_from_document(children: List[Dict[str, Any]]) -> str:
+        nonlocal text
+        for child in children:
+            logger.info(f"Processing child: {child}")
+            if "text" in child:
+                text += child["text"]
+            elif "type" in child and child["type"] == "field":
+                # Use content if available, otherwise use label
+                field_content = child.get("content", "").strip()
+                text += field_content if field_content else child.get("label", "")
+            elif "children" in child:
+                # Recursively process nested children
+                extract_preview_text_from_document(child["children"])
+            # Limit to 400 characters
+            if len(text) >= 400:
+                text = text[:400]
+                return text
+        return text
+
+    # Start the recursive extraction
+    extract_preview_text_from_document(children)
+
+    if not text:
+        logger.info("No text extracted or content area not found.")
+
+    logger.info(f"Final extracted text: {text}")
+    return text
