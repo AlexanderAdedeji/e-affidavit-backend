@@ -69,9 +69,9 @@ def extract_preview_text_from_document(document: Dict[str, Any]) -> str:
             elif "children" in child:
                 # Recursively process nested children
                 extract_preview_text_from_document(child["children"])
-            # Limit to 400 characters
-            if len(text) >= 400:
-                text = text[:400]
+            # Limit to 100 characters
+            if len(text) >= 100:
+                text = text[:100]
                 return text
         return text
 

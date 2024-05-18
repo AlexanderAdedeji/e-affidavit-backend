@@ -32,7 +32,7 @@ from app.schemas.affidavit_schema import (
     SlimDocumentInResponse,
     serialize_mongo_document,
 )
-from app.schemas.court_system_schema import CourtBase, CourtSystemInDB
+from app.schemas.court_system_schema import CourtBase, CourtInResponse, CourtSystemInDB
 from app.schemas.shared_schema import DateRange, SlimUserInResponse
 from app.schemas.stats_schema import AdminDashboardStat, HeadOfUnitDashboardStat
 from app.schemas.user_schema import (
@@ -197,13 +197,13 @@ async def get_all_courts(
     "/get_court/{court_id}",
     dependencies=[Depends(head_of_unit_permission_dependency)],
 )
-def get__court(
+async def get__court(
     court_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    """Get information about one specific court, You can access this rout as an Admin or Head of Unit,
-    as an admin you can view any court, if you are a head of unit you can only view court in your jurisdictions
+    """Get information about one specific court, You can access this rout as an Head of Unit,
+    you can only view court in your jurisdictions
     """
 
     court = court_repo.get(db, id=court_id)
@@ -214,37 +214,85 @@ def get__court(
         raise UnauthorizedEndpointException(
             detail="This court is not in your jurisdiction"
         )
+    court = court_repo.get(db, id=court_id)
+    court_documents = []
+    if not court:
+        raise DoesNotExistException(detail="Court does not exist")
 
+    db_document = await document_collection.find(
+        {
+            "court_id": court.id,
+            "status": {"$in": ["PAID", "ATTESTED"]},
+        }
+    ).to_list(length=1000)
+    # db_template = await template_collection.find({
+    #     "_id": ObjectId(document_in['document_in'])
+    # })
+    court_documents.extend(serialize_mongo_document(db_document))
     return create_response(
-        message=f"{court.name} retrieved successfully",
         status_code=status.HTTP_200_OK,
-        data=CourtBase(
+        message=f"{court.name} Retrieved successfully",
+        data=CourtInResponse(
             id=court.id,
-            date_created=court.CreatedAt,
             name=court.name,
-            state=CourtSystemInDB(
-                id=court.jurisdiction.state.id, name=court.jurisdiction.state.name
-            ),
-            Jurisdiction=CourtSystemInDB(
-                id=court.jurisdiction.id, name=court.jurisdiction.name
-            ),
-            head_of_unit=SlimUserInResponse(
-                id=court.jurisdiction.head_of_unit.id,
-                first_name=court.jurisdiction.head_of_unit.user.first_name,
-                last_name=court.jurisdiction.head_of_unit.user.last_name,
-                email=court.jurisdiction.head_of_unit.user.email,
+            date_created=court.CreatedAt,
+            jurisdiction=CourtSystemInDB(
+                name=court.jurisdiction.name, id=court.jurisdiction.id
             ),
             commissioners=[
                 SlimUserInResponse(
-                    id=commissioner.user.id,
-                    first_name=commissioner.user.first_name,
-                    last_name=commissioner.user.last_name,
-                    email=commissioner.user.email,
+                    id=commissioner.id,
+                    first_name=commissioner.first_name,
+                    last_name=commissioner.last_name,
+                    email=commissioner.email,
+                    is_active=commissioner.is_active,
                 )
-                for commissioner in court.commissioner_profile
+                for commissioner_profile in court.commissioner_profile
+                for commissioner in [commissioner_profile.user]
+            ],
+            documents=[
+                SlimDocumentInResponse(
+                    id=str(document.get("id")),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in court_documents
             ],
         ),
     )
+    # return create_response(
+    #     message=f"{court.name} retrieved successfully",
+    #     status_code=status.HTTP_200_OK,
+    #     data=CourtBase(
+    #         id=court.id,
+    #         date_created=court.CreatedAt,
+    #         name=court.name,
+    #         state=CourtSystemInDB(
+    #             id=court.jurisdiction.state.id, name=court.jurisdiction.state.name
+    #         ),
+    #         Jurisdiction=CourtSystemInDB(
+    #             id=court.jurisdiction.id, name=court.jurisdiction.name
+    #         ),
+    #         head_of_unit=SlimUserInResponse(
+    #             id=court.jurisdiction.head_of_unit.id,
+    #             first_name=court.jurisdiction.head_of_unit.user.first_name,
+    #             last_name=court.jurisdiction.head_of_unit.user.last_name,
+    #             email=court.jurisdiction.head_of_unit.user.email,
+    #         ),
+    #         commissioners=[
+    #             SlimUserInResponse(
+    #                 id=commissioner.user.id,
+    #                 first_name=commissioner.user.first_name,
+    #                 last_name=commissioner.user.last_name,
+    #                 email=commissioner.user.email,
+    #             )
+    #             for commissioner in court.commissioner_profile
+    #         ],
+    #     ),
+    # )
 
 
 @router.get(
@@ -312,7 +360,7 @@ async def get_commissioners(
 )
 async def create_head_of_unit(
     head_of_unit_in: OperationsCreateForm,
-    background_tasks:BackgroundTasks,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     # Validate the invitation
@@ -359,9 +407,7 @@ async def create_head_of_unit(
         verify_token = user_repo.create_verification_token(
             email=db_head_of_unit.email, db=db
         )
-        verification_link = (
-            f"{settings.COURT_SYSTEM_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
-        )
+        verification_link = f"{settings.COURT_SYSTEM_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
         template_dict = UserCreationTemplateVariables(
             name=f"{db_head_of_unit.first_name} {db_head_of_unit.last_name}",
             action_url=verification_link,
@@ -494,7 +540,6 @@ async def get_all_commissioners_report(
 
     commissioners = [commissioner.user for commissioner in commissioner_profiles]
 
-    
     for commissioner in commissioners:
 
         query = {
@@ -545,6 +590,82 @@ async def get_all_commissioners_report(
         data=results,
     )
 
+@router.post(
+    "/get_all_commissioners_report_by_court/{court_id}",
+    # response_model=GenericResponse[CommissionersReport],
+    dependencies=[Depends(head_of_unit_permission_dependency)],
+)
+async def get_all_commissioners_report(
+    date_range: DateRange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    # commissioner_profiles = head_of_unit_repo.get_commissioners_under_jurisdiction(
+    #     db, jurisdiction_id=current_user.head_of_unit.jurisdiction_id
+    # )
+    court = court_repo.get(db, id)
+    commissioner_profiles = court.commissioner_profile
+    results = []
+    if date_range.from_date:
+        date_range.from_date = datetime.datetime.strptime(
+            date_range.from_date, "%Y-%m-%d"
+        )
+    if date_range.to_date:
+        date_range.to_date = datetime.datetime.strptime(
+            date_range.to_date, "%Y-%m-%d"
+        ) + datetime.timedelta(days=1)
+
+    commissioners = [commissioner.user for commissioner in commissioner_profiles]
+
+    for commissioner in commissioners:
+
+        query = {
+            "is_attested": True,
+            "commissioner_id": commissioner.id,
+            "attestation_date": {},
+        }
+        if date_range.from_date:
+            query["attestation_date"]["$gte"] = date_range.from_date
+        if date_range.to_date:
+            query["attestation_date"]["$lt"] = date_range.to_date
+        if not query["attestation_date"]:
+            del query["attestation_date"]
+        attested_documents = await document_collection.find(query).to_list(length=1000)
+
+        commissioner_report = CommissionersReport(
+            attested_documents=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=(
+                        document.get("attest") if document.get("attest", "") else None
+                    ),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in attested_documents
+            ],
+            commissioner=FullCommissionerInResponse(
+                id=commissioner.id,
+                first_name=commissioner.first_name,
+                last_name=commissioner.last_name,
+                email=commissioner.email,
+                court=CourtSystemInDB(
+                    id=commissioner.commissioner_profile.court.id,
+                    name=commissioner.commissioner_profile.court.name,
+                ),
+                is_active=commissioner.is_active,
+                date_created=commissioner.CreatedAt,
+            ),
+        )
+
+        results.append(commissioner_report)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message="Commissioners retireved successfully",
+        data=results,
+    )
 
 @router.post(
     "/get_commissioner_report/{commissioner_id}",
@@ -570,15 +691,17 @@ async def get_commissioner_report(
             detail="You cannot view this commissioner's report"
         )
 
-
-
     if date_range.from_date:
-        date_range.from_date = d = datetime.datetime.strptime(date_range.from_date, "%m/%d/%Y")
+        date_range.from_date = d = datetime.datetime.strptime(
+            date_range.from_date, "%m/%d/%Y"
+        )
     else:
         date_range.from_date = None
 
     if date_range.to_date:
-        date_range.to_date = d = datetime.datetime.strptime(date_range.to_date, "%m/%d/%Y")
+        date_range.to_date = d = datetime.datetime.strptime(
+            date_range.to_date, "%m/%d/%Y"
+        )
     else:
         date_range.to_date = None
     query = {
@@ -598,9 +721,7 @@ async def get_commissioner_report(
         attested_documents=[
             DocumentReports(
                 name=document.get("name", ""),
-                attested_date=(
-                    document.get("attestation_date", "") 
-                ),
+                attested_date=(document.get("attestation_date", "")),
                 date_created=(document.get("created_at", "")),
             )
             for document in attested_documents

@@ -430,6 +430,45 @@ async def get_templates():
     )
 
 
+
+@router.get(
+    "/get_templates_by_category/{category_id}",
+    response_model=GenericResponse[List[TemplateInResponse]],
+    dependencies=[Depends(authenticated_user_dependencies)],
+)
+async def get_templates_by_category(category_id:str):
+    templates = await template_collection.find({"is_disabled": False, "category_id":category_id}).to_list(
+        length=100
+    )
+    if not templates:
+        logger.info("No templates found")
+        return create_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="No templates found",
+            data=[],
+        )
+    templates = serialize_mongo_document(templates)
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Templates retrieved successfully",
+        data=[
+            TemplateInResponse(
+                id=template["id"],
+                name=template["name"],
+                description=template["description"],
+                content=template["content"],
+                price=template["price"],
+                category_id=template["category_id"],
+            )
+            for template in templates
+        ],
+    )
+
+
+
+
+
+
 @router.get(
     "/get_template/{template_id}",
     response_model=GenericResponse[TemplateInResponse],
@@ -475,6 +514,8 @@ async def get_template_for_document_creation(
             category_id=template_obj["category_id"],
         ),
     )
+
+
 
 
 @router.delete("/delete_document/{document_id}")
