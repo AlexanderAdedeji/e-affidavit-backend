@@ -193,7 +193,7 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
         )  # Set a reasonable limit
         if not documents:
             logger.info("No documents found")
-            return []
+
         return create_response(
             status_code=status.HTTP_200_OK,
             data=serialize_mongo_document(documents),
@@ -208,17 +208,18 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
     "/get_archived_documents", dependencies=[Depends(authenticated_user_dependencies)]
 )
 async def get_archived_documents(current_user: User = Depends(get_currently_authenticated_user)):
+    message="Archived documents retrieved successfully"
     try:
         documents = await document_collection.find(
             {"created_by_id": current_user.id, "is_archived": True}
         ).to_list(length=100)
         if not documents:
             logger.info("No documents found")
-            return []
+            message="No Documents Found"
         return create_response(
             status_code=status.HTTP_200_OK,
             data=serialize_mongo_document(documents),
-            message=f"Archived documents retrieved successfully",
+            message=message
         )
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
@@ -243,7 +244,6 @@ async def get_my_latest_affidavits(
         )
         if not documents:
             logger.info("No documents found")
-            return []
 
         documents = serialize_mongo_document(documents)
 

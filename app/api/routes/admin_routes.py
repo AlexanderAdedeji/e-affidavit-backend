@@ -1251,6 +1251,8 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
     )
 
 
+
+
 @router.get("/get_affidavit_categories")
 async def get_categories(db: Session = Depends(get_db)):
     categories = category_repo.get_all(db)
@@ -1358,10 +1360,10 @@ def get_all_invites(db: Session = Depends(get_db)):
     for invite in invites:
         # Adjust for offset-aware datetime comparison
         created_at = (
-            invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
+            str(invite.CreatedAt.replace(tzinfo=timezone.utc)) if invite.CreatedAt else None
         )
         accepted_at = (
-            invite.accepted_at.replace(tzinfo=timezone.utc)
+            str(invite.accepted_at.replace(tzinfo=timezone.utc))
             if invite.accepted_at
             else None
         )
@@ -1380,6 +1382,8 @@ def get_all_invites(db: Session = Depends(get_db)):
                 last_name=invite.last_name,
                 email=invite.email,
                 status=invite_status,
+                date_created=created_at,
+                date_accepted =accepted_at,
                 user_type=UserTypeInDB(name=invite.user_type, id=invite.user_type_id),
             )
         )

@@ -189,6 +189,8 @@ class InviteResponse(BaseModel):
     email: str
     status: str
     user_type: UserTypeInDB
+    date_created:str
+    date_accepted:Optional[str]= None
 
     class Config:
         orm_mode = True
