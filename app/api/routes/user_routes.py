@@ -722,7 +722,7 @@ async def create_document(
             "qr_code": qr_code_base64,
             "created_by_id": current_user.id,
         })
-
+        print(extract_preview_text_from_document(document_dict),)
         # Create DocumentCreate instance
         document_obj = DocumentCreate(**document_dict)
 
