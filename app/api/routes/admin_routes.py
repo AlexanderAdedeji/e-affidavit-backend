@@ -378,7 +378,6 @@ async def get_commissioners(
 )
 async def get_latest_affidavits(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_currently_authenticated_user),
 ):
     try:
 
@@ -397,7 +396,6 @@ async def get_latest_affidavits(
         ]
         documents = (
             await document_collection.aggregate(pipeline).sort("created_at", -1)
-            # .limit(5)
             .to_list(length=5)
         )
         if not documents:
@@ -475,9 +473,6 @@ async def get_latest_affidavits(
     response_model=GenericResponse[AcceptedInviteResponse],
 )
 async def accept_invite(token: str, db: Session = Depends(get_db)):
-
-    # invite_info = get_token_details(token, get_all_details_from_token)
-
     try:
 
         invite_info = get_user_id_from_token(token)
@@ -614,29 +609,6 @@ async def get_all_admins(db: Session = Depends(get_db)):
     )
 
 
-# @router.get(
-#     "/{id}",
-#     status_code=status.HTTP_200_OK,
-#     dependencies=[Depends(admin_permission_dependency)],
-#     response_model=GenericResponse[UserInResponse],
-# )
-# def get_admin(id: str, db: Session = Depends(get_db)):
-#     """Get an admin by ID"""
-#     admin = user_repo.get(db, id=id)
-#     return UserInResponse(
-#         id=admin.id,
-#         first_name=admin.first_name,
-#         last_name=admin.last_name,
-#         email=admin.email,
-#         is_active=admin.is_active,
-#         user_type=UserTypeInDB(
-#             id=admin.user_type.id,
-#             name=admin.user_type.name,
-#         ),
-#         verify_token="",
-#     )
-
-
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
@@ -668,9 +640,6 @@ def create_admin(
         password=admin_in.password,
         email=db_invite.email,
     )
-
-
-
 
     try:
         new_admin = user_repo.create(db=db, obj_in=admin_obj)
@@ -883,9 +852,7 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
             "status": {"$in": ["PAID", "ATTESTED"]},
         }
     ).to_list(length=1000)
-    # db_template = await template_collection.find({
-    #     "_id": ObjectId(document_in['document_in'])
-    # })
+
     court_documents.extend(serialize_mongo_document(db_document))
     return create_response(
         status_code=status.HTTP_200_OK,
@@ -1070,7 +1037,7 @@ async def get_templates():
 @router.get(
     "/get_template/{template_id}",
     response_model=GenericResponse[TemplateBase],
-    # dependencies=[Depends(admin_permission_dependency)],
+    dependencies=[Depends(admin_permission_dependency)],
 )
 async def get_template(template_id: str):
     try:
@@ -1113,7 +1080,6 @@ async def get_template(template_id: str):
 )
 async def disable_template(
     template_id: str,
-    current_user: User = Depends(get_currently_authenticated_user),
 ):
     template_dict = {"is_disabled": True, "updated_at": datetime.utcnow()}
     object_id = ObjectId(template_id)
@@ -1147,7 +1113,6 @@ async def disable_template(
 )
 async def enable_template(
     template_id: str,
-    current_user: User = Depends(get_currently_authenticated_user),
 ):
     template_dict = {"is_disabled": False, "updated_at": datetime.utcnow()}
     object_id = ObjectId(template_id)
@@ -1249,8 +1214,6 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
         status_code=status.HTTP_200_OK,
         message=f"{db_user.first_name } {db_user.last_name} de-activated successfully",
     )
-
-
 
 
 @router.get("/get_affidavit_categories")
@@ -1360,7 +1323,9 @@ def get_all_invites(db: Session = Depends(get_db)):
     for invite in invites:
         # Adjust for offset-aware datetime comparison
         created_at = (
-            str(invite.CreatedAt.replace(tzinfo=timezone.utc)) if invite.CreatedAt else None
+            str(invite.CreatedAt.replace(tzinfo=timezone.utc))
+            if invite.CreatedAt
+            else None
         )
         accepted_at = (
             str(invite.accepted_at.replace(tzinfo=timezone.utc))
@@ -1383,7 +1348,7 @@ def get_all_invites(db: Session = Depends(get_db)):
                 email=invite.email,
                 status=invite_status,
                 date_created=created_at,
-                date_accepted =accepted_at,
+                date_accepted=accepted_at,
                 user_type=UserTypeInDB(name=invite.user_type, id=invite.user_type_id),
             )
         )
