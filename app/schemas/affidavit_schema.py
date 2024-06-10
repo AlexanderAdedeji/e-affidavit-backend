@@ -8,13 +8,12 @@ from bson import ObjectId
 from app.core.errors.exceptions import ServerException
 
 
-
 class ReceiptInResponse(BaseModel):
-    court_name:str
-    document_name:str
-    template_name:str
-    date_created:str
-    qr_code:str
+    court_name: str
+    document_name: str
+    template_name: str
+    date_created: str
+    qr_code: str
 
 
 class Field(BaseModel):
@@ -22,7 +21,7 @@ class Field(BaseModel):
     name: str
     type: str
     required: bool
-    label:str
+    label: str
 
 
 class TemplateContent(BaseModel):
@@ -45,7 +44,7 @@ class TemplateInResponse(SlimTemplateInResponse):
 
 class TemplateBase(TemplateInResponse):
 
-    is_disabled:Optional[ bool] = False  # Is the template disabled?
+    is_disabled: Optional[bool] = False  # Is the template disabled?
     created_by_id: str
     created_at: datetime
     updated_at: Optional[datetime.datetime] = None
@@ -65,6 +64,7 @@ class TemplateCreateForm(BaseModel):
 class TemplateCreate(TemplateCreateForm):
     created_by_id: str
     created_at: datetime = datetime.datetime.now(datetime.timezone.utc)
+    updated_at: datetime = datetime.datetime.now(datetime.timezone.utc)
 
     class Config:
         arbitrary_types_allowed = True
@@ -76,14 +76,14 @@ class DocumentBase(BaseModel):
     id: str
     user_id: str
     commissioner_id: str
-    preview_text:str
+    preview_text: str
     is_attested: bool
     attestation_date: Optional[datetime.datetime]
     status: str
     amount_paid: int
     payment_ref: str
     created_at: str
-    is_archived:bool
+    is_archived: bool
     updated_at: str
 
 
@@ -139,10 +139,10 @@ class DocumentCreate(DocumentCreateForm):
     created_by_id: str
     name: str
     qr_code: str
-    preview_text:str
+    preview_text: str
     created_at: datetime = datetime.datetime.now(datetime.timezone.utc)
     status: str
-    is_archived:bool =False
+    is_archived: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -206,11 +206,6 @@ def document_individual_serializer(data) -> dict:
     except KeyError as e:
         logging.error(f"Missing key in document data: {e}")
         return {}
-
-
-
-
-
 
 
 def serialize_mongo_document(document):

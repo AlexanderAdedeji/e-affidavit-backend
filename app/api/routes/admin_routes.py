@@ -395,7 +395,8 @@ async def get_latest_affidavits(
             },
         ]
         documents = (
-            await document_collection.aggregate(pipeline).sort("created_at", -1)
+            await document_collection.aggregate(pipeline)
+            .sort("created_at", -1)
             .to_list(length=5)
         )
         if not documents:
@@ -991,7 +992,7 @@ async def create_template(
             status_code=400, detail="Template with the given name already exists"
         )
     template_dict = TemplateCreate(
-        **template_dict, created_by_id=current_user.id
+        **template_dict, created_by_id=current_user.id 
     ).dict()
 
     result = await template_collection.insert_one(template_dict)
@@ -1216,14 +1217,18 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
     )
 
 
+
+
 @router.get("/get_affidavit_categories")
 async def get_categories(db: Session = Depends(get_db)):
     categories = category_repo.get_all(db)
     full_categories = []
     for category in categories:
-        templates = await template_collection.find(
-            {"category_id": category.id}
-        ).to_list(length=1000)
+        templates = (
+            await template_collection.find({"category_id": category.id})
+            .sort([("updated_at", -1), ("created_at", -1)])
+            .to_list(length=1000)
+        )  # Sorting by updated_at, then by created_at
         full_category = FullCategoryInResponse(
             name=category.name,
             id=category.id,
