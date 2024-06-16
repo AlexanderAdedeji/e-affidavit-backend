@@ -36,8 +36,10 @@ from app.schemas.affidavit_schema import (
     DocumentCreate,
     DocumentCreateForm,
     DocumentPayment,
+    DocumentSearchResponse,
     LastestAffidavits,
     ReceiptInResponse,
+    SearchResult,
     SlimDocumentInResponse,
     TemplateBase,
     TemplateContent,
@@ -67,6 +69,32 @@ router = APIRouter()
 PUBLIC_FRONTEND_BASE_URL = settings.PUBLIC_FRONTEND_BASE_URL
 VERIFY_EMAIL_LINK = settings.VERIFY_EMAIL_LINK
 CREATE_ACCOUNT_TEMPLATE_ID = settings.CREATE_ACCOUNT_TEMPLATE_ID
+
+
+@router.get("/search")
+async def search_documents(
+    query: str, current_user: User = Depends(get_currently_authenticated_user)
+):
+    if not query:
+        raise HTTPException(status_code=400, detail="Query parameter is required")
+
+    # Fetch documents by name and current user from MongoDB
+    documents_cursor = document_collection.find(
+        {
+            "name": {"$regex": f"^{query}", "$options": "i"},
+            "created_by_id": current_user.id
+        }
+    )
+    documents_by_name = await documents_cursor.to_list(length=100)
+
+    result = dict(documents=serialize_mongo_document(documents_by_name))
+    # result = serialize_mongo_document(documents_by_name)
+    # return result
+    return create_response(
+     status_code=status.HTTP_200_OK,
+        message="Search retrieved successfully",
+        data=result
+    )
 
 
 @router.get("/get_dashboard_stats")
@@ -207,19 +235,21 @@ async def get_documents(current_user: User = Depends(get_currently_authenticated
 @router.get(
     "/get_archived_documents", dependencies=[Depends(authenticated_user_dependencies)]
 )
-async def get_archived_documents(current_user: User = Depends(get_currently_authenticated_user)):
-    message="Archived documents retrieved successfully"
+async def get_archived_documents(
+    current_user: User = Depends(get_currently_authenticated_user),
+):
+    message = "Archived documents retrieved successfully"
     try:
         documents = await document_collection.find(
             {"created_by_id": current_user.id, "is_archived": True}
         ).to_list(length=100)
         if not documents:
             logger.info("No documents found")
-            message="No Documents Found"
+            message = "No Documents Found"
         return create_response(
             status_code=status.HTTP_200_OK,
             data=serialize_mongo_document(documents),
-            message=message
+            message=message,
         )
     except Exception as e:
         logger.error(f"Error fetching documents: {str(e)}")
@@ -430,16 +460,15 @@ async def get_templates():
     )
 
 
-
 @router.get(
     "/get_templates_by_category/{category_id}",
     response_model=GenericResponse[List[TemplateInResponse]],
     dependencies=[Depends(authenticated_user_dependencies)],
 )
-async def get_templates_by_category(category_id:str):
-    templates = await template_collection.find({"is_disabled": False, "category_id":category_id}).to_list(
-        length=100
-    )
+async def get_templates_by_category(category_id: str):
+    templates = await template_collection.find(
+        {"is_disabled": False, "category_id": category_id}
+    ).to_list(length=100)
     if not templates:
         logger.info("No templates found")
         return create_response(
@@ -463,10 +492,6 @@ async def get_templates_by_category(category_id:str):
             for template in templates
         ],
     )
-
-
-
-
 
 
 @router.get(
@@ -516,8 +541,6 @@ async def get_template_for_document_creation(
     )
 
 
-
-
 @router.delete("/delete_document/{document_id}")
 async def delete_document(
     document_id: str, current_user: User = Depends(get_currently_authenticated_user)
@@ -559,7 +582,7 @@ async def toggle_archive_document(
         )
     if document["is_archived"]:
         document["is_archived"] = False
-        message =f"{document['name'] } has been restored successfully"
+        message = f"{document['name'] } has been restored successfully"
 
     else:
         document["is_archived"] = True
@@ -703,26 +726,33 @@ def get_courts_by_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_d
         data=[CourtSystemInDB(id=court.id, name=court.name) for court in courts],
     )
 
+
 @router.post("/create_document")
 async def create_document(
     document_in: DocumentCreateForm,
     current_user: User = Depends(get_currently_authenticated_user),
 ) -> Any:
     document_name = generate_document_name()
-    document_qr_code_url = f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
+    document_qr_code_url = (
+        f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
+    )
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
-    
+
     try:
         # Validate and update document data
         document_dict = document_in.dict()
-        document_dict.update({
-            "name": document_name,
-            "preview_text": extract_preview_text_from_document(document_dict),
-            "status": "SAVED",
-            "qr_code": qr_code_base64,
-            "created_by_id": current_user.id,
-        })
-        print(extract_preview_text_from_document(document_dict),)
+        document_dict.update(
+            {
+                "name": document_name,
+                "preview_text": extract_preview_text_from_document(document_dict),
+                "status": "SAVED",
+                "qr_code": qr_code_base64,
+                "created_by_id": current_user.id,
+            }
+        )
+        print(
+            extract_preview_text_from_document(document_dict),
+        )
         # Create DocumentCreate instance
         document_obj = DocumentCreate(**document_dict)
 
@@ -730,13 +760,19 @@ async def create_document(
         result = await document_collection.insert_one(document_obj.dict())
         if not result.acknowledged:
             logger.error("Failed to insert document")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create document")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create document",
+            )
 
         # Retrieve the newly created document
         new_document = await document_collection.find_one({"_id": result.inserted_id})
         if not new_document:
             logger.error("Failed to retrieve the created document")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found after creation")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found after creation",
+            )
 
         logger.info(f"Document {new_document['name']} created successfully")
         return create_response(
@@ -747,14 +783,10 @@ async def create_document(
 
     except Exception as e:
         logger.error(f"Error creating document: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error creating document")
-
-
-
-
-
-
-
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error creating document",
+        )
 
 
 @router.get("/get_affidavit_categories")
@@ -794,5 +826,3 @@ async def get_categories(db: Session = Depends(get_db)):
 #         if len(text) >= 400:
 #             return text[:400]
 #     return text
-
-

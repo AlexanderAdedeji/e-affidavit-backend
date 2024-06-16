@@ -208,6 +208,17 @@ def document_individual_serializer(data) -> dict:
         return {}
 
 
+
+
+class DocumentSearchResponse(BaseModel):
+    name: str
+    status: str
+    date_created: str
+    description: str
+
+class SearchResult(BaseModel):
+    documents: List[DocumentSearchResponse]
+
 def serialize_mongo_document(document):
     if isinstance(document, list):
         # If the document is a list, apply serialization to each item in the list.
