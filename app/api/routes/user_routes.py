@@ -82,7 +82,7 @@ async def search_documents(
     documents_cursor = document_collection.find(
         {
             "name": {"$regex": f"^{query}", "$options": "i"},
-            "created_by_id": current_user.id
+            "created_by_id": current_user.id,
         }
     )
     documents_by_name = await documents_cursor.to_list(length=100)
@@ -91,9 +91,9 @@ async def search_documents(
     # result = serialize_mongo_document(documents_by_name)
     # return result
     return create_response(
-     status_code=status.HTTP_200_OK,
+        status_code=status.HTTP_200_OK,
         message="Search retrieved successfully",
-        data=result
+        data=result,
     )
 
 
@@ -616,20 +616,34 @@ async def update_document(
     document_in: UpdateDocument,
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-
     document = await document_collection.find_one(
         {"_id": ObjectId(document_id), "created_by_id": current_user.id}
     )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
     document_data = document_in.dict(exclude_unset=True)
-    document_data.update()
+
+    # Check if there's any data to update
+    if not document_data:
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="No changes detected.",
+            data=None,
+        )
 
     update_result = await document_collection.update_one(
         {"_id": ObjectId(document_id)}, {"$set": document_data}
     )
 
+    if update_result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
     if update_result.modified_count == 0:
-        raise HTTPException(
-            status_code=404, detail="Document not found or no update made."
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="No changes were made to the document.",
+            data=None,
         )
 
     updated_document = await document_collection.find_one(
@@ -637,10 +651,11 @@ async def update_document(
     )
     if not updated_document:
         raise HTTPException(status_code=404, detail="Document not found after update.")
+
     attested_document = serialize_mongo_document(updated_document)
     return create_response(
         status_code=status.HTTP_200_OK,
-        message=f"{attested_document['name'] } has been attested successfully",
+        message=f"{attested_document['name']} has been updated successfully",
         data=None,
     )
 
@@ -732,6 +747,7 @@ async def create_document(
     document_in: DocumentCreateForm,
     current_user: User = Depends(get_currently_authenticated_user),
 ) -> Any:
+
     document_name = generate_document_name()
     document_qr_code_url = (
         f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
@@ -804,25 +820,3 @@ async def get_categories(db: Session = Depends(get_db)):
         status_code=status.HTTP_200_OK,
         message="Categories Retrieved Successfully",
     )
-
-
-# def extract_text_from_children(children: List[Dict[str, Any]]) -> str:
-#     """
-#     Recursively extract text from children nodes.
-#     """
-#     text = ""
-#     for child in children:
-#         logger.info(f"Processing child: {child}")
-#         if "text" in child:
-#             text += child["text"]
-#         elif "type" in child and child["type"] == "field":
-#             # Use content if available, otherwise use label
-#             field_content = child.get("content", "").strip()
-#             text += field_content if field_content else child.get("label", "")
-#         elif "children" in child:
-#             # Recursively process nested children
-#             text += extract_text_from_children(child["children"])
-#         # Limit to 400 characters
-#         if len(text) >= 400:
-#             return text[:400]
-#     return text
