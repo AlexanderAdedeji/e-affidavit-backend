@@ -557,7 +557,10 @@ def get_all_users(db: Session = Depends(get_db)):
     dependencies=[Depends(admin_permission_dependency)],
     response_model=GenericResponse[List[AdminInResponse]],
 )
-async def get_all_admins(db: Session = Depends(get_db)):
+async def get_all_admins(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_currently_authenticated_user),
+):
     """Get all admin users"""
     user_type = user_type_repo.get_by_name(db, name=settings.ADMIN_USER_TYPE)
     admins = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
@@ -992,7 +995,7 @@ async def create_template(
             status_code=400, detail="Template with the given name already exists"
         )
     template_dict = TemplateCreate(
-        **template_dict, created_by_id=current_user.id 
+        **template_dict, created_by_id=current_user.id
     ).dict()
 
     result = await template_collection.insert_one(template_dict)
@@ -1179,10 +1182,16 @@ async def update_template(
     "/activate_user/{user_id}",
     dependencies=[Depends(admin_permission_dependency)],
 )
-def activate_user(user_id: str, db: Session = Depends(get_db)):
+def activate_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
     db_user = user_repo.get(db, id=user_id)
     if not db_user:
         raise DoesNotExistException(detail="User does not exist")
+    if user_id == current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot activate yourself")
     if db_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1200,10 +1209,16 @@ def activate_user(user_id: str, db: Session = Depends(get_db)):
     "/deactivate_user/{user_id}",
     dependencies=[Depends(admin_permission_dependency)],
 )
-def deactivate_user(user_id: str, db: Session = Depends(get_db)):
+def deactivate_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_currently_authenticated_user),
+):
     db_user = user_repo.get(db, id=user_id)
     if not db_user:
         raise DoesNotExistException(detail="User does not exist")
+    if user_id == current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot activate yourself")
     if not db_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1215,8 +1230,6 @@ def deactivate_user(user_id: str, db: Session = Depends(get_db)):
         status_code=status.HTTP_200_OK,
         message=f"{db_user.first_name } {db_user.last_name} de-activated successfully",
     )
-
-
 
 
 @router.get("/get_affidavit_categories")
