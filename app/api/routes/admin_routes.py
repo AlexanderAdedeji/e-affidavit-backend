@@ -12,7 +12,7 @@ from app.schemas.category_schema import (
     CategoryInResponse,
     FullCategoryInResponse,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status,Query
 from loguru import logger
 
 from bson import ObjectId
@@ -508,7 +508,7 @@ async def accept_invite(token: str, db: Session = Depends(get_db)):
 
 
 @router.get("/get_public_users")
-def get_public_users(db: Session = Depends(get_db)):
+def get_public_users(db: Session = Depends(get_db), skip:int= Query(0, ge=0), limit:int= Query(0, ge=0)):
     user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
     users = user_type.users
     return create_response(
@@ -530,9 +530,15 @@ def get_public_users(db: Session = Depends(get_db)):
 
 
 @router.get("/get_all_users")
-def get_all_users(db: Session = Depends(get_db)):
+def get_all_users(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+):
     users = user_repo.get_all(db)
-
+    users = user_repo.get_paginated(db, skip=skip, limit=limit)
+    total_users = user_repo.get_count(db)
+    metadata = {"total": total_users, "limit": limit, "skip": skip}
     return create_response(
         status_code=status.HTTP_200_OK,
         message="All Users retrieved successfully.",
@@ -549,6 +555,7 @@ def get_all_users(db: Session = Depends(get_db)):
             )
             for user in users
         ],
+        metadata=metadata
     )
 
 

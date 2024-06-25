@@ -89,4 +89,13 @@ class Base(Generic[ModelType]):
         db.commit()
         return obj
 
+    def get_paginated(self, db: Session, *, skip: int = 0, limit: int = 10) -> List[ModelType]:
+        return db.query(self.model).offset(skip).limit(limit).all()
 
+    def get_paginated_with_filter(
+        self, db: Session, *, filter_conditions: Dict[str, Any], skip: int = 0, limit: int = 10
+    ) -> List[ModelType]:
+        query = db.query(self.model)
+        for field, value in filter_conditions.items():
+            query = query.filter(getattr(self.model, field) == value)
+        return query.offset(skip).limit(limit).all()
