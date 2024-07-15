@@ -12,7 +12,7 @@ app = FastAPI()
 PAYSTACK_SECRET_KEY = 'pk_test_7bf9c10664ff322e36d94454c6d46dc4ba318cf1'
 
 @app.post('/api/verify-payment')
-async def verify_payment(data: dict, db):
+async def verify_payment(data: dict, db: Session = Depends(get_db)):
     reference = data.get('reference')
     user_id = data.get('user_id')
     document_id = data.get('document_id')
@@ -25,24 +25,25 @@ async def verify_payment(data: dict, db):
 
     if response.status_code == 200:
         result = response.json()
-        if result['data']['status'] == 'success':
-            payment = Payment(
-                user_id=user_id,
-                document_id=document_id,
-                amount=result['data']['amount'] / 100,
-                status='success',
-                payment_method=result['data']['channel'],
-                paystack_reference=reference
-            )
-            db.add(payment)
-            db.commit()
-            db.refresh(payment)
+        status = 'success' if result['data']['status'] == 'success' else 'failed'
+        payment = Payment(
+            user_id=user_id,
+            document_id=document_id,
+            amount=result['data']['amount'] / 100,  # Convert to the original currency unit
+            status=status,
+            payment_method=result['data']['channel'],
+            paystack_reference=reference
+        )
+        db.add(payment)
+        db.commit()
+        db.refresh(payment)
+        
+        if status == 'success':
             return {'status': 'success', 'message': 'Payment verified successfully'}
         else:
             raise HTTPException(status_code=400, detail='Payment verification failed')
     else:
         raise HTTPException(status_code=500, detail='Error verifying payment')
-
 
 
 # @app.post('/api/webhook')

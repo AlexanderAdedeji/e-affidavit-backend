@@ -665,7 +665,7 @@ async def update_document(
 async def pay_for_document(
     document_id: str,
     document_in: DocumentPayment,
-     db: Session = Depends(get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
     payment_data = {
@@ -673,37 +673,43 @@ async def pay_for_document(
         "document_id": document_id,
         "user_id": current_user.id,
     }
-    await verify_payment(data=payment_data, db=db)
-    document_data = document_in.dict(exclude_unset=True)
-    document_data.update(
-        {
-            "status": "PAID",
-            "updated_at": datetime.datetime.now(),
-        }
-    )
+    try:
+        result = await verify_payment(data=payment_data, db=db)
+        if result['status'] == 'success':
+            document_data = document_in.dict(exclude_unset=True)
+            document_data.update(
+                {
+                    "status": "PAID",
+                    "updated_at": datetime.datetime.now(),
+                }
+            )
+            update_result = await document_collection.update_one(
+                {"_id": ObjectId(document_id)}, {"$set": document_data}
+            )
 
-    update_result = await document_collection.update_one(
-        {"_id": ObjectId(document_id)}, {"$set": document_data}
-    )
+            if update_result.modified_count == 0:
+                raise HTTPException(
+                    status_code=404, detail="Document not found or no update made."
+                )
 
-    if update_result.modified_count == 0:
-        raise HTTPException(
-            status_code=404, detail="Document not found or no update made."
-        )
+            updated_document = await document_collection.find_one(
+                {"_id": ObjectId(document_id)}
+            )
+            if not updated_document:
+                raise HTTPException(status_code=404, detail="Document not found after update.")
 
-    updated_document = await document_collection.find_one(
-        {"_id": ObjectId(document_id)}
-    )
-    if not updated_document:
-        raise HTTPException(status_code=404, detail="Document not found after update.")
-    paid_document = serialize_mongo_document(updated_document)
-    return create_response(
-        status_code=status.HTTP_200_OK,
-        message=f"{paid_document['name'] } has been paid for successfully",
-        data=paid_document,
-    )
-
-
+            paid_document = serialize_mongo_document(updated_document)
+            return create_response(
+                status_code=status.HTTP_200_OK,
+                message=f"{paid_document['name']} has been paid for successfully",
+                data=paid_document,
+            )
+        else:
+            raise HTTPException(status_code=400, detail='Payment verification failed')
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail='An error occurred during payment verification')
 @router.get("/get_states", response_model=GenericResponse[List[CourtSystemInDB]])
 def get_states(db: Session = Depends(get_db)):
     states = state_repo.get_all(db)
