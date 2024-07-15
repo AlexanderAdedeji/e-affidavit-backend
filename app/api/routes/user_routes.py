@@ -1,6 +1,7 @@
 import datetime
 from typing import Any, Dict, List
 import uuid
+from app.api.routes.payment_routes import verify_payment
 from app.core.services.utils.utils import (
     extract_preview_text_from_document,
     generate_document_name,
@@ -664,12 +665,15 @@ async def update_document(
 async def pay_for_document(
     document_id: str,
     document_in: DocumentPayment,
+     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-
-    document = await document_collection.find_one(
-        {"_id": ObjectId(document_id), "created_by_id": current_user.id}
-    )
+    payment_data = {
+        "reference": document_in.payment_ref,
+        "document_id": document_id,
+        "user_id": current_user.id,
+    }
+    await verify_payment(data=payment_data, db=db)
     document_data = document_in.dict(exclude_unset=True)
     document_data.update(
         {

@@ -12,7 +12,7 @@ from app.schemas.category_schema import (
     CategoryInResponse,
     FullCategoryInResponse,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status,Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
 from loguru import logger
 
 from bson import ObjectId
@@ -196,8 +196,12 @@ def get_unit_heads(db: Session = Depends(get_db)):
     dependencies=[Depends(admin_permission_dependency)],
     # response_model=GenericResponse[List[PublicInResponse]]
 )
-async def get_users(db: Session = Depends(get_db)):
-    users = user_repo.get_all(db)
+async def get_users(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(0, ge=0),
+):
+    users = user_repo.get_paginated(db, skip=skip, limit=limit)
     response = []
     for user in users:
         pipeline = [
@@ -290,11 +294,13 @@ async def get_users(db: Session = Depends(get_db)):
             verify_token="",
         )
         response.append(new_user)
-
+    total_users = user_repo.get_count(db)
+    metadata = {"total": total_users, "limit": limit, "skip": skip}
     return create_response(
         status_code=status.HTTP_200_OK,
         message=f"Users information retrieved successfully.",
         data=response,
+        metadata=metadata,
     )
 
 
@@ -508,7 +514,11 @@ async def accept_invite(token: str, db: Session = Depends(get_db)):
 
 
 @router.get("/get_public_users")
-def get_public_users(db: Session = Depends(get_db), skip:int= Query(0, ge=0), limit:int= Query(0, ge=0)):
+def get_public_users(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(0, ge=0),
+):
     user_type = user_type_repo.get_by_name(db, name=settings.PUBLIC_USER_TYPE)
     users = user_type.users
     return create_response(
@@ -555,7 +565,7 @@ def get_all_users(
             )
             for user in users
         ],
-        metadata=metadata
+        metadata=metadata,
     )
 
 
