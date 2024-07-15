@@ -44,7 +44,9 @@ class CustomSettings(BaseSettings):
     RESET_PASSWORD_URL:str
     SENDER_NAME:str
     ACCEPT_INVITE_URL:str
+    PAYSTACK_SECRET_KEY:str
 
+    PAYSTACK_VERIFY_PAYMENT_URL:str
 
 
     class Config:

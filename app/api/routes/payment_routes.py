@@ -2,14 +2,14 @@ from app.api.dependencies.db import get_db
 from app.models.payment_model import Payment
 from fastapi import FastAPI, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
-
+from app.core.settings.configurations import settings
 import requests
 import hmac
 import hashlib
 
 app = FastAPI()
 
-PAYSTACK_SECRET_KEY = 'pk_test_7bf9c10664ff322e36d94454c6d46dc4ba318cf1'
+PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
 
 @app.post('/api/verify-payment')
 async def verify_payment(data: dict, db: Session = Depends(get_db)):
@@ -21,7 +21,7 @@ async def verify_payment(data: dict, db: Session = Depends(get_db)):
         'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}',
         'Content-Type': 'application/json',
     }
-    response = requests.get(f'https://api.paystack.co/transaction/verify/{reference}', headers=headers)
+    response = requests.get(f'{settings.PAYSTACK_VERIFY_PAYMENT_URL}{reference}', headers=headers)
 
     if response.status_code == 200:
         result = response.json()
