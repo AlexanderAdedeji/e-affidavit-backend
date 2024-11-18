@@ -1,6 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
-from loguru import logger
+from app.core.settings.logging import logger
 import uvicorn
 from app.core.settings.configurations import settings
 import starlette.responses as _responses
