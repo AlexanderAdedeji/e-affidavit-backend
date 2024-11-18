@@ -9,7 +9,7 @@
 In order to run the project, you need to clone the repository
 
 ```
-git clone  https://github.com/myhousingpal/back_end.git
+git clone  https://IdentikoSolutions@dev.azure.com/IdentikoSolutions/EAffidavit/_git/backend
 ```
 
 
