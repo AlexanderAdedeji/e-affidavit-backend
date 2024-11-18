@@ -36,7 +36,7 @@ uvicorn app.main:app --reload
 ```
 or
 ```
-uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8010 --reload
 
 
 ## Project Dependencies
@@ -64,6 +64,8 @@ This folder specifies models and schema definitions to be used accross the proje
     Link - https://back-end-y8ed.onrender.com
 
 3. **prod**: This environment is meant for the end users. It consists of the most recent and most stable features. This environment is only pushed to when all features have been tested and confirmed accross the dev and staging environment. It is also the environment that is used by the frontend prod environment
+        Link - https://e-affidavit-api.azurewebsites.net/
+
 
 **Note**: This method of deployment is subject to change as the project develops, and should not be taken as a concrete standard.
 
