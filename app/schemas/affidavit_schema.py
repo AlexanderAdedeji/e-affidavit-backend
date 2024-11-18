@@ -44,7 +44,7 @@ class TemplateInResponse(SlimTemplateInResponse):
 
 class TemplateBase(TemplateInResponse):
 
-    is_disabled: Optional[bool] = False  # Is the template disabled?
+    is_disabled: Optional[bool] = False 
     created_by_id: str
     created_at: datetime
     updated_at: Optional[datetime.datetime] = None
@@ -221,11 +221,11 @@ class SearchResult(BaseModel):
 
 def serialize_mongo_document(document):
     if isinstance(document, list):
-        # If the document is a list, apply serialization to each item in the list.
+
         return [serialize_mongo_document(doc) for doc in document]
 
     if not isinstance(document, dict):
-        # If the document is not a dictionary, return it as is.
+       
         return document
 
     serialized_document = {}
