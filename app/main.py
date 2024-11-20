@@ -1,6 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
-from loguru import logger
+from app.core.settings.logging import logger
 import uvicorn
 from app.core.settings.configurations import settings
 import starlette.responses as _responses
@@ -92,5 +92,5 @@ async def shutdown_db_client():
     app.mongodb_client.close()
 
 
-if __name__=="__main__":
-    uvicorn.run("app.main:app",host="0.0.0.0",port=4100,reload=True)
+# if __name__=="__main__":
+#     uvicorn.run("app.main:app",host="0.0.0.0",port=7000,reload=True)

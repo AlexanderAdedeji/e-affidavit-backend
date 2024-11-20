@@ -66,4 +66,4 @@ jobs:
         with:
           app-name: 'e-affidavit-api'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_7CB0AA90689B4A11BBE2EAE28E08A23B }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_00C77787FC554755BD9D09BB836FC4EB }}
