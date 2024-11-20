@@ -92,5 +92,5 @@ async def shutdown_db_client():
     app.mongodb_client.close()
 
 
-if __name__=="__main__":
-    uvicorn.run("app.main:app",host="0.0.0.0",port=7000,reload=True)
+# if __name__=="__main__":
+#     uvicorn.run("app.main:app",host="0.0.0.0",port=7000,reload=True)
