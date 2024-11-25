@@ -4,7 +4,7 @@ from app.core.settings.configurations import settings
 
 url = settings.MONGO_DB_URL
 client = AsyncIOMotorClient(url)
-db_client = client.get_database("E-Affidavit-dev")
+db_client = client.get_database("E-Affidavit-Prod")
 
 # You can also access a specific collection like this:
 template_collection = db_client["templates"]
