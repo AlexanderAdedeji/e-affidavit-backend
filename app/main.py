@@ -39,7 +39,7 @@ def create_application_instance() -> FastAPI:
     # Exception Handlers
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        logger.info(f"Request: {request.method} {request.url}")
+        logger.warning(f"HTTP exception: {request.method} {request.url} - {exc.detail}")
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": f"{exc.detail}"},
@@ -47,26 +47,25 @@ def create_application_instance() -> FastAPI:
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
-        logger.info(f"Request: {request.method} {request.url}")
+        logger.info(f"Incoming request: {request.method} {request.url}")
         response = await call_next(request)
-        logger.info(f"Response: {response.status_code}")
+        logger.info(f"Outgoing response: {response.status_code} for {request.method} {request.url}")
         return response
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
     ):
-        logger.info(f"Request: {request.method} {request.url}")
+        logger.warning(f"Validation error: {request.method} {request.url} - {exc.errors()}")
         return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Unhandled error: {str(exc)}")
+        logger.error(f"Unhandled error: {str(exc)} - Request: {request.method} {request.url}")
         return JSONResponse(
             status_code=500,
             content={"detail": f"An unexpected error occurred: {str(exc)}"},
         )
-
     app.include_router(global_router, prefix=settings.API_URL_PREFIX)
 
     return app
@@ -77,6 +76,7 @@ app = create_application_instance()
 
 @app.get("/")
 async def root():
+    """Redirect to API documentation."""
     return _responses.RedirectResponse("/docs")
 
 
