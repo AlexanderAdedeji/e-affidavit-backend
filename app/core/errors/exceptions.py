@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Optional, Any
 from app.core.errors import error_strings
 from fastapi import HTTPException
 from starlette.status import (
@@ -6,117 +6,82 @@ from starlette.status import (
     HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
-    HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_409_CONFLICT,
+    HTTP_500_INTERNAL_SERVER_ERROR,
 )
+from app.utils.logger import logger
 
 
-class ServerException(HTTPException):
+class BaseCustomException(HTTPException):
+    def __init__(
+        self,
+        status_code: int,
+        detail: str,
+        headers: Optional[dict[str, Any]] = None,
+    ) -> None:
+        logger.error(f"Exception raised: {detail} (Status Code: {status_code})")
+        super().__init__(status_code=status_code, detail=detail, headers=headers)
+
+
+class ServerException(BaseCustomException):
     def __init__(self) -> None:
         super().__init__(
-            HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_strings.SERVER_ERROR,
         )
 
 
-class IncorrectLoginException(HTTPException):
-    def __init__(
-        self,
-        status_code=HTTP_401_UNAUTHORIZED,
-        detail=error_strings.INCORRECT_LOGIN_INPUT,
-        headers=None,
-    ):
+class IncorrectLoginException(BaseCustomException):
+    def __init__(self) -> None:
         super().__init__(
-            status_code,
-            detail=detail,
-            headers=headers,
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=error_strings.INCORRECT_LOGIN_INPUT,
         )
 
 
-class DisallowedLoginException(HTTPException):
-    def __init__(
-        self,
-        status_code=HTTP_401_UNAUTHORIZED,
-        detail=error_strings.UNVERIFIED_USER_ERROR,
-        headers=None,
-    ):
+class DisallowedLoginException(BaseCustomException):
+    def __init__(self) -> None:
         super().__init__(
-            status_code,
-            detail=detail,
-            headers=headers,
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=error_strings.UNVERIFIED_USER_ERROR,
         )
 
 
-
-
-class AlreadyExistsException(HTTPException):
-    def __init__(
-        self,
-        status_code=HTTP_409_CONFLICT,
-        detail=error_strings.ALREADY_EXISTS,
-        headers=None,
-        entity_name="",
-    ):
+class AlreadyExistsException(BaseCustomException):
+    def __init__(self, entity_name: str) -> None:
         super().__init__(
-            status_code,
-            detail=detail.format(entity_name),
-            headers=headers,
+            status_code=HTTP_409_CONFLICT,
+            detail=error_strings.ALREADY_EXISTS.format(entity_name),
         )
 
 
-class InvalidTokenException(HTTPException):
-    def __init__(
-        self,
-        status_code=HTTP_403_FORBIDDEN,
-        detail=error_strings.MALFORMED_PAYLOAD,
-        headers=None,
-    ):
+class InvalidTokenException(BaseCustomException):
+    def __init__(self) -> None:
         super().__init__(
-            status_code,
-            detail=detail,
-            headers=headers,
+            status_code=HTTP_403_FORBIDDEN,
+            detail=error_strings.MALFORMED_PAYLOAD,
         )
 
 
-class ObjectNotFoundException(HTTPException):
-    def __init__(
-        self,
-        status_code=HTTP_404_NOT_FOUND,
-        detail=error_strings.NOT_FOUND,
-        headers=None,
-    ):
+class ObjectNotFoundException(BaseCustomException):
+    def __init__(self) -> None:
         super().__init__(
-            status_code,
-            detail=detail,
-            headers=headers,
+            status_code=HTTP_404_NOT_FOUND,
+            detail=error_strings.NOT_FOUND,
         )
 
 
-class UnauthorizedEndpointException(HTTPException):
-    def __init__(
-        self, status_code=HTTP_403_FORBIDDEN, detail=error_strings.UNAUTHORIZED_ACTION
-    ):
+class UnauthorizedEndpointException(BaseCustomException):
+    def __init__(self) -> None:
         super().__init__(
-            status_code=status_code,
-            detail=detail,
+            status_code=HTTP_403_FORBIDDEN,
+            detail=error_strings.UNAUTHORIZED_ACTION,
         )
 
 
-
-
-class DoesNotExistException(HTTPException):
-    def __init__(
-        self,
-        status_code=HTTP_404_NOT_FOUND,
-        detail=error_strings.DOES_NOT_EXIST,
-        headers=None,
-        entity_name="",
-    ):
+class DoesNotExistException(BaseCustomException):
+    def __init__(self, entity_name: str) -> None:
         super().__init__(
-            status_code,
-            detail=detail.format(entity_name),
-            headers=headers,
+            status_code=HTTP_404_NOT_FOUND,
+            detail=error_strings.DOES_NOT_EXIST.format(entity_name),
         )
-        
-
-
