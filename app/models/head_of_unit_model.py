@@ -9,24 +9,17 @@ from app.core.settings.configurations import settings
 
 
 class HeadOfUnit(Base):
-    __tablename__ = "head_of_unit"
+    __tablename__ = "head_of_units"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
-    jurisdiction_id = Column(
-        String,  ForeignKey("jurisdictions.id"), nullable=False
-      
-    )  # Assuming court ID is a string; adjust as necessary
-    head_of_unit_id = Column(String, ForeignKey("users.id"))
-    created_by_id = Column(String, ForeignKey("users.id"))
+    jurisdiction_id = Column(String, ForeignKey("jurisdictions.id"), nullable=False)
+    head_of_unit_id = Column(String, ForeignKey("users.id"), nullable=False)
+    created_by_id = Column(String, ForeignKey("users.id"), nullable=False)
 
-    # Relationship to link back to the User model
-    user = relationship("User", foreign_keys=head_of_unit_id, back_populates="head_of_unit", uselist=False)
+    user = relationship(
+        "User",
+        foreign_keys=head_of_unit_id,
+        back_populates="head_of_unit",
+        uselist=False,
+    )
     created_by = relationship("User", foreign_keys=[created_by_id])
     jurisdiction = relationship("Jurisdiction", back_populates="head_of_unit")
-
-
-
-
-
-
-
-
