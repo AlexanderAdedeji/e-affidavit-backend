@@ -8,7 +8,8 @@ class Email(BaseModel):
     template_dict: str
     recipient: str
     sender: str
-
+    class Config:
+        orm_mode = True
 
 class EmailCreate(Email):
     pass
@@ -26,7 +27,8 @@ class EmailTemplateVariables(BaseModel):
 class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
     reset_link: str
     valid_for: Optional[int] = int(settings.RESET_TOKEN_EXPIRE_MINUTES) / 1000
-
+    class Config:
+        orm_mode = True
 
 
 

@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel,constr
 from datetime import datetime
 
 from app.schemas.affidavit_schema import SlimDocumentInResponse
@@ -7,8 +7,10 @@ from app.schemas.shared_schema import SlimUserInResponse
 
 
 class CourtSystemBase(BaseModel):
-    name: str
+    name: constr(min_length=1, max_length=255)
 
+    class Config:
+        orm_mode = True
 
 class CreateCourt(CourtSystemBase):
     jurisdiction_id: str

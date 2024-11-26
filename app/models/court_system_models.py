@@ -1,3 +1,4 @@
+from uuid import uuid4
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from commonLib.models.base_class import Base
@@ -10,24 +11,24 @@ class State(Base):
 
 class Jurisdiction(Base):
     __tablename__ = "jurisdictions"
-    id = Column(String, primary_key=True, index=True)
-    name = Column(String, index=True)
-    state_id = Column(Integer, ForeignKey('states.id'))
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
+    name = Column(String, index=True, nullable=False)
+    state_id = Column(Integer, ForeignKey('states.id'), nullable=False)
     state = relationship("State", back_populates="jurisdictions")
-    courts = relationship("Court", back_populates="jurisdiction")
+    courts = relationship("Court", back_populates="jurisdiction", cascade="all, delete")
     head_of_unit = relationship("HeadOfUnit", back_populates="jurisdiction", uselist=False)
-    user_invite= relationship("UserInvite", back_populates="jurisdiction")
+    user_invites = relationship("UserInvite", back_populates="jurisdiction")
 
     
 
 class Court(Base):
     __tablename__ = "courts"
-    id = Column(String, primary_key=True, index=True)
-    name = Column(String, index=True)
-    jurisdiction_id = Column(String, ForeignKey('jurisdictions.id'))
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
+    name = Column(String, index=True, nullable=False)
+    jurisdiction_id = Column(String, ForeignKey('jurisdictions.id'), nullable=False)
     jurisdiction = relationship("Jurisdiction", back_populates="courts")
-    commissioner_profile = relationship("CommissionerProfile", back_populates = "court")
-    user_invite= relationship("UserInvite", back_populates="court")
+    commissioner_profiles = relationship("CommissionerProfile", back_populates="court", cascade="all, delete")
+    user_invites = relationship("UserInvite", back_populates="court")
 
 
 
