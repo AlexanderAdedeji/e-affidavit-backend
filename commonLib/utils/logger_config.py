@@ -39,4 +39,5 @@ class LoggerConfig:
 # Initialize the logger
 LoggerConfig()
 
-
+# Expose the logger instance
+logger = logger
