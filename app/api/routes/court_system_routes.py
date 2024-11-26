@@ -1,7 +1,8 @@
 from typing import List
 from uuid import uuid4
 from fastapi import APIRouter, Depends, status
-from loguru import logger
+# from loguru import logger
+from commonLib.utils.logger_config import logger
 from sqlalchemy.orm import Session
 from app.api.dependencies.db import get_db
 from app.core.errors.exceptions import (

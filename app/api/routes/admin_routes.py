@@ -13,8 +13,8 @@ from app.schemas.category_schema import (
     FullCategoryInResponse,
 )
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
-from loguru import logger
-
+# from loguru import logger
+from app.core.settings.handler import logger
 from bson import ObjectId
 from app.core.services.invitation import process_user_invite
 from app.schemas.affidavit_schema import (

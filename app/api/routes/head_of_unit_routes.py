@@ -8,7 +8,7 @@ from app.schemas.report_schema import (
     DocumentReports,
 )
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from loguru import logger
+from commonLib.utils.logger_config import logger
 from sqlalchemy.orm import Session
 from app.api.dependencies.authentication import (
     get_currently_authenticated_user,

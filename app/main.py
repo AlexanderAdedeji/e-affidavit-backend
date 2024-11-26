@@ -1,6 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
-from app.core.settings.logging import logger
+from app.core.settings.handler import logger
 import uvicorn
 from app.core.settings.configurations import settings
 import starlette.responses as _responses
@@ -13,16 +13,19 @@ from app.database.base import Base
 from app.database.sessions.mongo_client import db_client, client
 from app.api.routes.routes import router as global_router
 
-
+# Initialize database schema
 Base.metadata.create_all(engine)
+
+
 # CORS configuration
-origins = ["*"]  
-methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]  
+origins = settings.ALLOWED_ORIGINS.split(",")
+methods = settings.ALLOWED_METHODS.split(",")
+
 
 
 security_middleware = Middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=methods,
     allow_headers=["*"],
@@ -32,6 +35,8 @@ security_middleware = Middleware(
 
 def create_application_instance() -> FastAPI:
     app = FastAPI(title=settings.PROJECT_NAME, middleware=[security_middleware])
+
+    # Exception Handlers
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         logger.info(f"Request: {request.method} {request.url}")
@@ -62,12 +67,9 @@ def create_application_instance() -> FastAPI:
             content={"detail": f"An unexpected error occurred: {str(exc)}"},
         )
 
-  
     app.include_router(global_router, prefix=settings.API_URL_PREFIX)
 
     return app
-
-
 
 
 app = create_application_instance()
@@ -81,16 +83,17 @@ async def root():
 @app.on_event("startup")
 async def startup_db_client():
     app.mongodb_client = client
-
-    app.mongodb = app.mongodb_client.get_database("E-affidavit-dev")
-    print("Hello world")
+    app.mongodb = app.mongodb_client.get_database(settings.MONGO_DB_NAME)
+    logger.info("MongoDB client started successfully")
+    
 
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    print("bye world")
+    logger.info("Shutting down mongoDB client...")
     app.mongodb_client.close()
+    logger.info("MongoDB client shutdown complete")
 
 
 # if __name__=="__main__":
-#     uvicorn.run("app.main:app",host="0.0.0.0",port=7000,reload=True)
+#     uvicorn.run("main:app",host="0.0.0.0",port=7000,reload=True)

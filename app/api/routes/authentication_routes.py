@@ -16,6 +16,7 @@ from app.core.errors.exceptions import (
     IncorrectLoginException,
     UnauthorizedEndpointException,
 )
+from app.core.settings.handler import logger
 from app.core.services.jwt import get_user_email_from_token
 from app.repositories.user_repo import user_repo
 from app.schemas.email_schema import (
@@ -80,7 +81,6 @@ def login(
         raise IncorrectLoginException()
     if not user.is_active:
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
-
 
     token = user.generate_jwt()
     return create_response(

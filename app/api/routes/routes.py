@@ -8,7 +8,7 @@ from app.api.routes import (
     court_system_routes,
     commissioner_routes,
     admin_routes,
-    affidavit_routes,
+    # affidavit_routes,
     head_of_unit_routes,
     reports_routes
 )

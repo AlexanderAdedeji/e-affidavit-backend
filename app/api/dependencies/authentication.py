@@ -22,7 +22,8 @@ from app.core.errors.exceptions import (
     InvalidTokenException,
 )
 from app.models.user_model import User
-from loguru import logger
+# from loguru import logger
+from app.core.settings.handler import logger
 from app.core.settings.configurations import settings
 from app.schemas.user_type_schema import UserTypeBase
 

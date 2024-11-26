@@ -10,13 +10,15 @@ from pydantic_settings import BaseSettings
 class CustomSettings(BaseSettings):
 
     ALLOWED_HOSTS: Any
-    ORIGINS:list
+    ALLOWED_ORIGINS: str
+    ALLOWED_METHODS:str
     SECRET_KEY: str
     RESET_TOKEN_EXPIRE_MINUTES: int = 60
     PROJECT_NAME: str = "E-Affidavit Server"
     API_URL_PREFIX: str
     POSTGRES_DB_URL: str
     MONGO_DB_URL: str
+    MONGO_DB_NAME:str
     JWT_TOKEN_PREFIX: str
     JWT_ALGORITHM: str
     HEADER_KEY: str
@@ -41,13 +43,12 @@ class CustomSettings(BaseSettings):
     VERIFY_EMAIL_LINK: str
     OPERATIONS_INVITE_TEMPLATE_ID: str
     JWT_EXPIRE_MINUTES: int
-    RESET_PASSWORD_URL:str
-    SENDER_NAME:str
-    ACCEPT_INVITE_URL:str
-    PAYSTACK_SECRET_KEY:str
+    RESET_PASSWORD_URL: str
+    SENDER_NAME: str
+    ACCEPT_INVITE_URL: str
+    PAYSTACK_SECRET_KEY: str
 
-    PAYSTACK_VERIFY_PAYMENT_URL:str
-
+    PAYSTACK_VERIFY_PAYMENT_URL: str
 
     class Config:
         base_dir = os.path.dirname(os.path.dirname(__file__))

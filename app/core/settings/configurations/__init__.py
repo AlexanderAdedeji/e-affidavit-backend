@@ -4,7 +4,7 @@ import sys
 from app.core.settings.configurations.base import CustomSettings
 from app.core.settings.configurations.production import ProductionSettings
 
-from app.core.settings.logging import InterceptHandler
+from app.core.settings.handler import InterceptHandler
 from app.core.settings.configurations.local import LocalSettings
 from loguru import logger
 

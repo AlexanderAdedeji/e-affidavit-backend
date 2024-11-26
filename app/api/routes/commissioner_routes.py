@@ -4,7 +4,7 @@ import uuid
 from app.schemas.email_schema import UserCreationTemplateVariables
 from fastapi import APIRouter, Body, Depends, HTTPException, status,BackgroundTasks
 from bson import ObjectId
-from loguru import logger
+from commonLib.utils.logger_config import logger
 from sqlalchemy.orm import Session
 from app.api.dependencies.authentication import (
     get_currently_authenticated_user,

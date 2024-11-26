@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "e-affidavit"
+name = "backend"
 version = "0.1.0"
 description = ""
 authors = ["AlexAdedeji <alex.adedeji@identikosolutions.com>"]
