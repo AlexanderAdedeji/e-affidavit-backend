@@ -1,5 +1,5 @@
 from app.core.settings.configurations.base import CustomSettings
 
-
 class ProductionSettings(CustomSettings):
-    pass
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
