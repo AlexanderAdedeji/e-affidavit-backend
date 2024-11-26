@@ -25,9 +25,9 @@ methods = settings.ALLOWED_METHODS.split(",")
 
 security_middleware = Middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=methods,
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
@@ -78,6 +78,8 @@ app = create_application_instance()
 async def root():
     """Redirect to API documentation."""
     return _responses.RedirectResponse("/docs")
+
+
 
 
 @app.on_event("startup")

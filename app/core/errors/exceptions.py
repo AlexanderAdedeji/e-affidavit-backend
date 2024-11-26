@@ -9,7 +9,7 @@ from starlette.status import (
     HTTP_409_CONFLICT,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
-from app.utils.logger import logger
+from commonLib.utils.logger_config import logger
 
 
 class BaseCustomException(HTTPException):
