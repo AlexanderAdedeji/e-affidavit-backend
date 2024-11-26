@@ -1,21 +1,18 @@
 import logging
 import sys
-
 from app.core.settings.configurations.base import CustomSettings
 from app.core.settings.configurations.production import ProductionSettings
-
-from app.core.settings.handler import InterceptHandler
 from app.core.settings.configurations.local import LocalSettings
+from app.core.settings.handler import InterceptHandler
 from loguru import logger
+import os
 
-if True:
-    settings = LocalSettings()
-else:
+ENV = os.getenv("ENV", "local").lower()
+
+if ENV == "production":
     settings = ProductionSettings()
-
-
-
-
+else:
+    settings = LocalSettings()
 
 LOGGING_LEVEL = logging.DEBUG if settings.DEBUG else logging.INFO
 LOGGERS = ("uvicorn.asgi", "uvicorn.access")
