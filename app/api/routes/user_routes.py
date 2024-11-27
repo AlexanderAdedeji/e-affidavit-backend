@@ -137,13 +137,13 @@ def create_user(
     user_exist = user_repo.get_by_email(email=user_in.email, db=db)
     if user_exist:
         raise AlreadyExistsException(
-            detail=f"User with email {user_in.email} already exists"
+            entity_name=f"User with email {user_in.email} already exists"
         )
     # Fetch the user type
     user_type = user_type_repo.get_by_name(name=settings.PUBLIC_USER_TYPE, db=db)
 
     if not user_type:
-        raise DoesNotExistException(detail="User type not found.")
+        raise DoesNotExistException(entity_name="User type not found.")
 
     user_in = UserCreate(**user_in.dict(), user_type_id=user_type.id)
     try:
@@ -548,7 +548,7 @@ async def delete_document(
 ):
     document = await document_collection.find_one({"_id": ObjectId(document_id)})
     if not document:
-        raise DoesNotExistException(detail="This document does not exist")
+        raise DoesNotExistException(entity_name="This document does not exist")
 
     if document["created_by_id"] != str(current_user.id):
         raise UnauthorizedEndpointException(
@@ -575,7 +575,7 @@ async def toggle_archive_document(
     message = ""
     document = await document_collection.find_one({"_id": ObjectId(document_id)})
     if not document:
-        raise DoesNotExistException(detail="This document does not exist")
+        raise DoesNotExistException(entity_name="This document does not exist")
 
     if document["created_by_id"] != str(current_user.id):
         raise UnauthorizedEndpointException(

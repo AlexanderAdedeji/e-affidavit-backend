@@ -62,11 +62,15 @@ def get_all_user_types(db: Session = Depends(get_db)):
     dependencies=[Depends(admin_permission_dependency)],
 )
 async def get_single_user_type(*, user_type_id: str, db: Session = Depends(get_db)):
-    user_type = user_type_repo.get(db, id)
+
+    user_type = user_type_repo.get(db, user_type_id)
+    if not user_type:
+        raise DoesNotExistException(entity_name="User type with id")
+
     return create_response(
         status_code=status.HTTP_200_OK,
-        message="usertype found",
-        data=UserType(id=user_type.id, name=user_type.name),
+        message="Usertype found",
+        data=UserTypeBase(name=user_type.name),
     )
 
 
@@ -77,7 +81,7 @@ async def get_single_user_type(*, user_type_id: str, db: Session = Depends(get_d
 )
 async def delete_user_type(*, user_type_id: str, db: Session = Depends(get_db)):
     if not user_type_repo.exist(db, user_type_id):
-        raise DoesNotExistException(detail="No such usertype exists.")
+        raise DoesNotExistException(entity_name="Usertype")
     else:
         user_type_repo.remove(db=db, id=user_type_id)
         return create_response(
@@ -95,42 +99,42 @@ async def delete_user_type(*, user_type_id: str, db: Session = Depends(get_db)):
 async def edit_user_type(
     *, user_type_id: str, user_type_in: UserTypeCreate, db: Session = Depends(get_db)
 ):
-    try:
-        user_type_exist = user_type_repo.get(db=db, id=user_type_id)
+    # try:
+    user_type_exist = user_type_repo.get(db=db, id=user_type_id)
 
-        if not user_type_exist:
-            raise DoesNotExistException(detail="No such usertype exists.")
+    if not user_type_exist:
+        raise DoesNotExistException(entity_name="Usertype")
 
-        exists = bool(user_type_repo.get_by_name(db, name=user_type_in.name))
+    exists = bool(user_type_repo.get_by_name(db, name=user_type_in.name))
 
-        if exists:
-            raise AlreadyExistsException(
-                detail=error_strings.ALREADY_EXISTS.format(
-                    "user type with name " + user_type_in.name
-                )
-            )
-        user_type_in.name = user_type_in.name.upper()
-        updated_user_type = user_type_repo.update(
-            db=db, obj_in=user_type_in, db_obj=user_type_exist
+    if exists:
+        raise AlreadyExistsException(
+            entity_name="user type with name " + user_type_in.name
         )
 
-        return create_response(
-            status_code=status.HTTP_204_NO_CONTENT,
-            message="User type edited successfully.",
-            data=UserTypeInDB(id=updated_user_type.id, name=updated_user_type.name),
-        )
+    user_type_in.name = user_type_in.name.upper()
+    updated_user_type = user_type_repo.update(
+        db=db, obj_in=user_type_in, db_obj=user_type_exist
+    )
 
-    except Exception as e:
+    return create_response(
+        status_code=status.HTTP_204_NO_CONTENT,
+        message="User type edited successfully.",
+        data=UserTypeInDB(id=updated_user_type.id, name=updated_user_type.name),
+    )
 
-        logger.error("Error in update operation", e)
-        raise ServerException()
+
+# except Exception as e:
+
+#     logger.error("Error in update operation", e)
+#     raise ServerException()
 
 
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
     response_model=GenericResponse[UserTypeBase],
-    # dependencies=[Depends(admin_permission_dependency)],
+    dependencies=[Depends(admin_permission_dependency)],
 )
 def create_user_type(
     user_type_in: UserTypeCreate,
@@ -144,19 +148,17 @@ def create_user_type(
     """
     try:
         new_user_type = user_type_repo.create(
-            db=db, obj_in=UserType(name=user_type_in.name.upper(), id=uuid.uuid4())
+            db=db, obj_in=UserType(name=user_type_in.name.upper())
         )
         return create_response(
             status_code=status.HTTP_201_CREATED,
             message=f"{user_type_in.name.upper() } created successfully",
-            data=UserType(id=new_user_type.id, name=new_user_type.name),
+            data=UserType(name=new_user_type.name),
         )
     except IntegrityError:
         db.rollback()
         raise AlreadyExistsException(
-            detail=error_strings.ALREADY_EXISTS.format(
-                "user type with name " + user_type_in.name
-            )
+            entity_name="user type with name " + user_type_in.name
         )
 
 
@@ -170,14 +172,14 @@ def get_all_users_of_user_type(
     *,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
-) ->GenericResponse[List[UserInResponse]]:
+) -> GenericResponse[List[UserInResponse]]:
     """
     This endpoint gets all the users under a particular user type.
     Only superusers have access to this endpoint.
     """
     target_user_type = user_type_repo.get(db, id=user_type_id)
     if not target_user_type:
-        raise ObjectNotFoundException()
+        raise DoesNotExistException(entity_name="Usertype with id")
 
     return create_response(
         message="Successful",
@@ -191,7 +193,6 @@ def get_all_users_of_user_type(
                 is_active=user.is_active,
                 user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
                 verify_token="",
-    
             )
             for user in target_user_type.users
         ],

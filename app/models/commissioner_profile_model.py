@@ -20,7 +20,7 @@ class CommissionerProfile(Base):
         "User", foreign_keys=[commissioner_id], back_populates="commissioner_profile"
     )
     created_by = relationship("User", foreign_keys=[created_by_id])
-    court = relationship("Court", back_populates="commissioner_profile")
+    court = relationship("Court", back_populates="commissioner_profiles")
 
 
 

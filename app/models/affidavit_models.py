@@ -24,7 +24,11 @@ class Documents(MongoBase):
 
 class AffidavitCategory(Base):
     __tablename__ = "affidavit_categories"
-    id = Column(String, primary_key=True, index=True)
-    name = Column(String, nullable=False, unique=True)
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
+    name = Column(String, unique=True, nullable=False)
     created_by_id = Column(String, ForeignKey("users.id"), nullable=False)
     user = relationship("User", back_populates="category_created_by")
+
+    def __init__(self, name: str, created_by_id: str):
+        self.name = name
+        self.created_by_id = created_by_id
