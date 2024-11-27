@@ -22,6 +22,7 @@ from app.core.errors.exceptions import (
     InvalidTokenException,
 )
 from app.models.user_model import User
+
 # from loguru import logger
 from app.core.settings.handler import logger
 from app.core.settings.configurations import settings
@@ -59,9 +60,9 @@ def _extract_jwt_from_header(
     try:
         token_prefix, token = authorization_header.split(" ")
     except ValueError:
-        raise InvalidTokenException(detail=WRONG_TOKEN_PREFIX)
+        raise InvalidTokenException()
     if token_prefix != JWT_TOKEN_PREFIX:
-        raise InvalidTokenException(detail=WRONG_TOKEN_PREFIX)
+        raise InvalidTokenException()
     return token
 
 
@@ -71,9 +72,9 @@ def _extract_refresh_jwt_from_header(
     try:
         token_prefix, token = authorization_header.split(" ")
     except ValueError:
-        raise InvalidTokenException(detail=WRONG_TOKEN_PREFIX)
+        raise InvalidTokenException()
     if token_prefix != JWT_TOKEN_PREFIX:
-        raise InvalidTokenException(detail=WRONG_TOKEN_PREFIX)
+        raise InvalidTokenException()
     return token
 
 
@@ -145,7 +146,6 @@ authenticated_user_dependencies = PermissionChecker(
         PUBLIC_USER_TYPE,
     ]
 )
-
 
 
 superuser_permission_dependency = PermissionChecker(

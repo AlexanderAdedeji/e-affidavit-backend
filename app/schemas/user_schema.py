@@ -95,9 +95,9 @@ class InviteOperationsForm(BaseModel):
 
 
 class CreateInvite(InviteOperationsForm):
-    id: str
+    # id: str
     invited_by_id: str
-    token: str
+    # token: str
 
 
 class AcceptedInviteResponse(BaseModel):

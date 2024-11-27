@@ -17,7 +17,7 @@ class CreateCourt(CourtSystemBase):
 
 
 class CreateJurisdiction(CourtSystemBase):
-    state_id: int
+    state_id: str
 
 
 class CreateState(CourtSystemBase):

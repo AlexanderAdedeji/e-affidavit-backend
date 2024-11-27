@@ -13,6 +13,7 @@ from app.schemas.category_schema import (
     FullCategoryInResponse,
 )
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
+
 # from loguru import logger
 from app.core.settings.handler import logger
 from bson import ObjectId
@@ -182,7 +183,7 @@ def get_unit_heads(db: Session = Depends(get_db)):
                     )
                     for head_of_unit in head_of_units
                     for court in head_of_unit.head_of_unit.jurisdiction.courts
-                    for commissioner_profile in court.commissioner_profile
+                    for commissioner_profile in court.commissioner_profiles
                     for commissioner in [commissioner_profile.user]
                 ],
             )
@@ -787,7 +788,7 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
                     id=court.id,
                     date_created=court.CreatedAt,
                     name=court.name,
-                    commissioners=len(court.commissioner_profile),
+                    commissioners=len(court.commissioner_profiles),
                     documents=await document_collection.count_documents(
                         {"court_id": court.id}
                     ),
@@ -812,7 +813,7 @@ async def get_jurisdiction(jurisdiction_id: str, db: Session = Depends(get_db)):
                     email=commissioner.email,
                 )
                 for court in jurisdiction.courts
-                for commissioner_profile in court.commissioner_profile
+                for commissioner_profile in court.commissioner_profiles
                 for commissioner in [commissioner_profile.user]
             ],
             documents=len(jurisdiction_documents),
@@ -893,7 +894,7 @@ async def get_court(court_id: str, db: Session = Depends(get_db)):
                     email=commissioner.email,
                     is_active=commissioner.is_active,
                 )
-                for commissioner_profile in court.commissioner_profile
+                for commissioner_profile in court.commissioner_profiles
                 for commissioner in [commissioner_profile.user]
             ],
             documents=[
@@ -920,11 +921,11 @@ def create_state(state: CourtSystemBase, db: Session = Depends(get_db)):
 
     try:
         state_exist = state_repo.get_by_field(
-            db=db, field_name="name", field_value=state.name
+            db=db, field_name="name", field_value=state.name.title()
         )
         if state_exist:
             raise AlreadyExistsException(f"{state.name} already exists")
-        new_state = state_repo.create(db, obj_in=state)
+        new_state = state_repo.create(db, obj_in=state.name.str)
         return create_response(
             status_code=status.HTTP_201_CREATED,
             message=f"{state.name} created successfully",
@@ -932,7 +933,7 @@ def create_state(state: CourtSystemBase, db: Session = Depends(get_db)):
         )
     except Exception as e:
         logger.error("Something went wrong  while creating the state: {err}", err=e)
-        raise ServerException(detail="Something went wrong while creating the state")
+        raise ServerException()
 
 
 @router.get(
@@ -1289,10 +1290,10 @@ def create_category(
     category_exists = category_repo.get_by_name(db, name=category_name.name)
     if category_exists:
         raise AlreadyExistsException(
-            detail="A Category with this name or a similar name already exists."
+            entity_name="A Category with this name or a similar name."
         )
     category_in = CategoryCreate(
-        **category_name.dict(), created_by_id=current_user.id, id=str(uuid.uuid4())
+        name=category_name.name.title(), created_by_id=current_user.id
     )
 
     db_category = category_repo.create(db, obj_in=category_in)
@@ -1324,7 +1325,7 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
     db_category = category_repo.get(db, id=category.id)
     if not db_category:
         raise DoesNotExistException(detail="This category does not exist.")
-
+    category.name = category.name.title()
     new_db_category = category_repo.update(
         db, db_obj=db_category, obj_in=category.dict(exclude_unset=True)
     )

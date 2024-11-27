@@ -1,6 +1,7 @@
 from typing import List
 from uuid import uuid4
 from fastapi import APIRouter, Depends, status
+
 # from loguru import logger
 from commonLib.utils.logger_config import logger
 from sqlalchemy.orm import Session
@@ -91,18 +92,16 @@ def populate_data(session):
     # Populate jurisdictions
     for jurisdiction_name in jurisdictions:
         jurisdiction = Jurisdiction(
-            id=uuid4().hex,
             name=jurisdiction_name,
             state_id=session.query(State.id).filter(State.name == "Abuja").first()[0],
         )
         session.add(jurisdiction)
 
-    session.commit()
+        session.commit()
 
     # Populate courts
     for jurisdiction_name, court_name in courts:
         court = Court(
-            id=uuid4().hex,
             name=court_name,
             jurisdiction_id=session.query(Jurisdiction.id)
             .filter(Jurisdiction.name == jurisdiction_name)
@@ -110,7 +109,7 @@ def populate_data(session):
         )
         session.add(court)
 
-    session.commit()
+        session.commit()
 
 
 # def get_courts_under_jurisdiction(session, jurisdiction_name):
@@ -226,7 +225,7 @@ def create_jurisdiction(
         if jurisdiction_exist:
             raise AlreadyExistsException(f"{jurisdiction.name} already exists")
         new_jurisdiction = jurisdiction_repo.create(
-            db, obj_in=dict(**jurisdiction.dict(), id=uuid4())
+            db, obj_in=dict(**jurisdiction.dict())
         )
         return create_response(
             status_code=status.HTTP_201_CREATED,
@@ -238,7 +237,7 @@ def create_jurisdiction(
         logger.error(
             "Something went wrong  while creating the jusridiction: {err}", err=e
         )
-        raise ServerException(detail="Something went wrong  while creating the jusridiction:")
+        raise ServerException()
 
 
 @router.get(
@@ -401,7 +400,7 @@ def create_court(court: CreateCourt, db: Session = Depends(get_db)):
         raise AlreadyExistsException(
             detail=f"Court with name {court.name} already exist."
         )
-    new_court = court_repo.create(db, obj_in=dict(**court.dict(), id=uuid4()))
+    new_court = court_repo.create(db, obj_in=dict(**court.dict()))
     return dict(
         message=f"{new_court.name} created successfully",
         data=CourtSystemInDB(**new_court.__dict__),
@@ -459,7 +458,7 @@ def get__court(
                     last_name=commissioner.user.last_name,
                     email=commissioner.user.email,
                 )
-                for commissioner in court.commissioner_profile
+                for commissioner in court.commissioner_profiles
             ],
         ),
     )
@@ -508,5 +507,3 @@ def get_courts_by_jurisdiction(
             for court in courts
         ],
     )
-
-
