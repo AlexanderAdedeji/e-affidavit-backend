@@ -2,7 +2,7 @@ import datetime
 from typing import List
 import uuid
 from app.schemas.email_schema import UserCreationTemplateVariables
-from fastapi import APIRouter, Body, Depends, HTTPException, status,BackgroundTasks
+from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks
 from bson import ObjectId
 from commonLib.utils.logger_config import logger
 from sqlalchemy.orm import Session
@@ -90,8 +90,8 @@ async def get_commissioners(
                     id=str(document["_id"]),
                     name=document.get("name", ""),
                     attested_date=document.get("attestation_date", ""),
-                    created_at=document.get("created_at",""),
-                    status=document.get("status","")
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
                 )
                 for document in attested_documents
             ]
@@ -123,7 +123,7 @@ async def get_commissioners(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_commissioner(
     commissioner_in: OperationsCreateForm,
-    background_tasks:BackgroundTasks,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     # Validate the invitation
@@ -170,10 +170,8 @@ async def create_commissioner(
         verify_token = user_repo.create_verification_token(
             email=db_commissioner.email, db=db
         )
-        
-        verification_link = (
-            f"{settings.COURT_SYSTEM_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
-        )
+
+        verification_link = f"{settings.COURT_SYSTEM_FRONTEND_BASE_URL}{settings.VERIFY_EMAIL_LINK}{verify_token}"
         template_dict = UserCreationTemplateVariables(
             name=f"{db_commissioner.first_name} {db_commissioner.last_name}",
             action_url=verification_link,
@@ -361,8 +359,6 @@ async def update_document(
         }
     )
 
-
-
     update_result = await document_collection.update_one(
         {"_id": ObjectId(document_id)}, {"$set": document_data}
     )
@@ -396,7 +392,11 @@ async def get_my_attestations(
         db=db, commissioner_id=current_user.id
     )
     if not commissioner_profile:
-        raise DoesNotExistException(detail=f"Commissioner not found")
+        raise DoesNotExistException(entity_name=f"Commissioner not found")
+    if not commissioner_profile.signature:
+        raise DoesNotExistException(entity_name=f"Commissioner signature not found")
+    if not commissioner_profile.stamp:
+        raise DoesNotExistException(entity_name=f"Commissioner Stamp not found")
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Attestation retrieved successfully",

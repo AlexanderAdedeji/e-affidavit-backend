@@ -13,10 +13,11 @@ PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
 
 @app.post('/api/verify-payment')
 async def verify_payment(data: dict, db: Session = Depends(get_db)):
+    print("hello world")
     reference = data.get('reference')
     user_id = data.get('user_id')
     document_id = data.get('document_id')
-
+    print(reference, user_id, document_id)
     headers = {
         'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}',
         'Content-Type': 'application/json',

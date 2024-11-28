@@ -650,9 +650,7 @@ def create_admin(
             detail="Cannot use un-accepted invites for creating new accounts.",
         )
     if db_invite.user_type.name != settings.ADMIN_USER_TYPE:
-        raise UnauthorizedEndpointException(
-            detail="You do not have permission to access this endpoint.",
-        )
+        raise UnauthorizedEndpointException()
     if user_repo.get_by_email(db, email=db_invite.email):
         raise AlreadyExistsException(detail="This email address already exists.")
     admin_obj = UserCreate(

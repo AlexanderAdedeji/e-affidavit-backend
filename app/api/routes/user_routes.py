@@ -725,7 +725,7 @@ def get_states(db: Session = Depends(get_db)):
     "/get_jurisdictions_by_state/{state_id}",
     response_model=GenericResponse[List[CourtSystemInDB]],
 )
-def get_jurisdictions_by_states(state_id: int, db: Session = Depends(get_db)):
+def get_jurisdictions_by_states(state_id: str, db: Session = Depends(get_db)):
     jurisdictions = (
         db.query(Jurisdiction).filter(Jurisdiction.state_id == state_id).all()
     )

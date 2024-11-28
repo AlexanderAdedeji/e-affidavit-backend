@@ -21,4 +21,4 @@ class CategoryCreate(Category):
 class FullCategoryInResponse(CategoryInResponse):
     date_created: datetime.datetime
     created_by: SlimUserInResponse
-    templates: List[str] = []
+    templates: List[dict] = []
