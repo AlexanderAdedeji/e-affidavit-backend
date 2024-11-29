@@ -11,6 +11,7 @@ from app.core.services.utils.utils import (
 from app.models.court_system_models import Court, Jurisdiction
 from app.schemas.category_schema import CategoryInResponse, FullCategoryInResponse
 from app.schemas.court_system_schema import CourtSystemInDB
+from app.schemas.payment_schema import PaymentCreate
 from app.schemas.shared_schema import SlimUserInResponse
 from bson import ObjectId
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -668,14 +669,20 @@ async def pay_for_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    payment_data = {
-        "reference": document_in.payment_ref,
-        "document_id": document_id,
-        "user_id": current_user.id,
-    }
+    # payment_data = {
+    #     "reference": document_in.payment_ref,
+    #     "document_id": document_id,
+    #     "user_id": current_user.id,
+    # }
+
+    payment_data = PaymentCreate(
+        reference=document_in.payment_ref,
+        document_id=document_id,
+        user_id=current_user.id,
+    )
     try:
         result = await verify_payment(data=payment_data, db=db)
-        if result['status'] == 'success':
+        if result["status"] == "success":
             document_data = document_in.dict(exclude_unset=True)
             document_data.update(
                 {
@@ -696,7 +703,9 @@ async def pay_for_document(
                 {"_id": ObjectId(document_id)}
             )
             if not updated_document:
-                raise HTTPException(status_code=404, detail="Document not found after update.")
+                raise HTTPException(
+                    status_code=404, detail="Document not found after update."
+                )
 
             paid_document = serialize_mongo_document(updated_document)
             return create_response(
@@ -705,11 +714,15 @@ async def pay_for_document(
                 data=paid_document,
             )
         else:
-            raise HTTPException(status_code=400, detail='Payment verification failed')
+            raise HTTPException(status_code=400, detail="Payment verification failed")
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail='An error occurred during payment verification')
+        raise HTTPException(
+            status_code=500, detail="An error occurred during payment verification"
+        )
+
+
 @router.get("/get_states", response_model=GenericResponse[List[CourtSystemInDB]])
 def get_states(db: Session = Depends(get_db)):
     states = state_repo.get_all(db)
