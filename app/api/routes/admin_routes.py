@@ -1333,6 +1333,65 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
     )
 
 
+# @router.get("/get_invites", response_model=GenericResponse[List[InviteResponse]])
+# def get_all_invites(db: Session = Depends(get_db)):
+#     current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+#     invites = (
+#         db.query(
+#             UserInvite.id,
+#             UserInvite.first_name,
+#             UserInvite.last_name,
+#             UserInvite.email,
+#             UserInvite.is_accepted,
+#             UserInvite.accepted_at,
+#             UserInvite.CreatedAt,
+#             UserType.name.label("user_type"),
+#             UserType.id.label("user_type_id"),
+#         )
+#         .join(UserType, UserInvite.user_type_id == UserType.id)
+#         .all()
+#     )
+
+#     result = []
+#     for invite in invites:
+#         # Adjust for offset-aware datetime comparison
+#         created_at = (
+#             str(invite.CreatedAt.replace(tzinfo=timezone.utc))
+#             if invite.CreatedAt
+#             else None
+#         )
+#         accepted_at = (
+#             str(invite.accepted_at.replace(tzinfo=timezone.utc))
+#             if invite.accepted_at
+#             else None
+#         )
+
+#         if invite.is_accepted:
+#             invite_status = "ACCEPTED"
+#         elif accepted_at is None and (current_time - created_at) < timedelta(hours=24):
+#             invite_status = "PENDING"
+#         else:
+#             invite_status = "EXPIRED"
+
+#         result.append(
+#             InviteResponse(
+#                 id=invite.id,
+#                 first_name=invite.first_name,
+#                 last_name=invite.last_name,
+#                 email=invite.email,
+#                 status=invite_status,
+#                 date_created=created_at,
+#                 date_accepted=accepted_at,
+#                 user_type=UserTypeInDB(name=invite.user_type, id=invite.user_type_id),
+#             )
+#         )
+
+#     return create_response(
+#         data=result,
+#         message="User invites retrieved successfully",
+#         status_code=status.HTTP_200_OK,
+#     )
+
 @router.get("/get_invites", response_model=GenericResponse[List[InviteResponse]])
 def get_all_invites(db: Session = Depends(get_db)):
     current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -1354,21 +1413,13 @@ def get_all_invites(db: Session = Depends(get_db)):
 
     result = []
     for invite in invites:
-        # Adjust for offset-aware datetime comparison
-        created_at = (
-            str(invite.CreatedAt.replace(tzinfo=timezone.utc))
-            if invite.CreatedAt
-            else None
-        )
-        accepted_at = (
-            str(invite.accepted_at.replace(tzinfo=timezone.utc))
-            if invite.accepted_at
-            else None
-        )
+        # Ensure created_at and accepted_at are timezone-aware datetime objects
+        created_at = invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
+        accepted_at = invite.accepted_at.replace(tzinfo=timezone.utc) if invite.accepted_at else None
 
         if invite.is_accepted:
             invite_status = "ACCEPTED"
-        elif accepted_at is None and (current_time - created_at) < timedelta(hours=24):
+        elif accepted_at is None and created_at and (current_time - created_at) < timedelta(hours=24):
             invite_status = "PENDING"
         else:
             invite_status = "EXPIRED"
@@ -1380,8 +1431,8 @@ def get_all_invites(db: Session = Depends(get_db)):
                 last_name=invite.last_name,
                 email=invite.email,
                 status=invite_status,
-                date_created=created_at,
-                date_accepted=accepted_at,
+                date_created=created_at.isoformat() if created_at else None,
+                date_accepted=accepted_at.isoformat() if accepted_at else None,
                 user_type=UserTypeInDB(name=invite.user_type, id=invite.user_type_id),
             )
         )

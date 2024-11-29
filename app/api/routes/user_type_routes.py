@@ -24,9 +24,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
-    # prefix="/user_types",
-    tags=["User Types"],
-    # dependencies=[Depends(admin_permission_dependency)],
+    dependencies=[Depends(admin_permission_dependency)],
 )
 
 
