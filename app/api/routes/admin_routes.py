@@ -315,6 +315,7 @@ async def invite_users(
     db: Session = Depends(get_db),
 ):
     for user in users:
+        logger.debug(user.user_type_id)
         await process_user_invite(user, current_user, db, background_tasks)
 
     return create_response(

@@ -4,6 +4,8 @@ from datetime import datetime
 
 
 
+
+
 class PaymentCreate(BaseModel):
     user_id: str = Field(..., title="User ID", description="The ID of the user making the payment")
     document_id: str = Field(..., title="Document ID", description="The ID of the document being paid for")
