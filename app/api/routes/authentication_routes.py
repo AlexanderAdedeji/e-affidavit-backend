@@ -104,7 +104,7 @@ def verify_user(token: UserVerify, db: Session = Depends(get_db)):
     Verify user route. Expects token sent in the email link.
     If the token is invalid or expired, raises an exception.
     """
-    email = get_user_email_from_token(token.token)
+    email = jwt_service.get_user_email_from_token(token.token)
     user = user_repo.get_by_email(db, email=email)
     if not user:
         raise HTTPException(
