@@ -4,7 +4,7 @@ from fastapi import BackgroundTasks, HTTPException, status
 from loguru import logger
 from app.core.services.email import email_service
 from postmarker import core
-from app.core.services.jwt import jwt_service
+from app.core.services.jwt import  jwt_service
 from app.models.user_model import User
 from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_type_repo import user_type_repo
@@ -34,8 +34,9 @@ async def process_user_invite(
         db.add(invite_in)
         db.commit()
         db.refresh(invite_in)
+        logger.debug(invite_in.id)
+        token = jwt_service.generate_invitation_token(str(invite_in.id))
 
-        token = jwt_service.generate_invitation_token(invite_in.id)
 
         invite_in.token = token
         db.commit()

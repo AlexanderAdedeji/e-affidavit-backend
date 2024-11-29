@@ -41,6 +41,8 @@ from app.core.settings.security import security
 router = APIRouter()
 
 
+
+
 def check_unique_user(db: Session, user_in: UserCreate):
     user_with_same_email = user_repo.get_by_email(db, email=user_in.email)
     if user_with_same_email:
