@@ -43,9 +43,7 @@ from app.core.errors.exceptions import (
     UnauthorizedEndpointException,
 )
 from app.core.services.jwt import (
-    generate_invitation_token,
-    get_all_details_from_token,
-    get_user_id_from_token,
+    jwt_service,
 )
 from app.models.user_invite_models import UserInvite
 from app.models.user_model import User
@@ -483,7 +481,7 @@ async def get_latest_affidavits(
 async def accept_invite(token: str, db: Session = Depends(get_db)):
     try:
 
-        invite_info = get_user_id_from_token(token)
+        invite_info = jwt_service.get_user_id_from_token(token)
         invite_id = invite_info.get("id")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Token validation error: {str(e)}")

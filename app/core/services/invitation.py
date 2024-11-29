@@ -4,54 +4,14 @@ from fastapi import BackgroundTasks, HTTPException, status
 from loguru import logger
 from app.core.services.email import email_service
 from postmarker import core
-from app.core.services.jwt import generate_invitation_token
+from app.core.services.jwt import jwt_service
 from app.models.user_model import User
 from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_type_repo import user_type_repo
 from app.schemas.user_schema import CreateInvite, InviteOperationsForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-
 from app.core.settings.configurations import settings
-
-
-# async def process_user_invite(
-#     user: InviteOperationsForm,
-#     current_user: User,
-#     db: Session,
-#     background_tasks: BackgroundTasks,
-# ):
-#     invite_id = str(uuid.uuid4())
-#     token = generate_invitation_token(invite_id)
-
-#     invite_in = CreateInvite(
-#         id=invite_id,
-#         first_name=user.first_name,
-#         last_name=user.last_name,
-#         user_type_id=user.user_type_id,
-#         email=user.email,
-#         court_id=user.court_id or None,
-#         jurisdiction_id=user.jurisdiction_id or None,
-#         invited_by_id=current_user.id,
-#         token=token,
-#     )
-
-#     try:
-#         new_invite = user_invite_repo.create(db, obj_in=invite_in)
-      
-#         organisation = determine_organisation(new_invite)
-#         operations = determine_operations_base_url(new_invite.user_type.name)
-
-#         send_invitation_email(
-#             background_tasks, new_invite, organisation, operations, token,db, current_user
-#         )
-#     except Exception as e:
-#         logger.error(f"Failed to process invitation for {user.email}: {str(e)}")
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Data integrity Error: Please check the data you are passing.",
-#         )
-
 
 
 async def process_user_invite(
@@ -61,7 +21,6 @@ async def process_user_invite(
     background_tasks: BackgroundTasks,
 ):
     try:
-        # Create invite object without specifying the token initially
         invite_in = UserInvite(
             first_name=user.first_name,
             last_name=user.last_name,
@@ -71,16 +30,13 @@ async def process_user_invite(
             jurisdiction_id=user.jurisdiction_id or None,
             invited_by_id=current_user.id,
         )
-        
-        # Add the invite to the database
+
         db.add(invite_in)
         db.commit()
         db.refresh(invite_in)
-        
-        # Generate the token using the invite_id from the created object
-        token = generate_invitation_token(invite_in.id)
-        
-        # Update the invite with the token
+
+        token = jwt_service.generate_invitation_token(invite_in.id)
+
         invite_in.token = token
         db.commit()
         db.refresh(invite_in)
@@ -89,10 +45,18 @@ async def process_user_invite(
         operations = determine_operations_base_url(invite_in.user_type.name)
 
         send_invitation_email(
-            background_tasks, invite_in, organisation, operations, token, db, current_user
+            background_tasks,
+            invite_in,
+            organisation,
+            operations,
+            token,
+            db,
+            current_user,
         )
     except SQLAlchemyError as e:
-        logger.error(f"Database error while processing invitation for {user.email}: {str(e)}")
+        logger.error(
+            f"Database error while processing invitation for {user.email}: {str(e)}"
+        )
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -104,6 +68,7 @@ async def process_user_invite(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Data integrity error: Please check the data you are passing.",
         )
+
 
 def determine_organisation(user: InviteOperationsForm) -> str:
     if user.court_id:
@@ -127,16 +92,15 @@ def send_invitation_email(
     organisation: str,
     operations: str,
     token: str,
-   
-    db:Session,
-     current_user:User
+    db: Session,
+    current_user: User,
 ):
     template_dict = {
         "name": f"{invite.first_name} {invite.last_name}",
         "invite_sender_organization_name": organisation,
         "invite_url": f"{operations}{settings.ACCEPT_INVITE_URL}{token}",
-        "user_role": invite.user_type.name.capitalize(), 
-        "invite_sender_name": f"{current_user.first_name}"
+        "user_role": invite.user_type.name.capitalize(),
+        "invite_sender_name": f"{current_user.first_name}",
     }
     print(template_dict["invite_url"])
 

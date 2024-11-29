@@ -16,9 +16,8 @@ from pydantic import EmailStr
 
 class EmailService:
     def __init__(self):
-
         self.client = PostmarkClient(server_token=settings.POSTMARK_API_TOKEN)
-        logger.info("email")
+        logger.info("EmailService initialized with Postmark client.")
 
     def send_email_with_template(
         self,
@@ -28,7 +27,6 @@ class EmailService:
         recipient: Union[List[EmailStr], EmailStr],
         background_tasks: BackgroundTasks,
     ):
-        
         email = email_repo.create(
             db=db,
             obj_in=EmailCreate(
@@ -40,14 +38,14 @@ class EmailService:
         )
 
         background_tasks.add_task(
-            self._send_email_with_template,db=db, email=email, template_dict=template_dict
+            self._send_email_with_template,
+            db=db,
+            email=email,
+            template_dict=template_dict,
         )
 
-
-
-
     async def _send_email_with_template(
-        self, email: Email,db:Session, template_dict: Dict[str, Any]
+        self, db: Session, email: Email, template_dict: Dict[str, Any]
     ):
         try:
             response = self.client.emails.send_with_template(
@@ -57,14 +55,16 @@ class EmailService:
                 To=email.recipient,
             )
             if response["ErrorCode"] == 0:
-                email_repo.mark_as_delivered(db,db_obj=email)
+                email_repo.mark_as_delivered(db, db_obj=email)
+                logger.info(f"Email to {email.recipient} marked as delivered.")
             else:
+                logger.error(f"Failed to send email: {response['Message']}")
                 email_repo.update(
                     db_obj=email,
                     obj_in=EmailUpdate(delivered=False, extra_data=response["Message"]),
                 )
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Exception occurred while sending email: {str(e)}")
             email_repo.update(
                 db_obj=email,
                 obj_in=EmailUpdate(delivered=False, extra_data=str(e)),

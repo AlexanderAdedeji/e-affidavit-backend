@@ -17,7 +17,7 @@ from app.core.errors.exceptions import (
     UnauthorizedEndpointException,
 )
 from app.core.settings.handler import logger
-from app.core.services.jwt import get_user_email_from_token
+from app.core.services.jwt import jwt_service
 from app.repositories.user_repo import user_repo
 from app.schemas.email_schema import (
     ResetPasswordEmailTemplateVariables,
@@ -218,7 +218,7 @@ def reset_password(
     """
     token = reset_password_data.token
     password = reset_password_data.password
-    email = get_user_email_from_token(token)
+    email = jwt_service.get_user_email_from_token(token)
 
     if not email:
         raise HTTPException(
