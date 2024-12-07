@@ -20,6 +20,8 @@ from app.schemas.user_type_schema import UserTypeBase, UserTypeCreate, UserTypeI
 from commonLib.response.response_schema import GenericResponse, create_response
 import logging
 
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

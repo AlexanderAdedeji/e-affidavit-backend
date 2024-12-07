@@ -388,7 +388,7 @@ async def get_receipt(
                 document_name=document["name"],
                 template_name=template["name"],
                 qr_code=document["qr_code"],
-                date_created=str(document["updated_at"]),
+                payment_date=str(document["payment_date"]),
             ),
         )
 
@@ -669,11 +669,6 @@ async def pay_for_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_currently_authenticated_user),
 ):
-    # payment_data = {
-    #     "reference": document_in.payment_ref,
-    #     "document_id": document_id,
-    #     "user_id": current_user.id,
-    # }
 
     payment_data = PaymentCreate(
         reference=document_in.payment_ref,
@@ -688,6 +683,7 @@ async def pay_for_document(
                 {
                     "status": "PAID",
                     "updated_at": datetime.datetime.now(),
+                    "payment_date": datetime.datetime.now(),
                 }
             )
             update_result = await document_collection.update_one(
@@ -772,9 +768,7 @@ async def create_document(
 ) -> Any:
 
     document_name = generate_document_name()
-    document_qr_code_url = (
-        f"https://e-affidavit-public-fe.vercel.app/verify-document/{document_name}"
-    )
+    document_qr_code_url = f"{settings.VERIFY_DOCUMENT_URL}{document_name}"
     qr_code_base64 = generate_qr_code_base64(document_qr_code_url)
 
     try:

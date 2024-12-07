@@ -12,7 +12,7 @@ class ReceiptInResponse(BaseModel):
     court_name: str
     document_name: str
     template_name: str
-    date_created: str
+    payment_date: str
     qr_code: str
 
 
@@ -32,7 +32,7 @@ class TemplateContent(BaseModel):
 class SlimTemplateInResponse(BaseModel):
     id: str
     name: str
-    price: int
+    price: float
     description: str
     category_id: str
 
@@ -44,7 +44,7 @@ class TemplateInResponse(SlimTemplateInResponse):
 
 class TemplateBase(TemplateInResponse):
 
-    is_disabled: Optional[bool] = False 
+    is_disabled: Optional[bool] = False
     created_by_id: str
     created_at: datetime
     updated_at: Optional[datetime.datetime] = None
@@ -56,7 +56,7 @@ class TemplateBase(TemplateInResponse):
 class TemplateCreateForm(BaseModel):
     name: str
     content: TemplateContent
-    price: int
+    price: float
     description: str
     category_id: str
 
@@ -79,8 +79,9 @@ class DocumentBase(BaseModel):
     preview_text: str
     is_attested: bool
     attestation_date: Optional[datetime.datetime]
+    payment_date: Optional[datetime.datetime]
     status: str
-    amount_paid: int
+    amount_paid: float
     payment_ref: str
     created_at: str
     is_archived: bool
@@ -92,10 +93,11 @@ class UpdateDocument(BaseModel):
     commissioner_id: Optional[str] = None
     attestation_date: Optional[datetime.datetime] = None
     status: Optional[str] = None
-    amount_paid: Optional[int] = None
+    amount_paid: Optional[float] = None
     payment_ref: Optional[str] = None
     created_at: Optional[datetime.datetime] = None
     updated_at: Optional[datetime.datetime] = None
+    payment_date: Optional[datetime.datetime] = None
     template_id: str
     court_id: Optional[str] = None
     document_data: TemplateContent
@@ -117,7 +119,7 @@ class DocumentCreateForm(BaseModel):
 class SlimDocumentInResponse(BaseModel):
     id: str
     name: str
-    price: Optional[int] = None
+    price: Optional[float] = None
     attestation_date: Optional[str] = None
     created_at: datetime.datetime
     status: str
@@ -126,7 +128,7 @@ class SlimDocumentInResponse(BaseModel):
 class DocumentPayment(BaseModel):
 
     payment_ref: str
-    amount_paid: int
+    amount_paid: float
     # document_data: TemplateContent
 
 
@@ -148,38 +150,38 @@ class DocumentCreate(DocumentCreateForm):
         arbitrary_types_allowed = True
 
 
-def template_individual_serializer(data) -> dict:
-    try:
-        created_at = data.get("created_at", "")
-        updated_at = data.get(
-            "updated_at",
-        )
-        content_data = data.get("content", {})
-        template_content = {
-            "fields": [
-                Field(**field).dict() for field in content_data.get("fields", [])
-            ],
-            "template_data": content_data.get("template_data", []),
-        }
+# def template_individual_serializer(data) -> dict:
+#     try:
+#         created_at = data.get("created_at", "")
+#         updated_at = data.get(
+#             "updated_at",
+#         )
+#         content_data = data.get("content", {})
+#         template_content = {
+#             "fields": [
+#                 Field(**field).dict() for field in content_data.get("fields", [])
+#             ],
+#             "template_data": content_data.get("template_data", []),
+#         }
 
-        # Complete serialization
-        return {
-            "id": str(data["_id"]),
-            "name": data.get("name", ""),
-            "price": data.get("price", 0),
-            "category": data.get("category", ""),
-            "description": data.get("description", ""),
-            "content": template_content,  # Updated to match TemplateContent structure
-            "is_disabled": data.get("is_disabled", False),
-            "created_at": created_at,
-            "updated_at": updated_at,
-            "created_by_id": data.get("created_by_id", ""),
-        }
-    except KeyError as e:
-        logging.error(f"Missing key in template data: {e}")
-        raise HTTPException(
-            status_code=403, detail=f"Missing key in template data: {e}"
-        )
+#         # Complete serialization
+#         return {
+#             "id": str(data["_id"]),
+#             "name": data.get("name", ""),
+#             "price": data.get("price", 0),
+#             "category": data.get("category", ""),
+#             "description": data.get("description", ""),
+#             "content": template_content,  # Updated to match TemplateContent structure
+#             "is_disabled": data.get("is_disabled", False),
+#             "created_at": created_at,
+#             "updated_at": updated_at,
+#             "created_by_id": data.get("created_by_id", ""),
+#         }
+#     except KeyError as e:
+#         logging.error(f"Missing key in template data: {e}")
+#         raise HTTPException(
+#             status_code=403, detail=f"Missing key in template data: {e}"
+#         )
 
 
 def document_individual_serializer(data) -> dict:
@@ -208,16 +210,16 @@ def document_individual_serializer(data) -> dict:
         return {}
 
 
-
-
 class DocumentSearchResponse(BaseModel):
     name: str
     status: str
     date_created: str
     description: str
 
+
 class SearchResult(BaseModel):
     documents: List[DocumentSearchResponse]
+
 
 def serialize_mongo_document(document):
     if isinstance(document, list):
@@ -225,7 +227,7 @@ def serialize_mongo_document(document):
         return [serialize_mongo_document(doc) for doc in document]
 
     if not isinstance(document, dict):
-       
+
         return document
 
     serialized_document = {}
