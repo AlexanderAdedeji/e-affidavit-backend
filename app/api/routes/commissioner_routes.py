@@ -207,7 +207,7 @@ async def create_commissioner(
     "/me",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(commissioner_permission_dependency)],
-    response_model=GenericResponse[FullCommissionerInResponse],
+    # response_model=GenericResponse[FullCommissionerInResponse],
 )
 def get_current_commissioner(
     current_user=Depends(get_currently_authenticated_user),
@@ -218,14 +218,21 @@ def get_current_commissioner(
     You send the token in as a header of the form \n
     <b>Authorization</b> : 'Token <b> {JWT} </b>'
     """
-
-    if current_user.user_type.name is not settings.COMMISSIONER_USER_TYPE:
+    print(current_user.user_type.name.lower())
+    print(settings.COMMISSIONER_USER_TYPE.lower())
+    if (
+        current_user.user_type.name.lower()
+        != settings.COMMISSIONER_USER_TYPE.lower()
+    ):
         raise UnauthorizedEndpointException(detail=f"You do not have access")
+
+
 
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Profile retrieved successfully",
         data=FullCommissionerProfile(
+            id=current_user.id,
             first_name=current_user.first_name,
             last_name=current_user.last_name,
             email=current_user.email,
@@ -391,6 +398,7 @@ async def get_my_attestations(
     commissioner_profile = comm_profile_repo.get_profile_by_commissioner_id(
         db=db, commissioner_id=current_user.id
     )
+ 
     if not commissioner_profile:
         raise DoesNotExistException(entity_name=f"Commissioner not found")
     if not commissioner_profile.signature:
