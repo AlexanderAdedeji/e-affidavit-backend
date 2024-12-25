@@ -207,7 +207,7 @@ async def create_commissioner(
     "/me",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(commissioner_permission_dependency)],
-    # response_model=GenericResponse[FullCommissionerInResponse],
+    response_model=GenericResponse[FullCommissionerInResponse],
 )
 def get_current_commissioner(
     current_user=Depends(get_currently_authenticated_user),
