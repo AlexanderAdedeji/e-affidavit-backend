@@ -1,10 +1,11 @@
 from datetime import timedelta
-from typing import List
+import string
+from typing import List, Optional
 from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.models.user_model import User
 from app.schemas.authentication_schema import ChangePassword, UserUpdate
 from postmarker import core
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Body, BackgroundTasks, Depends, HTTPException, status
 from app.core.settings.configurations import settings
 from sqlalchemy.orm import Session
 from app.api.dependencies.db import get_db
@@ -19,6 +20,7 @@ from app.core.errors.exceptions import (
 from app.core.settings.handler import logger
 from app.core.services.jwt import jwt_service
 from app.repositories.user_repo import user_repo
+from app.repositories.commissioner_profile_repo import comm_profile_repo
 from app.schemas.email_schema import (
     ResetPasswordEmailTemplateVariables,
     UserCreationTemplateVariables,
@@ -39,8 +41,6 @@ from app.core.services.email import email_service
 from app.core.settings.security import security
 
 router = APIRouter()
-
-
 
 
 def check_unique_user(db: Session, user_in: UserCreate):
@@ -71,6 +71,10 @@ def get_frontend_url(user_type_name):
     return user_type_to_url_map.get(user_type_name)
 
 
+def verify_device_id(device_id: str):
+    return device_id != settings.DEVICE_ID
+
+
 @router.post("/login", response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
@@ -82,8 +86,17 @@ def login(
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
     if not user.is_active:
+        resend_token(background_task=background_tasks, db=db, email=user.email)
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
-
+    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+        if not user_login.device_id:
+            raise DisallowedLoginException(
+                detail=error_strings.DEVICE_ID_REQUIRED_ERROR
+            )
+        if user.commissioner_profile.device_id != user_login.device_id:
+            raise DisallowedLoginException(
+                detail="Login is restricted to the verified device."
+            )
     token = user.generate_jwt()
     return create_response(
         data=UserWithToken(
@@ -101,11 +114,16 @@ def login(
 @router.post(
     "/verify_email/", status_code=status.HTTP_200_OK, response_model=GenericResponse
 )
-def verify_user(token: UserVerify, db: Session = Depends(get_db)):
+def verify_user(
+    token: UserVerify,
+    device_id: Optional[str] = Body(None),
+    db: Session = Depends(get_db),
+):
     """
     Verify user route. Expects token sent in the email link.
     If the token is invalid or expired, raises an exception.
     """
+    logger.info(f"Received device_id: {device_id}")
     email = jwt_service.get_user_email_from_token(token.token)
     user = user_repo.get_by_email(db, email=email)
     if not user:
@@ -114,6 +132,16 @@ def verify_user(token: UserVerify, db: Session = Depends(get_db)):
         )
 
     user = user_repo.activate(db, db_obj=user)
+    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+        if not user.commissioner_profile.device_id:
+            if device_id:
+                comm_profile_repo.update_device_id(
+                    device_id=device_id, commissioner_id=user.id, db=db
+                )
+            else:
+                raise DisallowedLoginException(
+                    detail="Device ID is required for this user type."
+                )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -141,17 +169,18 @@ def resend_token(
         )
     front_end_url = get_frontend_url(user.user_type.name)
     verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
-    verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}={verify_jwt_token}"
+    verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}{verify_jwt_token}"
+    print(verification_link, verify_jwt_token)
     template_dict = UserVerificationTemplateVariables(
         name=f"{user.first_name} {user.last_name}", action_url=verification_link
     ).dict()
-    background_task.add_task(
-        email_service.send_email_with_template,
-        client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
-        template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
-        template_dict=template_dict,
-        recipient=user.email,
-    )
+    # background_task.add_task(
+    #     email_service.send_email_with_template,
+    #     client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
+    #     template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
+    #     template_dict=template_dict,
+    #     recipient=user.email,
+    # )
 
     return create_response(
         message="Verification link sent successfully",
@@ -161,7 +190,6 @@ def resend_token(
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
-           
             is_active=user.is_active,
             user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
         ),
@@ -184,15 +212,12 @@ def forgot_password(
 
     front_end_url = get_frontend_url(user.user_type.name)
 
-
     reset_jwt_token = user_repo.create_reset_password_token(db, email=user.email)
     template_dict = ResetPasswordEmailTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
         reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}{reset_jwt_token}",
-
     ).dict()
 
-   
     email_service.send_email_with_template(
         template_id=settings.RESET_PASSWORD_TEMPLATE_ID,
         db=db,
@@ -200,8 +225,6 @@ def forgot_password(
         template_dict=template_dict,
         recipient=user.email,
     )
-
-    
 
     return create_response(
         status_code=status.HTTP_200_OK,

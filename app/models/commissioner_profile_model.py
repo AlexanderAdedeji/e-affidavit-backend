@@ -16,11 +16,9 @@ class CommissionerProfile(Base):
     stamp = Column(String, nullable=True)
     commissioner_id = Column(String, ForeignKey("users.id"), unique=True)
     created_by_id = Column(String, ForeignKey("users.id"))
+    device_id = Column(String, nullable=True)
     user = relationship(
         "User", foreign_keys=[commissioner_id], back_populates="commissioner_profile"
     )
     created_by = relationship("User", foreign_keys=[created_by_id])
     court = relationship("Court", back_populates="commissioner_profiles")
-
-
-

@@ -37,6 +37,7 @@ class UserUpdate(UserBase):
 class UserInLogin(BaseModel):
     email: EmailStr
     password: str
+    device_id: Optional[str] = None,
 
 
 class UserWithToken(UserBase):
