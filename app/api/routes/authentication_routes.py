@@ -1,5 +1,6 @@
 from datetime import timedelta
-from typing import List
+import string
+from typing import List, Optional
 from app.api.dependencies.authentication import get_currently_authenticated_user
 from app.models.user_model import User
 from app.schemas.authentication_schema import ChangePassword, UserUpdate
@@ -41,8 +42,6 @@ from app.core.settings.security import security
 router = APIRouter()
 
 
-
-
 def check_unique_user(db: Session, user_in: UserCreate):
     user_with_same_email = user_repo.get_by_email(db, email=user_in.email)
     if user_with_same_email:
@@ -71,19 +70,32 @@ def get_frontend_url(user_type_name):
     return user_type_to_url_map.get(user_type_name)
 
 
+def verify_device_id(device_id: str):
+    return device_id != settings.DEVICE_ID
+
+
 @router.post("/login", response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
     background_tasks: BackgroundTasks,
+    # device_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     user = check_if_user_exist(db, user_in=user_login)
-
+   
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
     if not user.is_active:
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
-
+    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+        if not user_login.device_id:
+            raise DisallowedLoginException(
+                detail=error_strings.DEVICE_ID_REQUIRED_ERROR
+            )
+        if user.commissioner_profile.device_id != user_login.device_id:
+            raise DisallowedLoginException(
+                detail="Login is restricted to the verified device."
+            )
     token = user.generate_jwt()
     return create_response(
         data=UserWithToken(
@@ -141,7 +153,9 @@ def resend_token(
         )
     front_end_url = get_frontend_url(user.user_type.name)
     verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
-    verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}={verify_jwt_token}"
+    verification_link = (
+        f"{front_end_url}{settings.VERIFY_EMAIL_LINK}={verify_jwt_token}"
+    )
     template_dict = UserVerificationTemplateVariables(
         name=f"{user.first_name} {user.last_name}", action_url=verification_link
     ).dict()
@@ -161,7 +175,6 @@ def resend_token(
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
-           
             is_active=user.is_active,
             user_type=UserTypeInDB(name=user.user_type.name, id=user.user_type.id),
         ),
@@ -184,15 +197,12 @@ def forgot_password(
 
     front_end_url = get_frontend_url(user.user_type.name)
 
-
     reset_jwt_token = user_repo.create_reset_password_token(db, email=user.email)
     template_dict = ResetPasswordEmailTemplateVariables(
         name=f"{user.first_name} {user.last_name}",
         reset_link=f"{front_end_url }{settings.RESET_PASSWORD_URL}{reset_jwt_token}",
-
     ).dict()
 
-   
     email_service.send_email_with_template(
         template_id=settings.RESET_PASSWORD_TEMPLATE_ID,
         db=db,
@@ -200,8 +210,6 @@ def forgot_password(
         template_dict=template_dict,
         recipient=user.email,
     )
-
-    
 
     return create_response(
         status_code=status.HTTP_200_OK,
