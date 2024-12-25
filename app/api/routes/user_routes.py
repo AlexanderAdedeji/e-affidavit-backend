@@ -157,7 +157,6 @@ def create_user(
             name=f"{new_user.first_name} {new_user.last_name}",
             action_url=verification_link,
         ).dict()
-        print(verification_link)
         email_service.send_email_with_template(
             db=db,
             template_id=CREATE_ACCOUNT_TEMPLATE_ID,

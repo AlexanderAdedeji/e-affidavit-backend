@@ -78,7 +78,7 @@ def verify_device_id(device_id: str):
 @router.post("/login", response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
-    background_tasks: BackgroundTasks,
+    background_task: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     user = check_if_user_exist(db, user_in=user_login)
@@ -86,7 +86,7 @@ def login(
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
     if not user.is_active:
-        resend_token(background_task=background_tasks, db=db, email=user.email)
+        resend_token(background_task=background_task, db=db, email=user.email)
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
     if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
         if not user_login.device_id:
@@ -116,7 +116,7 @@ def login(
 )
 def verify_user(
     token: UserVerify,
-    device_id: Optional[str] = Body(None),
+    device_id: Optional[str] =  Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -163,6 +163,7 @@ def resend_token(
     If the email does not exist, raises exception
     """
     user = user_repo.get_by_email(db, email=email)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
@@ -170,17 +171,18 @@ def resend_token(
     front_end_url = get_frontend_url(user.user_type.name)
     verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
     verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}{verify_jwt_token}"
-    print(verification_link, verify_jwt_token)
     template_dict = UserVerificationTemplateVariables(
         name=f"{user.first_name} {user.last_name}", action_url=verification_link
     ).dict()
-    # background_task.add_task(
-    #     email_service.send_email_with_template,
-    #     client=core.PostmarkClient(server_token=settings.POSTMARK_API_TOKEN),
-    #     template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
-    #     template_dict=template_dict,
-    #     recipient=user.email,
-    # )
+
+    logger.info(verification_link)
+    email_service.send_email_with_template(
+        db=db,
+        template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
+        template_dict=template_dict,
+        recipient=user.email,
+        background_tasks=background_task,
+    )
 
     return create_response(
         message="Verification link sent successfully",
