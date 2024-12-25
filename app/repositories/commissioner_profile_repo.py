@@ -1,4 +1,5 @@
 from uuid import uuid4
+from app.core.errors.exceptions import DoesNotExistException
 from app.models.commissioner_profile_model import CommissionerProfile
 from sqlalchemy.orm import Session
 from app.schemas.user_schema import CommissionerAttestation, CommissionerProfileBase
@@ -23,6 +24,16 @@ class CommissionerRepositiories(Base[CommissionerProfile]):
             db.query(CommissionerProfile)
             .filter(CommissionerProfile.commissioner_id == commissioner_id)
             .first()
+        )
+
+    def update_device_id(self, db, *, device_id: str, commissioner_id: str):
+        commissioner_profile = self.get_profile_by_commissioner_id(
+            db, commissioner_id=commissioner_id
+        )
+        if not commissioner_profile:
+            raise DoesNotExistException(entity_name="Commissioner profile")
+        return self.update(
+            db, db_obj=commissioner_profile, obj_in={"device_id": device_id}
         )
 
     def updateAttestation(
