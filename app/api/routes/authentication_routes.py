@@ -88,11 +88,11 @@ def login(
     if not user.is_active:
         resend_token(background_task=background_task, db=db, email=user.email)
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
-    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
-        if not user_login.device_id:
-            raise DisallowedLoginException(
-                detail=error_strings.DEVICE_ID_REQUIRED_ERROR
-            )
+    # if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+    #     if not user_login.device_id:
+    #         raise DisallowedLoginException(
+    #             detail=error_strings.DEVICE_ID_REQUIRED_ERROR
+    #         )
         if user.commissioner_profile.device_id != user_login.device_id:
             raise DisallowedLoginException(
                 detail="Login is restricted to the verified device."
