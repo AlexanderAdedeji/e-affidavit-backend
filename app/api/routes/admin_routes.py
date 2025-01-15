@@ -314,14 +314,16 @@ async def invite_users(
     current_user: User = Depends(get_currently_authenticated_user),
     db: Session = Depends(get_db),
 ):
-    for user in users:
-        logger.debug(user.user_type_id)
-        await process_user_invite(user, current_user, db, background_tasks)
+    for user_data  in users:
+        logger.debug(f"invite {users.index(user_data)} of {len(users)} users")
+        await process_user_invite(user_data, current_user, db, background_tasks)
 
     return create_response(
         status_code=status.HTTP_200_OK,
         message="Users invited successfully.",
     )
+
+
 
 
 @router.get(

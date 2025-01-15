@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 import os
 
+
+
 class LoggerConfig:
     def __init__(self, log_dir: Optional[str] = None, log_file: str = "app.log"):
         self.project_root = Path(__file__).resolve().parent.parent.parent
