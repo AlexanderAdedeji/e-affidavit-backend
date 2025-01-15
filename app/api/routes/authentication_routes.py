@@ -75,6 +75,25 @@ def verify_device_id(device_id: str):
     return device_id != settings.DEVICE_ID
 
 
+def resend_email_token(background_task: BackgroundTasks, db: Session, email: str):
+    user = user_repo.get_by_email(db, email=email)
+    if not user:
+        raise DoesNotExistException(detail="User does not exist.")
+
+    verify_token = user_repo.create_verification_token(email=user.email, db=db)
+    verification_link = f"{settings.FRONTEND_BASE_URL}/verify?token={verify_token}"
+
+    background_task.add_task(
+        email_service.send_email_with_template,
+        template_id=settings.VERIFICATION_TEMPLATE_ID,
+        template_dict={
+            "name": f"{user.first_name} {user.last_name}",
+            "action_url": verification_link,
+        },
+        recipient=user.email,
+    )
+
+
 @router.post("/login", response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
@@ -85,18 +104,29 @@ def login(
 
     if user is None or not user.verify_password(user_login.password):
         raise IncorrectLoginException()
+
     if not user.is_active:
-        resend_token(background_task=background_task, db=db, email=user.email)
+        # resend_email_token(background_task=background_task, db=db, email=user.email)
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
-    # if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
-    #     if not user_login.device_id:
-    #         raise DisallowedLoginException(
-    #             detail=error_strings.DEVICE_ID_REQUIRED_ERROR
-    #         )
-    #     if user.commissioner_profile.device_id != user_login.device_id:
-    #         raise DisallowedLoginException(
-    #             detail="Login is restricted to the verified device."
-    #         )
+
+    # Handle commissioner-specific logic
+    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+        # If the commissioner already has a registered device
+        if user.commissioner_profile.device_id:
+            if user.commissioner_profile.device_id != user_login.device_id:
+                raise DisallowedLoginException(
+                    detail=(
+                        "Login is restricted to your registered device. "
+                        "Please contact support to update your registered device."
+                    )
+                )
+        if not user_login.device_id:
+            # If device ID is not provided, send verification email and raise error
+            resend_email_token(background_task=background_task, db=db, email=user.email)
+            raise DisallowedLoginException(
+                detail="Device ID required. Verification email sent to re-register your device."
+            )
+    # Generate token and return response
     token = user.generate_jwt()
     return create_response(
         data=UserWithToken(
@@ -116,7 +146,7 @@ def login(
 )
 def verify_user(
     token: UserVerify,
-    device_id: Optional[str] =  Body(None),
+    device_id: Optional[str] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -163,7 +193,7 @@ def resend_token(
     If the email does not exist, raises exception
     """
     user = user_repo.get_by_email(db, email=email)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
