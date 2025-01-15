@@ -110,22 +110,22 @@ def login(
         raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
 
     # Handle commissioner-specific logic
-    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
-        # If the commissioner already has a registered device
-        if user.commissioner_profile.device_id:
-            if user.commissioner_profile.device_id != user_login.device_id:
-                raise DisallowedLoginException(
-                    detail=(
-                        "Login is restricted to your registered device. "
-                        "Please contact support to update your registered device."
-                    )
-                )
-        if not user_login.device_id:
-            # If device ID is not provided, send verification email and raise error
-            resend_email_token(background_task=background_task, db=db, email=user.email)
-            raise DisallowedLoginException(
-                detail="Device ID required. Verification email sent to re-register your device."
-            )
+    # if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+    #     # If the commissioner already has a registered device
+    #     if user.commissioner_profile.device_id:
+    #         if user.commissioner_profile.device_id != user_login.device_id:
+    #             raise DisallowedLoginException(
+    #                 detail=(
+    #                     "Login is restricted to your registered device. "
+    #                     "Please contact support to update your registered device."
+    #                 )
+    #             )
+    #     if not user_login.device_id:
+    #         # If device ID is not provided, send verification email and raise error
+    #         resend_email_token(background_task=background_task, db=db, email=user.email)
+    #         raise DisallowedLoginException(
+    #             detail="Device ID required. Verification email sent to re-register your device."
+    #         )
     # Generate token and return response
     token = user.generate_jwt()
     return create_response(
