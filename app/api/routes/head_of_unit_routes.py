@@ -176,7 +176,7 @@ async def get_all_courts(
                             last_name=commissioner.user.last_name,
                             email=commissioner.user.email,
                         )
-                        for commissioner in court.commissioner_profile
+                        for commissioner in court.commissioner_profiles
                     ],
                     "documents": documents,  # Now directly using the list of documents
                 }
@@ -247,7 +247,7 @@ async def get__court(
                     email=commissioner.email,
                     is_active=commissioner.is_active,
                 )
-                for commissioner_profile in court.commissioner_profile
+                for commissioner_profile in court.commissioner_profiles
                 for commissioner in [commissioner_profile.user]
             ],
             documents=[
