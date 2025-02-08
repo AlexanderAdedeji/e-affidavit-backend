@@ -17,7 +17,7 @@ from app.core.errors.exceptions import (
     IncorrectLoginException,
     UnauthorizedEndpointException,
 )
-from app.core.settings.handler import logger
+from app.core.settings.logs.handler import logger
 from app.core.services.jwt import jwt_service
 from app.repositories.user_repo import user_repo
 from app.repositories.commissioner_profile_repo import comm_profile_repo

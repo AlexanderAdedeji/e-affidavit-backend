@@ -3,7 +3,7 @@ import sys
 from app.core.settings.configurations.base import CustomSettings
 from app.core.settings.configurations.production import ProductionSettings
 from app.core.settings.configurations.local import LocalSettings
-from app.core.settings.handler import InterceptHandler
+from app.core.settings.logs.log_interceptors import InterceptHandler
 from loguru import logger
 import os
 
