@@ -1,11 +1,11 @@
 import datetime
 from typing import List
 from app.schemas.shared_schema import SlimUserInResponse
-from pydantic import BaseModel,constr, validator
+from pydantic import BaseModel,constr, field_validator
 
 class Category(BaseModel):
     name: constr(min_length=1, max_length=255)
-    @validator("name")
+    @field_validator("name")
     def name_must_be_trimmed(cls, value: str) -> str:
         trimmed = value.strip()
         if not trimmed:

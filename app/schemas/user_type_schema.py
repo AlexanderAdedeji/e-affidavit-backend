@@ -1,9 +1,9 @@
-from pydantic import BaseModel, constr, validator
+from pydantic import BaseModel, constr, field_validator
 
 class UserTypeBase(BaseModel):
     name: constr(min_length=3, max_length=100)
 
-    @validator("name", pre=True, always=True)
+    @field_validator("name", mode="before")
     def trim_name(cls, value: str) -> str:
         if not isinstance(value, str):
             raise ValueError("Name must be a string")

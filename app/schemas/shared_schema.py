@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 from app.schemas.user_type_schema import UserTypeInDB
 
@@ -32,7 +32,7 @@ class DateRange(BaseModel):
         description="End date in ISO format (YYYY-MM-DD)"
     )
     
-    @validator('from_date', 'to_date', pre=True, always=True)
+    @field_validator('from_date', 'to_date', mode="before")
     def validate_date_format(cls, v):
         if v == "":
             return v

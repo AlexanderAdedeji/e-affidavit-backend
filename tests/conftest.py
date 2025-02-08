@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.database.sessions.session import Base  # your declarative base
+from commonLib.models.base_class import Base
 from app.main import app  # your FastAPI app instance
 from app.core.settings.configurations import settings
 

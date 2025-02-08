@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, constr, validator
+from pydantic import BaseModel, Field, constr, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -57,7 +57,7 @@ class PaymentInDB(BaseModel):
         None, title="Updated At", description="The timestamp when the payment was last updated"
     )
 
-    @validator("amount")
+    @field_validator("amount")
     def validate_amount(cls, v: float) -> float:
         if v < 0:
             raise ValueError("Amount must be non-negative")
@@ -93,7 +93,7 @@ class PaymentUpdate(BaseModel):
         None, title="Paystack Reference", description="The reference returned by Paystack"
     )
 
-    @validator("amount")
+    @field_validator("amount")
     def validate_update_amount(cls, v: Optional[float]) -> Optional[float]:
         if v is not None and v < 0:
             raise ValueError("Amount must be non-negative")

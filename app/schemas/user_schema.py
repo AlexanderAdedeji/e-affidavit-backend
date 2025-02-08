@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, constr, validator
+from pydantic import BaseModel, EmailStr, Field, constr, field_validator
 from app.schemas.affidavit_schema import SlimDocumentInResponse, SlimTemplateInResponse, TemplateInResponse
 from app.schemas.court_system_schema import CourtSystemInDB
 from app.schemas.user_type_schema import UserTypeInDB
@@ -10,7 +10,7 @@ class UserBase(BaseModel):
     first_name: constr(min_length=3, max_length=50)
     last_name: constr(min_length=3, max_length=50)
 
-    @validator('first_name', 'last_name', pre=True, always=True)
+    @field_validator('first_name', 'last_name', mode="before")
     def trim_names(cls, v: str) -> str:
         if not isinstance(v, str):
             raise ValueError("Name must be a string")
@@ -26,7 +26,7 @@ class UserBase(BaseModel):
 class UserCreateForm(UserBase):
     email: EmailStr
     password: constr(min_length=8)
-    @validator("password")
+    @field_validator("password")
     def validate_password(cls, v: str) -> str:
         if not any(c.islower() for c in v):
             raise ValueError("Password must contain at least one lowercase letter")
@@ -45,7 +45,7 @@ class UserUpdate(UserBase):
     address: Optional[str] = None
     phone: Optional[str] = None
     password: Optional[constr(min_length=8)] = None
-    @validator("password")
+    @field_validator("password")
     def validate_password_optional(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
