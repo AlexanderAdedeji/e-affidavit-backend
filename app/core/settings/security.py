@@ -1,4 +1,5 @@
 from passlib.context import CryptContext
+
 from app.core.settings.configurations import settings
 
 # Dynamic scheme configuration from settings

@@ -1,19 +1,20 @@
 import uuid
-from app.models.user_invite_models import UserInvite
-from fastapi import BackgroundTasks, HTTPException, status, Depends
+
+from fastapi import BackgroundTasks, Depends, HTTPException, status
 from loguru import logger
-from app.core.services.email import email_service
 from postmarker import core
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.api.dependencies.db import get_db
+from app.core.services.email import email_service
 from app.core.services.jwt import jwt_service
+from app.core.settings.configurations import settings
+from app.models.user_invite_models import UserInvite
 from app.models.user_model import User
 from app.repositories.user_invite_repo import user_invite_repo
-from app.api.dependencies.db import get_db
 from app.repositories.user_type_repo import user_type_repo
 from app.schemas.user_schema import CreateInvite, InviteOperationsForm
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-from app.core.settings.configurations import settings
-
 
 # async def process_user_invite(
 #     user: InviteOperationsForm,
@@ -162,7 +163,9 @@ async def process_user_invite(
 
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Database error while processing invitation for {user.email}: {e}")
+        logger.error(
+            f"Database error while processing invitation for {user.email}: {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="A database error occurred. Please try again later.",
@@ -175,7 +178,6 @@ async def process_user_invite(
         )
 
 
-
 def determine_organisation(invite: UserInvite) -> str:
     if invite.court_id and invite.court:
         return invite.court.name
@@ -184,12 +186,10 @@ def determine_organisation(invite: UserInvite) -> str:
     return "E-AFFIDAVIT"
 
 
-
 def determine_operations_base_url(user_type: str) -> str:
     if user_type == settings.ADMIN_USER_TYPE:
         return settings.ADMIN_FRONTEND_BASE_URL
     return settings.COURT_SYSTEM_FRONTEND_BASE_URL
-
 
 
 def send_invitation_email(

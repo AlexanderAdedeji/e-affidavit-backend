@@ -1,6 +1,6 @@
-from typing import Type, TypeVar, Generic, Optional, Dict, Any
-from pydantic.generics import GenericModel
+from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
+from pydantic.generics import GenericModel
 
 T = TypeVar("T")
 
@@ -16,6 +16,8 @@ def create_response(
     message: str = "",
     status_code: int = 200,
     data: Optional[T] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> GenericResponse[T]:
-    return GenericResponse[T](message=message, status_code=status_code, data=data, metadata=metadata)
+    return GenericResponse[T](
+        message=message, status_code=status_code, data=data, metadata=metadata
+    )

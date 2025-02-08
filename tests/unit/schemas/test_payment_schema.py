@@ -1,15 +1,11 @@
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
-from app.schemas.payment_schema import (
-    PaymentCreate,
-    PaymentInDB,
-    PaymentUpdate,
-    PaymentStatus,
-)
 
-
+from app.schemas.payment_schema import (PaymentCreate, PaymentInDB,
+                                        PaymentStatus, PaymentUpdate)
 
 
 def test_payment_create_valid():

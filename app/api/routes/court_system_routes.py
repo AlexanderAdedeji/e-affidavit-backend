@@ -1,55 +1,36 @@
 from typing import List
 from uuid import uuid4
+
 from fastapi import APIRouter, Depends, status
-
-# from loguru import logger
-from commonLib.utils.logger_config import logger
 from sqlalchemy.orm import Session
-from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DoesNotExistException,
-    ServerException,
-    UnauthorizedEndpointException,
-)
-from app.database.sessions.session import SessionLocal
-from app.models.user_model import User
-from app.repositories.court_system_repo import (
-    state_repo,
-    court_repo,
-    jurisdiction_repo,
-)
-from app.database.sessions.mongo_client import document_collection
+
 from app.api.dependencies.authentication import (
-    admin_permission_dependency,
-    admin_and_head_of_unit_permission_dependency,
-    get_currently_authenticated_user,
-)
+    admin_and_head_of_unit_permission_dependency, admin_permission_dependency,
+    get_currently_authenticated_user)
+from app.api.dependencies.db import get_db
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DoesNotExistException, ServerException,
+                                        UnauthorizedEndpointException)
+from app.core.settings.configurations import settings
+from app.database.sessions.mongo_client import document_collection
+from app.database.sessions.session import SessionLocal
 from app.models.court_system_models import Court, Jurisdiction, State
+from app.models.user_model import User
+from app.repositories.court_system_repo import (court_repo, jurisdiction_repo,
+                                                state_repo)
 from app.repositories.head_of_unit_repo import head_of_unit_repo
-from app.schemas.affidavit_schema import (
-    SlimDocumentInResponse,
-    serialize_mongo_document,
-)
-from app.schemas.court_system_schema import (
-    CourtInResponse,
-    CourtSystemBase,
-    CourtSystemInDB,
-    CreateCourt,
-    CreateJurisdiction,
-    FullCourtInDB,
-    JurisdictionBase,
-    CourtBase,
-)
+from app.schemas.affidavit_schema import (SlimDocumentInResponse,
+                                          serialize_mongo_document)
+from app.schemas.court_system_schema import (CourtBase, CourtInResponse,
+                                             CourtSystemBase, CourtSystemInDB,
+                                             CreateCourt, CreateJurisdiction,
+                                             FullCourtInDB, JurisdictionBase)
 from app.schemas.shared_schema import SlimUserInResponse
-from app.schemas.user_schema import (
-    UserInResponse,
-)
-
-
+from app.schemas.user_schema import UserInResponse
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
-from app.core.settings.configurations import settings
+# from loguru import logger
+from commonLib.utils.logger_config import logger
 
 # from commonLib.response.response_schema import create_response
 

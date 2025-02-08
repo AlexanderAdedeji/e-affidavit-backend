@@ -1,11 +1,13 @@
 # import jwt
 from datetime import datetime, timedelta
 from uuid import uuid4
+
 from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
-from commonLib.models.base_class import Base
+
 from app.core.settings.configurations import settings
-from uuid import uuid4
+from commonLib.models.base_class import Base
+
 
 class UserType(Base):
     __tablename__ = "user_types"

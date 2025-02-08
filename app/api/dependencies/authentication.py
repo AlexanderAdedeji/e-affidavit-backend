@@ -1,31 +1,26 @@
-from starlette import requests, status
-from loguru import logger
-from app.core.settings.configurations import settings
-from app.schemas.user_type_schema import UserTypeBase
+from typing import List, Optional
 
-
-from app.core.services.jwt import jwt_service
-from typing import Optional, List
-from fastapi import Depends, Security, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader as DefaultAPIKeyHeader
+from loguru import logger
+from sqlalchemy.orm import Session
+from starlette import requests, status
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.models.user_type_model import UserType
+
 from app.api.dependencies.db import get_db
-from app.core.errors.error_strings import (
-    AUTHENTICATION_REQUIRED,
-    INACTIVE_USER_ERROR,
-    MALFORMED_PAYLOAD,
-    WRONG_TOKEN_PREFIX,
-    UNAUTHORIZED_ACTION,
-)
-from app.repositories.user_repo import user_repo
-from app.core.errors.exceptions import (
-    DisallowedLoginException,
-    InvalidTokenException,
-)
-from app.models.user_model import User
+from app.core.errors.error_strings import (AUTHENTICATION_REQUIRED,
+                                           INACTIVE_USER_ERROR,
+                                           MALFORMED_PAYLOAD,
+                                           UNAUTHORIZED_ACTION,
+                                           WRONG_TOKEN_PREFIX)
+from app.core.errors.exceptions import (DisallowedLoginException,
+                                        InvalidTokenException)
+from app.core.services.jwt import jwt_service
 from app.core.settings.configurations import settings
+from app.models.user_model import User
+from app.models.user_type_model import UserType
+from app.repositories.user_repo import user_repo
+from app.schemas.user_type_schema import UserTypeBase
 
 JWT_TOKEN_PREFIX = settings.JWT_TOKEN_PREFIX
 HEADER_KEY = settings.HEADER_KEY

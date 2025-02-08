@@ -1,10 +1,12 @@
-# app/core/settings/handler.py
-import sys
 import os
+import sys
 from pathlib import Path
 from typing import Optional
+
 from loguru import logger
+
 from app.core.settings.logs.mongo_log_sink import mongo_sink
+
 
 class LoggerConfig:
     def __init__(self, log_dir: Optional[str] = None, log_file: str = "app.log"):
@@ -20,15 +22,15 @@ class LoggerConfig:
     def _configure_logger(self):
         try:
             logger.remove()  # Remove default handlers
-            
+
             # Console Logging
             logger.add(
                 sys.stdout,
                 format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-                       "<level>{level: <8}</level> | "
-                       "[Request ID: {extra[request_id]}] "
-                       "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-                       "<level>{message}</level>",
+                "<level>{level: <8}</level> | "
+                "[Request ID: {extra[request_id]}] "
+                "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+                "<level>{message}</level>",
                 level=os.getenv("LOG_LEVEL", "INFO"),
                 colorize=True,
                 enqueue=True,
@@ -79,4 +81,4 @@ class LoggerConfig:
 
 
 LoggerConfig()
-logger = logger  
+logger = logger

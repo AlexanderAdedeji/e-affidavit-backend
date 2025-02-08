@@ -20,6 +20,9 @@ namegenerator = "^1.0.6"
 pyqrcode = "^1.2.1"
 qrcode = "^7.4.2"
 pytest = "^8.3.4"
+black = "^25.1.0"
+flake8 = "^7.1.1"
+isort = "^6.0.0"
 
 
 [build-system]

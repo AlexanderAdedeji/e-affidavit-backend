@@ -1,11 +1,13 @@
 import logging
-import sys
-from app.core.settings.configurations.base import CustomSettings
-from app.core.settings.configurations.production import ProductionSettings
-from app.core.settings.configurations.local import LocalSettings
-from app.core.settings.logs.log_interceptors import InterceptHandler
-from loguru import logger
 import os
+import sys
+
+from loguru import logger
+
+from app.core.settings.configurations.base import CustomSettings
+from app.core.settings.configurations.local import LocalSettings
+from app.core.settings.configurations.production import ProductionSettings
+from app.core.settings.logs.log_interceptors import InterceptHandler
 
 ENV = os.getenv("ENV", "local").lower()
 

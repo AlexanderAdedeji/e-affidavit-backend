@@ -1,8 +1,9 @@
 from typing import Any, Dict, List, Optional, Union
 
+from sqlalchemy.orm import Session
+
 from app.models.email_model import Email
 from commonLib.repositories.relational_repository import Base
-from sqlalchemy.orm import Session
 
 
 class EmailRepository(Base[Email]):

@@ -1,19 +1,25 @@
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, EmailStr, field_validator
+
 
 class JWTUser(BaseModel):
     id: str
 
+
 class JWTEMAIL(BaseModel):
     email: EmailStr
+
 
 class JWTInvite(JWTUser):
     pass
 
+
 class JWTMeta(BaseModel):
     exp: datetime
     sub: str
+
     @field_validator("exp")
     def check_expiration(cls, v: datetime) -> datetime:
 
@@ -22,5 +28,5 @@ class JWTMeta(BaseModel):
         return v
 
     class Config:
-       
+
         from_attributes = True

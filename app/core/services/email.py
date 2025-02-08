@@ -1,18 +1,17 @@
 import json
 from typing import Any, Dict, List, Union
 
-from fastapi import Depends, BackgroundTasks
+from fastapi import BackgroundTasks, Depends
+from loguru import logger
+from postmarker.core import PostmarkClient
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.db import get_db
 from app.core.settings.configurations import settings
 from app.models.email_model import Email
-from app.schemas.email_schema import EmailCreate, EmailUpdate
 from app.repositories.email_repo import email_repo
-from loguru import logger
-from postmarker.core import PostmarkClient
-from pydantic import EmailStr
-
+from app.schemas.email_schema import EmailCreate, EmailUpdate
 
 # class EmailService:
 #     def __init__(self):
@@ -43,6 +42,7 @@ from pydantic import EmailStr
 #             email=email,
 #             template_dict=template_dict,
 #         )
+
 
 #     async def _send_email_with_template(
 #         self, db: Session, email: Email, template_dict: Dict[str, Any]

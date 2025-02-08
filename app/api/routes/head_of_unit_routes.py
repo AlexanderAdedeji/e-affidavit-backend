@@ -1,59 +1,48 @@
 import datetime
-from typing import List
 import uuid
-from app.schemas.email_schema import UserCreationTemplateVariables
-from app.schemas.report_schema import (
-    CommissionerReport,
-    CommissionersReport,
-    DocumentReports,
-)
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from commonLib.utils.logger_config import logger
-from sqlalchemy.orm import Session
-from app.api.dependencies.authentication import (
-    get_currently_authenticated_user,
-    head_of_unit_permission_dependency,
-    admin_permission_dependency,
-)
-from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DoesNotExistException,
-    UnauthorizedEndpointException,
-)
-from app.models.user_model import User
-from app.repositories.user_invite_repo import user_invite_repo
-from app.database.sessions.mongo_client import document_collection
-from app.repositories.user_repo import user_repo
-from app.repositories.head_of_unit_repo import head_of_unit_repo
-from app.repositories.user_type_repo import user_type_repo
-from app.core.settings.configurations import settings
-from app.schemas.affidavit_schema import (
-    SlimDocumentInResponse,
-    serialize_mongo_document,
-)
-from app.schemas.court_system_schema import CourtBase, CourtInResponse, CourtSystemInDB
-from app.schemas.shared_schema import DateRange, SlimUserInResponse
-from app.schemas.stats_schema import AdminDashboardStat, HeadOfUnitDashboardStat
-from app.schemas.user_schema import (
-    CommissionerCreate,
-    CommissionerInResponse,
-    CommissionerProfileBase,
-    FullCommissionerInResponse,
-    FullHeadOfUniteInResponse,
-    HeadOfUnitBase,
-    HeadOfUnitCreate,
-    HeadOfUnitInResponse,
-    OperationsCreateForm,
-    UserCreate,
-    UserInResponse,
-)
-from app.repositories.commissioner_profile_repo import comm_profile_repo
-from app.schemas.user_type_schema import UserTypeInDB
-from app.repositories.court_system_repo import court_repo
-from commonLib.response.response_schema import create_response, GenericResponse
-from app.core.services.email import email_service
+from typing import List
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies.authentication import (
+    admin_permission_dependency, get_currently_authenticated_user,
+    head_of_unit_permission_dependency)
+from app.api.dependencies.db import get_db
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DoesNotExistException,
+                                        UnauthorizedEndpointException)
+from app.core.services.email import email_service
+from app.core.settings.configurations import settings
+from app.database.sessions.mongo_client import document_collection
+from app.models.user_model import User
+from app.repositories.commissioner_profile_repo import comm_profile_repo
+from app.repositories.court_system_repo import court_repo
+from app.repositories.head_of_unit_repo import head_of_unit_repo
+from app.repositories.user_invite_repo import user_invite_repo
+from app.repositories.user_repo import user_repo
+from app.repositories.user_type_repo import user_type_repo
+from app.schemas.affidavit_schema import (SlimDocumentInResponse,
+                                          serialize_mongo_document)
+from app.schemas.court_system_schema import (CourtBase, CourtInResponse,
+                                             CourtSystemInDB)
+from app.schemas.email_schema import UserCreationTemplateVariables
+from app.schemas.report_schema import (CommissionerReport, CommissionersReport,
+                                       DocumentReports)
+from app.schemas.shared_schema import DateRange, SlimUserInResponse
+from app.schemas.stats_schema import (AdminDashboardStat,
+                                      HeadOfUnitDashboardStat)
+from app.schemas.user_schema import (CommissionerCreate,
+                                     CommissionerInResponse,
+                                     CommissionerProfileBase,
+                                     FullCommissionerInResponse,
+                                     FullHeadOfUniteInResponse, HeadOfUnitBase,
+                                     HeadOfUnitCreate, HeadOfUnitInResponse,
+                                     OperationsCreateForm, UserCreate,
+                                     UserInResponse)
+from app.schemas.user_type_schema import UserTypeInDB
+from commonLib.response.response_schema import GenericResponse, create_response
+from commonLib.utils.logger_config import logger
 
 router = APIRouter()
 
@@ -590,6 +579,7 @@ async def get_all_commissioners_report(
         data=results,
     )
 
+
 @router.post(
     "/get_all_commissioners_report_by_court/{court_id}",
     # response_model=GenericResponse[CommissionersReport],
@@ -666,6 +656,7 @@ async def get_all_commissioners_report(
         message="Commissioners retireved successfully",
         data=results,
     )
+
 
 @router.post(
     "/get_commissioner_report/{commissioner_id}",

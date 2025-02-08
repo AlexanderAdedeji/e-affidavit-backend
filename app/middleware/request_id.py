@@ -1,8 +1,10 @@
 # app/middleware/request_id.py
 import uuid
+
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from loguru import logger
+
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

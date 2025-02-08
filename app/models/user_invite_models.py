@@ -1,8 +1,11 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from commonLib.models.base_class import Base
-from uuid import uuid4
 from datetime import datetime
+from uuid import uuid4
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from commonLib.models.base_class import Base
+
 
 class UserInvite(Base):
     __tablename__ = "user_invites"
@@ -23,7 +26,16 @@ class UserInvite(Base):
     jurisdiction = relationship("Jurisdiction", back_populates="user_invites")
     user_type = relationship("UserType", back_populates="invite_user_type")
 
-    def __init__(self, email: str, first_name: str, last_name: str, user_type_id: str, invited_by_id: str, court_id: str = None, jurisdiction_id: str = None):
+    def __init__(
+        self,
+        email: str,
+        first_name: str,
+        last_name: str,
+        user_type_id: str,
+        invited_by_id: str,
+        court_id: str = None,
+        jurisdiction_id: str = None,
+    ):
         self.email = email
         self.first_name = first_name
         self.last_name = last_name
@@ -31,5 +43,3 @@ class UserInvite(Base):
         self.court_id = court_id
         self.jurisdiction_id = jurisdiction_id
         self.invited_by_id = invited_by_id
-
-

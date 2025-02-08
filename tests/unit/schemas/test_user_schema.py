@@ -1,39 +1,27 @@
 # tests/unit/test_user_schema.py
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 from pydantic import ValidationError
-from app.schemas.user_schema import (
-    UserBase,
-    UserCreateForm,
-    UserCreate,
-    UserUpdate,
-    UserInLogin,
-    UserWithToken,
-    UserInResponse,
-    AllUsers,
-    UserVerify,
-    ResetPasswordSchema,
-    OperationsCreateForm,
-    CommissionerCreate,
-    HeadOfUnitCreate,
-    InviteTokenData,
-    InviteOperationsForm,
-    CreateInvite,
-    AcceptedInviteResponse,
-    CommissionerProfileBase,
-    CommissionerProfileCreate,
-    HeadOfUnitBase,
-    CommissionerAttestation,
-    FullCommissionerInResponse,
-    FullCommissionerProfile,
-    FullHeadOfUniteInResponse,
-    AdminInResponse,
-    HeadOfUnitInResponse,
-    CommissionerInResponse,
-    PublicInResponse,
-    InviteResponse,
-)
+
+from app.schemas.user_schema import (AcceptedInviteResponse, AdminInResponse,
+                                     AllUsers, CommissionerAttestation,
+                                     CommissionerCreate,
+                                     CommissionerInResponse,
+                                     CommissionerProfileBase,
+                                     CommissionerProfileCreate, CreateInvite,
+                                     FullCommissionerInResponse,
+                                     FullCommissionerProfile,
+                                     FullHeadOfUniteInResponse, HeadOfUnitBase,
+                                     HeadOfUnitCreate, HeadOfUnitInResponse,
+                                     InviteOperationsForm, InviteResponse,
+                                     InviteTokenData, OperationsCreateForm,
+                                     PublicInResponse, ResetPasswordSchema,
+                                     UserBase, UserCreate, UserCreateForm,
+                                     UserInLogin, UserInResponse, UserUpdate,
+                                     UserVerify, UserWithToken)
 from app.schemas.user_type_schema import UserTypeInDB
+
 
 # --- Tests for UserBase ---
 def test_user_base_trim_names():

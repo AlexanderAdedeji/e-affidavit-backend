@@ -1,9 +1,9 @@
-from typing import Optional
-from loguru import logger
+import os
 import sys
 from pathlib import Path
-import os
+from typing import Optional
 
+from loguru import logger
 
 
 class LoggerConfig:
@@ -37,6 +37,7 @@ class LoggerConfig:
             )
         except Exception as e:
             logger.error(f"Failed to configure logger: {e}")
+
 
 # Initialize the logger
 LoggerConfig()

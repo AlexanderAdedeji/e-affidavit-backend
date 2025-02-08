@@ -1,8 +1,10 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import relationship
-from commonLib.models.base_class import Base
 from uuid import uuid4
+
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import relationship
+
+from commonLib.models.base_class import Base
 
 
 class State(Base):

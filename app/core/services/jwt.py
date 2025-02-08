@@ -1,11 +1,13 @@
+from datetime import datetime, timedelta
+
 import jwt
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
 from loguru import logger
 from pydantic import ValidationError
+
+from app.core.errors import error_strings
 from app.core.errors.exceptions import InvalidTokenException
 from app.core.settings.configurations import settings
-from app.core.errors import error_strings
 from app.schemas.jwt_schema import JWTInvite, JWTUser
 
 # from app.schemas.jwt_schema import JWTOrganisation
@@ -92,10 +94,6 @@ class JWTService:
 
 
 jwt_service = JWTService()
-
-
-
-
 
 
 # import jwt

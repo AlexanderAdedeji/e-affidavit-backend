@@ -2,15 +2,16 @@
 import asyncio
 import os
 import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from commonLib.models.base_class import Base
-from app.main import app  # your FastAPI app instance
-from app.core.settings.configurations import settings
 
+from app.core.settings.configurations import settings
+from app.main import app  # your FastAPI app instance
+from commonLib.models.base_class import Base
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 

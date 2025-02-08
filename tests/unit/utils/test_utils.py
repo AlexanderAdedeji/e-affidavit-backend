@@ -2,16 +2,13 @@
 
 import base64
 import re
-import pytest
 from datetime import datetime
 
+import pytest
 
-from commonLib.utils.utils import (
-    generate_document_name,
-    generate_qr_code_base64,
-    is_valid_objectid,
-    extract_preview_text_from_document,
-)
+from commonLib.utils.utils import (extract_preview_text_from_document,
+                                   generate_document_name,
+                                   generate_qr_code_base64, is_valid_objectid)
 
 # -------------------------------
 # Test for generate_document_name

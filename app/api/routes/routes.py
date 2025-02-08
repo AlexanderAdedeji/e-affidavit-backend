@@ -1,7 +1,13 @@
-from fastapi import APIRouter
-import logging
+"""
+Main router aggregation for the API.
 
-# Importing all necessary routes
+This module includes all sub-routers (authentication, user management, admin, etc.) into a single FastAPI router.
+"""
+
+
+
+from fastapi import APIRouter
+from app.core.settings.logs.handler import logger
 from app.api.routes import (
     authentication_routes,
     user_routes,
@@ -9,95 +15,31 @@ from app.api.routes import (
     court_system_routes,
     commissioner_routes,
     admin_routes,
-    # affidavit_routes,
     head_of_unit_routes,
     reports_routes,
 )
 
-# Set up logger for detailed route inclusion
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Creating a main router instance
+# Create the main API router instance.
 router = APIRouter()
 
-# Including authentication-related routes
-logger.info("Including authentication-related routes")
-router.include_router(
-    authentication_routes.router, 
-    tags=["Authentication"], 
-    prefix="/auth",
-    responses={404: {"description": "Not found"}}
-)
+# Define a list of tuples with (router_instance, prefix, tag)
+subrouters = [
+    (authentication_routes.router, "/auth", "Authentication"),
+    (user_type_routes.router, "/user_types", "User Types"),
+    (court_system_routes.router, "/court_system", "Court System"),
+    (user_routes.router, "/users", "Users"),
+    (commissioner_routes.router, "/commissioners", "Commissioners"),
+    (admin_routes.router, "/admin", "Admin"),
+    (head_of_unit_routes.router, "/head_of_unit", "Head of Unit"),
+    (reports_routes.router, "/reports", "Reports"),
+]
 
-# Routes for managing user types or roles
-logger.info("Including user type management routes")
-router.include_router(
-    user_type_routes.router, 
-    tags=["User Types"], 
-    prefix="/user_types",
-    responses={404: {"description": "Not found"}}
-)
-
-# Routes for court system-related operations
-logger.info("Including court system routes")
-router.include_router(
-    court_system_routes.router, 
-    tags=["Court System"], 
-    prefix="/court_system",
-    responses={404: {"description": "Not found"}}
-)
-
-# Routes for managing user entities
-logger.info("Including user management routes")
-router.include_router(
-    user_routes.router, 
-    tags=["Users"], 
-    prefix="/users",
-    responses={404: {"description": "Not found"}}
-)
-
-# Routes specific to commissioner operations
-logger.info("Including commissioner-specific routes")
-router.include_router(
-    commissioner_routes.router, 
-    tags=["Commissioners"], 
-    prefix="/commissioners",
-    responses={404: {"description": "Not found"}}
-)
-
-# Administrative routes for managing the application
-logger.info("Including administrative routes")
-router.include_router(
-    admin_routes.router, 
-    tags=["Admin"], 
-    prefix="/admin",
-    responses={404: {"description": "Not found"}}
-)
-
-# Routes for operations related to affidavits
-# logger.info("Including affidavit routes")
-# router.include_router(
-#     affidavit_routes.router, 
-#     tags=["Affidavits"], 
-#     prefix="/affidavits",
-#     responses={404: {"description": "Not found"}}
-# )
-
-# Routes for operations related to the head of unit
-logger.info("Including head of unit routes")
-router.include_router(
-    head_of_unit_routes.router, 
-    tags=["Head of Unit"], 
-    prefix="/head_of_unit",
-    responses={404: {"description": "Not found"}}
-)
-
-# Routes for operations related to the reports
-logger.info("Including report routes")
-router.include_router(
-    reports_routes.router, 
-    tags=["Reports"], 
-    prefix="/reports",
-    responses={404: {"description": "Not found"}}
-)
+# Loop through the list and include each subrouter.
+for subrouter, prefix, tag in subrouters:
+    logger.info(f"Including {tag} routes with prefix '{prefix}'")
+    router.include_router(
+        subrouter,
+        prefix=prefix,
+        tags=[tag],
+        responses={404: {"description": "Not found"}},
+    )

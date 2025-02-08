@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
 import os
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class CustomSettings(BaseSettings):
@@ -88,7 +89,9 @@ class CustomSettings(BaseSettings):
 
     # Payment Configuration
     PAYSTACK_SECRET_KEY: str = Field(..., description="Paystack secret key")
-    VERIFY_DOCUMENT_URL: str = Field(..., description="Url to verify and affidavit document")
+    VERIFY_DOCUMENT_URL: str = Field(
+        ..., description="Url to verify and affidavit document"
+    )
     PAYSTACK_VERIFY_PAYMENT_URL: str = Field(
         ..., description="Paystack verify payment URL"
     )

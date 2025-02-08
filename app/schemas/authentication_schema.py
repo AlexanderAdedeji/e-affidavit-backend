@@ -1,28 +1,35 @@
-from typing import Optional 
 import re
-from pydantic import BaseModel,EmailStr, constr, field_validator
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, constr, field_validator
 
 
 class ChangePassword(BaseModel):
-    old_password: constr(min_length=8,max_length=128)
-    new_password: constr(min_length=8,max_length=128)
+    old_password: constr(min_length=8, max_length=128)
+    new_password: constr(min_length=8, max_length=128)
 
     @field_validator("new_password")
     def new_password_strength(cls, value: str) -> str:
         if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
-            raise ValueError("New password must contain at least one letter and one digit.")
+            raise ValueError(
+                "New password must contain at least one letter and one digit."
+            )
         return value
+
+
 class UserUpdate(BaseModel):
     first_name: Optional[constr(min_length=1, max_length=50)]
     last_name: Optional[constr(min_length=1, max_length=50)]
     address: Optional[str] = None
-    phone: Optional[constr(pattern=r'^\+?[1-9]\d{1,14}$')] = None
+    phone: Optional[constr(pattern=r"^\+?[1-9]\d{1,14}$")] = None
     password: Optional[constr(min_length=8, max_length=128)] = None
 
     @field_validator("first_name", "last_name")
     def names_must_be_alphabetic(cls, value: str) -> str:
         if not re.fullmatch(r"[A-Za-z\s\-]+", value):
-            raise ValueError("Name must contain only alphabetic characters, spaces, or hyphens.")
+            raise ValueError(
+                "Name must contain only alphabetic characters, spaces, or hyphens."
+            )
         return value
 
     @field_validator("password")
@@ -34,8 +41,3 @@ class UserUpdate(BaseModel):
         if not re.search(r"\d", value):
             raise ValueError("Password must contain at least one digit.")
         return value
-
-
-
-
-

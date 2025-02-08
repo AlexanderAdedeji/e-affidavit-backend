@@ -1,11 +1,12 @@
 # import jwt
 from datetime import datetime, timedelta
 from uuid import uuid4
-from sqlalchemy import Integer, Column, Boolean, String, ForeignKey
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-from commonLib.models.base_class import Base
 
 from app.core.settings.configurations import settings
+from commonLib.models.base_class import Base
 
 
 class CommissionerProfile(Base):

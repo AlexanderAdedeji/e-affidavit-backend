@@ -1,11 +1,11 @@
 
 import re
+
 import pytest
 from pydantic import ValidationError
 
 from app.schemas.authentication_schema import ChangePassword, UserUpdate
 from app.schemas.user_schema import InviteOperationsForm
-
 
 
 def test_change_password_valid():

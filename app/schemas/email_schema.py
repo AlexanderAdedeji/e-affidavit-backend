@@ -1,6 +1,9 @@
 from typing import Any, Dict, Optional
-from pydantic import BaseModel, EmailStr, constr, HttpUrl
+
+from pydantic import BaseModel, EmailStr, HttpUrl, constr
+
 from app.core.settings.configurations import settings
+
 
 class Email(BaseModel):
     template_id: str
@@ -11,15 +14,19 @@ class Email(BaseModel):
     class Config:
         orm_mode = True
 
+
 class EmailCreate(Email):
     pass
+
 
 class EmailUpdate(BaseModel):
     delivered: bool
     extra_data: Optional[str] = None
 
+
 class EmailTemplateVariables(BaseModel):
     name: constr(min_length=1, max_length=255)
+
 
 class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
     reset_link: HttpUrl
@@ -29,17 +36,22 @@ class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
     class Config:
         orm_mode = True
 
+
 class UserActivationTemplateVariables(EmailTemplateVariables):
     pass
+
 
 class UserDeactivationTemplateVariables(EmailTemplateVariables):
     pass
 
+
 class UserCreationTemplateVariables(EmailTemplateVariables):
     action_url: HttpUrl
 
+
 class UserVerificationTemplateVariables(UserCreationTemplateVariables):
     pass
+
 
 class OperationsInviteTemplateVariables(BaseModel):
     invite_url: HttpUrl

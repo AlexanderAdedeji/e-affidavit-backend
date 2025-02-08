@@ -1,70 +1,54 @@
 import datetime
-from typing import Any, Dict, List
 import uuid
-from app.api.routes.payment_routes import verify_payment
-from app.core.services.utils.utils import (
-    extract_preview_text_from_document,
-    generate_document_name,
-    generate_qr_code_base64,
-    is_valid_objectid,
-)
-from app.models.court_system_models import Court, Jurisdiction
-from app.schemas.category_schema import CategoryInResponse, FullCategoryInResponse
-from app.schemas.court_system_schema import CourtSystemInDB
-from app.schemas.payment_schema import PaymentCreate
-from app.schemas.shared_schema import SlimUserInResponse
+from typing import Any, Dict, List
+
 from bson import ObjectId
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy.exc import IntegrityError
 from loguru import logger
+from postmarker import core
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.api.dependencies.authentication import (
-    get_currently_authenticated_user,
-    authenticated_user_dependencies,
-)
-from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DoesNotExistException,
-    UnauthorizedEndpointException,
-)
 
-from app.repositories.category_repo import category_repo
+from app.api.dependencies.authentication import (
+    authenticated_user_dependencies, get_currently_authenticated_user)
+from app.api.dependencies.db import get_db
+from app.api.routes.payment_routes import verify_payment
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DoesNotExistException,
+                                        UnauthorizedEndpointException)
 from app.core.services.email import email_service
+from app.core.services.utils.utils import (extract_preview_text_from_document,
+                                           generate_document_name,
+                                           generate_qr_code_base64,
+                                           is_valid_objectid)
+from app.core.settings.configurations import settings
+from app.database.sessions.mongo_client import (document_collection,
+                                                template_collection)
+from app.models.court_system_models import Court, Jurisdiction
 from app.models.user_model import User
+from app.repositories.category_repo import category_repo
+from app.repositories.court_system_repo import court_repo, state_repo
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
-from app.schemas.affidavit_schema import (
-    DocumentCreate,
-    DocumentCreateForm,
-    DocumentPayment,
-    DocumentSearchResponse,
-    LastestAffidavits,
-    ReceiptInResponse,
-    SearchResult,
-    SlimDocumentInResponse,
-    TemplateBase,
-    TemplateContent,
-    TemplateInResponse,
-    UpdateDocument,
-    serialize_mongo_document,
-    template_list_serialiser,
-)
-from app.repositories.court_system_repo import state_repo
+from app.schemas.affidavit_schema import (DocumentCreate, DocumentCreateForm,
+                                          DocumentPayment,
+                                          DocumentSearchResponse,
+                                          LastestAffidavits, ReceiptInResponse,
+                                          SearchResult, SlimDocumentInResponse,
+                                          TemplateBase, TemplateContent,
+                                          TemplateInResponse, UpdateDocument,
+                                          serialize_mongo_document,
+                                          template_list_serialiser)
+from app.schemas.category_schema import (CategoryInResponse,
+                                         FullCategoryInResponse)
+from app.schemas.court_system_schema import CourtSystemInDB
 from app.schemas.email_schema import UserCreationTemplateVariables
+from app.schemas.payment_schema import PaymentCreate
+from app.schemas.shared_schema import SlimUserInResponse
 from app.schemas.stats_schema import PublicDashboardStat
-from app.schemas.user_schema import (
-    UserCreate,
-    UserCreateForm,
-    UserInResponse,
-)
-from postmarker import core
-from app.database.sessions.mongo_client import template_collection, document_collection
-from app.repositories.court_system_repo import court_repo
-from app.core.settings.configurations import settings
+from app.schemas.user_schema import UserCreate, UserCreateForm, UserInResponse
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
-
 
 router = APIRouter()
 

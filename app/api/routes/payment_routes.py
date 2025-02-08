@@ -1,16 +1,16 @@
-from app.api.dependencies.db import get_db
-from app.models.payment_model import Payment
-from sqlalchemy.orm import Session
-from app.core.settings.configurations import settings
-import requests
-import hmac
 import hashlib
-from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
-
-from app.core.settings.configurations import settings
-from app.schemas.payment_schema import PaymentCreate
+import hmac
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
+import requests
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from app.api.dependencies.db import get_db
+from app.core.settings.configurations import settings
+from app.models.payment_model import Payment
+from app.schemas.payment_schema import PaymentCreate
 
 router = APIRouter(prefix="/api/payments", tags=["Payments"])
 logger = logging.getLogger(__name__)
@@ -18,18 +18,18 @@ logger.setLevel(logging.INFO)
 
 PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
 
+
 @router.post("/verify-payment", response_model=Dict[str, Any])
 async def verify_payment(data: PaymentCreate, db: Session = Depends(get_db)):
     """
     Endpoint to verify payment using Paystack.
     """
     logger.info(f"Verifying payment for reference: {data.reference}")
-    
 
     if not data.reference:
         logger.error("Payment reference is required.")
         raise HTTPException(status_code=400, detail="Payment reference is required.")
-    
+
     # Set headers and make a request to Paystack to verify payment
     headers = {
         "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
@@ -37,16 +37,19 @@ async def verify_payment(data: PaymentCreate, db: Session = Depends(get_db)):
     }
 
     try:
-        response = requests.get(f"{settings.PAYSTACK_VERIFY_PAYMENT_URL}{data.reference}", headers=headers)
-        response.raise_for_status()  
+        response = requests.get(
+            f"{settings.PAYSTACK_VERIFY_PAYMENT_URL}{data.reference}", headers=headers
+        )
+        response.raise_for_status()
         result = response.json()
 
         if result["data"]["status"] == "success":
-         
+
             payment = Payment(
                 user_id=data.user_id,
                 document_id=data.document_id,
-                amount=result["data"]["amount"] / 100,  # Convert to the original currency unit
+                amount=result["data"]["amount"]
+                / 100,  # Convert to the original currency unit
                 status="success",
                 payment_method=result["data"]["channel"],
                 paystack_reference=data.reference,
@@ -55,14 +58,22 @@ async def verify_payment(data: PaymentCreate, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(payment)
 
-            logger.info(f"Payment verified successfully for reference: {data.reference}")
+            logger.info(
+                f"Payment verified successfully for reference: {data.reference}"
+            )
             return {"status": "success", "message": "Payment verified successfully"}
         else:
-            logger.warning(f"Payment verification failed for reference: {data.reference}")
+            logger.warning(
+                f"Payment verification failed for reference: {data.reference}"
+            )
             raise HTTPException(status_code=400, detail="Payment verification failed")
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error while verifying payment with reference {data.reference}: {e}")
-        raise HTTPException(status_code=500, detail="Error verifying payment with Paystack")
+        logger.error(
+            f"Error while verifying payment with reference {data.reference}: {e}"
+        )
+        raise HTTPException(
+            status_code=500, detail="Error verifying payment with Paystack"
+        )
 
 
 @router.post("/webhook")
@@ -101,8 +112,6 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
             )
             db.add(payment)
 
-
-            
             db.commit()
             db.refresh(payment)
 

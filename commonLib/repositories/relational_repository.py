@@ -1,10 +1,12 @@
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from fastapi.encoders import jsonable_encoder
-from commonLib.models.base_class import Base as BaseDeclarativeClass
+from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from commonLib.models.base_class import Base as BaseDeclarativeClass
 
 ModelType = TypeVar("ModelType", bound=BaseDeclarativeClass)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -34,9 +36,10 @@ class Base(Generic[ModelType]):
 
     def get_all(self, db: Session) -> List[ModelType]:
         return db.query(self.model).all()
-    
-    def get_count(self, db:Session)->int :  
+
+    def get_count(self, db: Session) -> int:
         return db.query(self.model).count()
+
     def create(self, db: Session, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)
 
@@ -89,11 +92,18 @@ class Base(Generic[ModelType]):
         db.commit()
         return obj
 
-    def get_paginated(self, db: Session, *, skip: int = 0, limit: int = 10) -> List[ModelType]:
+    def get_paginated(
+        self, db: Session, *, skip: int = 0, limit: int = 10
+    ) -> List[ModelType]:
         return db.query(self.model).offset(skip).limit(limit).all()
 
     def get_paginated_with_filter(
-        self, db: Session, *, filter_conditions: Dict[str, Any], skip: int = 0, limit: int = 10
+        self,
+        db: Session,
+        *,
+        filter_conditions: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 10
     ) -> List[ModelType]:
         query = db.query(self.model)
         for field, value in filter_conditions.items():

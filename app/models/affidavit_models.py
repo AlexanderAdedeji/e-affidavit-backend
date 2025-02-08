@@ -1,13 +1,12 @@
-from typing import Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict
 from uuid import uuid4
-from sqlalchemy import Column, String,ForeignKey
+
+from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
-from commonLib.models.base_class import Base
 
 from app.core.settings.configurations import settings
-
-
+from commonLib.models.base_class import Base
 from commonLib.models.mongo_base_class import MongoBase
 
 

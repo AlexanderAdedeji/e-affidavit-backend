@@ -1,5 +1,6 @@
 from pydantic import BaseModel, constr, field_validator
 
+
 class UserTypeBase(BaseModel):
     name: constr(min_length=3, max_length=100)
 
@@ -14,26 +15,20 @@ class UserTypeBase(BaseModel):
 
     class Config:
         orm_mode = True
-        schema_extra = {
-            "example": {
-                "name": "Admin"
-            }
-        }
+        schema_extra = {"example": {"name": "Admin"}}
+
 
 class UserTypeCreate(UserTypeBase):
     pass
 
+
 class UserTypeUpdate(UserTypeBase):
     pass
+
 
 class UserTypeInDB(UserTypeBase):
     id: str
 
     class Config:
         orm_mode = True
-        schema_extra = {
-            "example": {
-                "id": "user_type_id_123",
-                "name": "Admin"
-            }
-        }
+        schema_extra = {"example": {"id": "user_type_id_123", "name": "Admin"}}

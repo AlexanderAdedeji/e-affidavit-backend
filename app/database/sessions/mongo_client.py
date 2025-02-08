@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+
 from app.core.settings.configurations import settings
 from commonLib.utils.logger_config import logger
-
 
 url = settings.MONGO_DB_URL
 name = settings.MONGO_DB_NAME
@@ -19,5 +19,3 @@ except:
 # Collections Access
 template_collection = db_client["templates"]
 document_collection = db_client["documents"]
-
-

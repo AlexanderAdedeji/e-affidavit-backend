@@ -1,9 +1,10 @@
 import datetime
 import logging
 from typing import List, Optional
+
+from bson import ObjectId
 from fastapi import HTTPException
 from pydantic import BaseModel
-from bson import ObjectId
 
 from app.core.errors.exceptions import ServerException
 

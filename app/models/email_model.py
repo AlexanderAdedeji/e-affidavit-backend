@@ -5,7 +5,7 @@
 
 
 # class Email(Base):
-#     __tablename__ = "email" 
+#     __tablename__ = "email"
 #     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
 #     delivered = Column(Boolean, default=False, nullable=False)
 #     recipient = Column(String, nullable=False)
@@ -14,13 +14,16 @@
 #     sender = Column(String, nullable=False)
 #     extra_data = Column(String, default="")
 
-from sqlalchemy.sql.sqltypes import JSON
-from commonLib.models.base_class import Base
-from sqlalchemy import Column, String, Boolean
 from uuid import uuid4
 
+from sqlalchemy import Boolean, Column, String
+from sqlalchemy.sql.sqltypes import JSON
+
+from commonLib.models.base_class import Base
+
+
 class Email(Base):
-    __tablename__ = "emails" 
+    __tablename__ = "emails"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid4()))
     delivered = Column(Boolean, default=False, nullable=False)
     recipient = Column(String, nullable=False)
@@ -29,7 +32,14 @@ class Email(Base):
     sender = Column(String, nullable=False)
     extra_data = Column(String, default="")
 
-    def __init__(self, recipient: str, template_id: str, template_dict: dict, sender: str, extra_data: str = ""):
+    def __init__(
+        self,
+        recipient: str,
+        template_id: str,
+        template_dict: dict,
+        sender: str,
+        extra_data: str = "",
+    ):
         self.recipient = recipient
         self.template_id = template_id
         self.template_dict = template_dict

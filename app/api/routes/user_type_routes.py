@@ -1,26 +1,22 @@
-from typing import List
-from app.models.user_type_model import UserType
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DoesNotExistException,
-    ServerException,
-)
-from app.models.user_model import User
-from app.repositories.user_type_repo import user_type_repo
-from app.api.dependencies.authentication import (
-    admin_permission_dependency,
-    get_currently_authenticated_user,
-)
-from app.schemas.user_schema import UserInResponse
-from app.schemas.user_type_schema import UserTypeBase, UserTypeCreate, UserTypeInDB
-from commonLib.response.response_schema import GenericResponse, create_response
 import logging
+from typing import List
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from app.api.dependencies.authentication import (
+    admin_permission_dependency, get_currently_authenticated_user)
+from app.api.dependencies.db import get_db
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DoesNotExistException, ServerException)
+from app.models.user_model import User
+from app.models.user_type_model import UserType
+from app.repositories.user_type_repo import user_type_repo
+from app.schemas.user_schema import UserInResponse
+from app.schemas.user_type_schema import (UserTypeBase, UserTypeCreate,
+                                          UserTypeInDB)
+from commonLib.response.response_schema import GenericResponse, create_response
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

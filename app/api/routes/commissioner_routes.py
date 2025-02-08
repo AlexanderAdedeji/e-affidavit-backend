@@ -1,57 +1,48 @@
 import datetime
-from typing import List
 import uuid
-from app.schemas.email_schema import UserCreationTemplateVariables
-from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks
+from typing import List
+
 from bson import ObjectId
-from commonLib.utils.logger_config import logger
+from fastapi import (APIRouter, BackgroundTasks, Body, Depends, HTTPException,
+                     status)
 from sqlalchemy.orm import Session
+
 from app.api.dependencies.authentication import (
-    get_currently_authenticated_user,
-    commissioner_permission_dependency,
-)
+    admin_and_head_of_unit_permission_dependency,
+    commissioner_permission_dependency, get_currently_authenticated_user)
 from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DoesNotExistException,
-    UnauthorizedEndpointException,
-)
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DoesNotExistException,
+                                        UnauthorizedEndpointException)
+from app.core.services.email import email_service
+from app.core.settings.configurations import settings
+from app.database.sessions.mongo_client import document_collection
 from app.models.user_model import User
+from app.repositories.commissioner_profile_repo import comm_profile_repo
 from app.repositories.head_of_unit_repo import head_of_unit_repo
 from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
-from app.core.settings.configurations import settings
-from app.schemas.affidavit_schema import (
-    AttestDocument,
-    DocumentBase,
-    SlimDocumentInResponse,
-    SlimTemplateInResponse,
-    UpdateDocument,
-    document_individual_serializer,
-    serialize_mongo_document,
-)
+from app.schemas.affidavit_schema import (AttestDocument, DocumentBase,
+                                          SlimDocumentInResponse,
+                                          SlimTemplateInResponse,
+                                          UpdateDocument,
+                                          document_individual_serializer,
+                                          serialize_mongo_document)
 from app.schemas.court_system_schema import CourtSystemBase, CourtSystemInDB
-from app.schemas.user_schema import (
-    CommissionerAttestation,
-    CommissionerCreate,
-    CommissionerInResponse,
-    CommissionerProfileBase,
-    CommissionerProfileCreate,
-    FullCommissionerInResponse,
-    FullCommissionerProfile,
-    OperationsCreateForm,
-    UserCreate,
-    UserInResponse,
-)
-from app.api.dependencies.authentication import (
-    admin_and_head_of_unit_permission_dependency,
-)
-from app.database.sessions.mongo_client import document_collection
-from app.repositories.commissioner_profile_repo import comm_profile_repo
+from app.schemas.email_schema import UserCreationTemplateVariables
+from app.schemas.user_schema import (CommissionerAttestation,
+                                     CommissionerCreate,
+                                     CommissionerInResponse,
+                                     CommissionerProfileBase,
+                                     CommissionerProfileCreate,
+                                     FullCommissionerInResponse,
+                                     FullCommissionerProfile,
+                                     OperationsCreateForm, UserCreate,
+                                     UserInResponse)
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
-from app.core.services.email import email_service
+from commonLib.utils.logger_config import logger
 
 router = APIRouter()
 
@@ -220,13 +211,8 @@ def get_current_commissioner(
     """
     print(current_user.user_type.name.lower())
     print(settings.COMMISSIONER_USER_TYPE.lower())
-    if (
-        current_user.user_type.name.lower()
-        != settings.COMMISSIONER_USER_TYPE.lower()
-    ):
+    if current_user.user_type.name.lower() != settings.COMMISSIONER_USER_TYPE.lower():
         raise UnauthorizedEndpointException(detail=f"You do not have access")
-
-
 
     return create_response(
         status_code=status.HTTP_200_OK,
@@ -398,7 +384,7 @@ async def get_my_attestations(
     commissioner_profile = comm_profile_repo.get_profile_by_commissioner_id(
         db=db, commissioner_id=current_user.id
     )
- 
+
     if not commissioner_profile:
         raise DoesNotExistException(entity_name=f"Commissioner not found")
     if not commissioner_profile.signature:

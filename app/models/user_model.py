@@ -1,14 +1,15 @@
-import jwt
 from datetime import datetime, timedelta
 from uuid import uuid4
+
+import jwt
 from loguru import logger
-from sqlalchemy import Integer, Column, Boolean, String, ForeignKey
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-from commonLib.models.base_class import Base
-from app.schemas.jwt_schema import JWTEMAIL, JWTUser
+
 from app.core.settings.configurations import settings
 from app.core.settings.security import security
-
+from app.schemas.jwt_schema import JWTEMAIL, JWTUser
+from commonLib.models.base_class import Base
 
 JWT_EXPIRE_MINUTES = settings.JWT_EXPIRE_MINUTES
 JWT_ALGORITHM = settings.JWT_ALGORITHM
@@ -114,5 +115,3 @@ class User(Base):
     #     )
 
     #     return reset_token
-
-

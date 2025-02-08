@@ -1,9 +1,12 @@
-from typing import Generator
-from sqlalchemy.orm import Session
-from app.database.sessions.session import SessionLocal
 import logging
+from typing import Generator
+
+from sqlalchemy.orm import Session
+
+from app.database.sessions.session import SessionLocal
 
 logger = logging.getLogger(__name__)
+
 
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()

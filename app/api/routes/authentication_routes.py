@@ -1,44 +1,38 @@
-from datetime import timedelta
 import string
+from datetime import timedelta
 from typing import List, Optional
-from app.api.dependencies.authentication import get_currently_authenticated_user
-from app.models.user_model import User
-from app.schemas.authentication_schema import ChangePassword, UserUpdate
+
+from fastapi import (APIRouter, BackgroundTasks, Body, Depends, HTTPException,
+                     status)
 from postmarker import core
-from fastapi import APIRouter, Body, BackgroundTasks, Depends, HTTPException, status
-from app.core.settings.configurations import settings
 from sqlalchemy.orm import Session
+
+from app.api.dependencies.authentication import \
+    get_currently_authenticated_user
 from app.api.dependencies.db import get_db
 from app.core.errors import error_strings
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DisallowedLoginException,
-    DoesNotExistException,
-    IncorrectLoginException,
-    UnauthorizedEndpointException,
-)
-from app.core.settings.logs.handler import logger
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DisallowedLoginException,
+                                        DoesNotExistException,
+                                        IncorrectLoginException,
+                                        UnauthorizedEndpointException)
+from app.core.services.email import email_service
 from app.core.services.jwt import jwt_service
-from app.repositories.user_repo import user_repo
+from app.core.settings.configurations import settings
+from app.core.settings.logs.handler import logger
+from app.core.settings.security import security
+from app.models.user_model import User
 from app.repositories.commissioner_profile_repo import comm_profile_repo
-from app.schemas.email_schema import (
-    ResetPasswordEmailTemplateVariables,
-    UserCreationTemplateVariables,
-    UserVerificationTemplateVariables,
-)
-
-from app.schemas.user_schema import (
-    ResetPasswordSchema,
-    UserCreate,
-    UserInLogin,
-    UserInResponse,
-    UserVerify,
-    UserWithToken,
-)
+from app.repositories.user_repo import user_repo
+from app.schemas.authentication_schema import ChangePassword, UserUpdate
+from app.schemas.email_schema import (ResetPasswordEmailTemplateVariables,
+                                      UserCreationTemplateVariables,
+                                      UserVerificationTemplateVariables)
+from app.schemas.user_schema import (ResetPasswordSchema, UserCreate,
+                                     UserInLogin, UserInResponse, UserVerify,
+                                     UserWithToken)
 from app.schemas.user_type_schema import UserTypeInDB
 from commonLib.response.response_schema import GenericResponse, create_response
-from app.core.services.email import email_service
-from app.core.settings.security import security
 
 router = APIRouter()
 
@@ -79,8 +73,8 @@ def resend_email_token(background_task: BackgroundTasks, db: Session, email: str
     user = user_repo.get_by_email(db, email=email)
     if not user:
         raise DoesNotExistException(detail="User does not exist.")
-    
-    front_end_url =get_frontend_url(user.user_type.name)
+
+    front_end_url = get_frontend_url(user.user_type.name)
 
     verify_token = user_repo.create_verification_token(email=user.email, db=db)
     verification_link = f"{front_end_url}/verify?token={verify_token}"
@@ -95,13 +89,16 @@ def resend_email_token(background_task: BackgroundTasks, db: Session, email: str
         recipient=user.email,
     )
 
+
 def validate_commissioner_device(user, user_login, db, background_task):
     """
     Validates the commissioner's device during login.
     """
     if user.commissioner_profile.device_id:
         if not user_login.device_id:
-            raise IncorrectLoginException("Device ID is required for commissioner login.")
+            raise IncorrectLoginException(
+                "Device ID is required for commissioner login."
+            )
         if user.commissioner_profile.device_id != user_login.device_id:
             raise DisallowedLoginException(
                 "Login is restricted to your registered device. "
@@ -120,6 +117,7 @@ def handle_verification_email(email, db, background_task):
     Sends a verification email.
     """
     resend_email_token(background_task=background_task, db=db, email=email)
+
 
 @router.post("/login")
 def login(

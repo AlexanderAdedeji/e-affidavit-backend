@@ -1,13 +1,15 @@
 from datetime import datetime
-from typing import Generic, Type, TypeVar, List, Optional, Dict, Any, Union
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+
 from bson.objectid import ObjectId
 from pydantic.main import BaseModel
-from pymongo.database import Database
 from pymongo.collection import Collection
+from pymongo.database import Database
 
 from commonLib.models.mongo_base_class import MongoBase
 
 ModelType = TypeVar("ModelType", bound=MongoBase)
+
 
 class BaseMongo(Generic[ModelType]):
     def __init__(self, db: Database, model: Type[ModelType]):
@@ -18,7 +20,9 @@ class BaseMongo(Generic[ModelType]):
         document = self.collection.find_one({"_id": ObjectId(object_id)})
         return self.model(**document) if document else None
 
-    def get_multiple(self, conditions: Dict[str, Any] = {}, skip:int =0,limit: int = 100 ) -> List[ModelType]:
+    def get_multiple(
+        self, conditions: Dict[str, Any] = {}, skip: int = 0, limit: int = 100
+    ) -> List[ModelType]:
         documents = self.collection.find(conditions).skip(skip).limit(limit)
         return [self.model(**doc) for doc in documents]
 
@@ -28,7 +32,9 @@ class BaseMongo(Generic[ModelType]):
         result = self.collection.insert_one(obj_in_dict)
         return self.get(str(result.inserted_id))
 
-    def update(self, object_id: str, obj_in: Union[BaseModel, Dict[str, Any]]) -> Optional[ModelType]:
+    def update(
+        self, object_id: str, obj_in: Union[BaseModel, Dict[str, Any]]
+    ) -> Optional[ModelType]:
         if isinstance(obj_in, dict):
             update_data = {"$set": obj_in}
         else:

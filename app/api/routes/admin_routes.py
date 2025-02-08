@@ -1,98 +1,65 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
 from unittest.util import safe_repr
-import uuid
-from app.api.routes.court_system_routes import populate_data
-from app.models.court_system_models import Court
-from app.models.user_type_model import UserType
-from app.repositories.category_repo import category_repo
-from app.schemas.category_schema import (
-    Category,
-    CategoryCreate,
-    CategoryInResponse,
-    FullCategoryInResponse,
-)
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
 
-# from loguru import logger
-from app.core.settings.logs.handler import logger
 from bson import ObjectId
-from app.core.services.invitation import process_user_invite
-from app.schemas.affidavit_schema import (
-    LastestAffidavits,
-    SlimDocumentInResponse,
-    SlimTemplateInResponse,
-    TemplateBase,
-    TemplateContent,
-    TemplateCreate,
-    TemplateCreateForm,
-    TemplateInResponse,
-    serialize_mongo_document,
-    # template_individual_serializer,
-    template_list_serialiser,
-)
-from app.schemas.shared_schema import SlimUserInResponse
-from app.schemas.stats_schema import AdminDashboardStat
+from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
+                     status)
 from postmarker import core
 from sqlalchemy.orm import Session
+
+from app.api.dependencies.authentication import (
+    admin_permission_dependency, get_currently_authenticated_user,
+    get_token_details)
 from app.api.dependencies.db import get_db
-from app.core.errors.exceptions import (
-    AlreadyExistsException,
-    DoesNotExistException,
-    ServerException,
-    UnauthorizedEndpointException,
-)
-from app.core.services.jwt import (
-    jwt_service,
-)
+from app.api.routes.court_system_routes import populate_data
+from app.core.errors.exceptions import (AlreadyExistsException,
+                                        DoesNotExistException, ServerException,
+                                        UnauthorizedEndpointException)
+from app.core.services.email import email_service
+from app.core.services.invitation import process_user_invite
+from app.core.services.jwt import jwt_service
+from app.core.settings.configurations import settings
+# from loguru import logger
+from app.core.settings.logs.handler import logger
+from app.database.sessions.mongo_client import (document_collection,
+                                                template_collection)
+from app.models.court_system_models import Court
 from app.models.user_invite_models import UserInvite
 from app.models.user_model import User
-from app.core.settings.configurations import settings
+from app.models.user_type_model import UserType
+from app.repositories.category_repo import category_repo
+from app.repositories.court_system_repo import (court_repo, jurisdiction_repo,
+                                                state_repo)
 from app.repositories.user_invite_repo import user_invite_repo
 from app.repositories.user_repo import user_repo
 from app.repositories.user_type_repo import user_type_repo
-from app.api.dependencies.authentication import (
-    admin_permission_dependency,
-    get_token_details,
-)
-from app.schemas.court_system_schema import (
-    CourtBase,
-    CourtInResponse,
-    CourtSystemBase,
-    CourtSystemInDB,
-    JurisdictionInResponse,
-    SlimCourtInResponse,
-    SlimJurisdictionInResponse,
-)
-from app.schemas.email_schema import (
-    OperationsInviteTemplateVariables,
-    UserCreationTemplateVariables,
-)
-from app.schemas.user_schema import (
-    AcceptedInviteResponse,
-    AdminInResponse,
-    AllUsers,
-    CommissionerInResponse,
-    CreateInvite,
-    FullCommissionerInResponse,
-    HeadOfUnitInResponse,
-    InviteOperationsForm,
-    InviteResponse,
-    OperationsCreateForm,
-    UserCreate,
-    UserInResponse,
-)
-from app.api.dependencies.authentication import get_currently_authenticated_user
-from app.database.sessions.mongo_client import document_collection
-from app.repositories.court_system_repo import (
-    state_repo,
-    court_repo,
-    jurisdiction_repo,
-)
-from app.core.services.email import email_service
+from app.schemas.affidavit_schema import (  # template_individual_serializer,
+    LastestAffidavits, SlimDocumentInResponse, SlimTemplateInResponse,
+    TemplateBase, TemplateContent, TemplateCreate, TemplateCreateForm,
+    TemplateInResponse, serialize_mongo_document, template_list_serialiser)
+from app.schemas.category_schema import (Category, CategoryCreate,
+                                         CategoryInResponse,
+                                         FullCategoryInResponse)
+from app.schemas.court_system_schema import (CourtBase, CourtInResponse,
+                                             CourtSystemBase, CourtSystemInDB,
+                                             JurisdictionInResponse,
+                                             SlimCourtInResponse,
+                                             SlimJurisdictionInResponse)
+from app.schemas.email_schema import (OperationsInviteTemplateVariables,
+                                      UserCreationTemplateVariables)
+from app.schemas.shared_schema import SlimUserInResponse
+from app.schemas.stats_schema import AdminDashboardStat
+from app.schemas.user_schema import (AcceptedInviteResponse, AdminInResponse,
+                                     AllUsers, CommissionerInResponse,
+                                     CreateInvite, FullCommissionerInResponse,
+                                     HeadOfUnitInResponse,
+                                     InviteOperationsForm, InviteResponse,
+                                     OperationsCreateForm, UserCreate,
+                                     UserInResponse)
 from app.schemas.user_type_schema import UserTypeInDB
-from commonLib.response.response_schema import create_response, GenericResponse
-from app.database.sessions.mongo_client import template_collection
+from commonLib.response.response_schema import GenericResponse, create_response
 
 router = APIRouter()
 
@@ -314,7 +281,7 @@ async def invite_users(
     current_user: User = Depends(get_currently_authenticated_user),
     db: Session = Depends(get_db),
 ):
-    for user_data  in users:
+    for user_data in users:
         logger.debug(f"invite {users.index(user_data)} of {len(users)} users")
         await process_user_invite(user_data, current_user, db, background_tasks)
 
@@ -322,8 +289,6 @@ async def invite_users(
         status_code=status.HTTP_200_OK,
         message="Users invited successfully.",
     )
-
-
 
 
 @router.get(
@@ -1394,6 +1359,7 @@ def update_category(category: CategoryInResponse, db: Session = Depends(get_db))
 #         status_code=status.HTTP_200_OK,
 #     )
 
+
 @router.get("/get_invites", response_model=GenericResponse[List[InviteResponse]])
 def get_all_invites(db: Session = Depends(get_db)):
     current_time = datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -1416,12 +1382,22 @@ def get_all_invites(db: Session = Depends(get_db)):
     result = []
     for invite in invites:
         # Ensure created_at and accepted_at are timezone-aware datetime objects
-        created_at = invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
-        accepted_at = invite.accepted_at.replace(tzinfo=timezone.utc) if invite.accepted_at else None
+        created_at = (
+            invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
+        )
+        accepted_at = (
+            invite.accepted_at.replace(tzinfo=timezone.utc)
+            if invite.accepted_at
+            else None
+        )
 
         if invite.is_accepted:
             invite_status = "ACCEPTED"
-        elif accepted_at is None and created_at and (current_time - created_at) < timedelta(hours=24):
+        elif (
+            accepted_at is None
+            and created_at
+            and (current_time - created_at) < timedelta(hours=24)
+        ):
             invite_status = "PENDING"
         else:
             invite_status = "EXPIRED"

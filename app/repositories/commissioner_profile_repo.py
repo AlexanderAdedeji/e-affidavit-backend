@@ -1,9 +1,11 @@
 from uuid import uuid4
+
+from sqlalchemy.orm import Session
+
 from app.core.errors.exceptions import DoesNotExistException
 from app.models.commissioner_profile_model import CommissionerProfile
-from sqlalchemy.orm import Session
-from app.schemas.user_schema import CommissionerAttestation, CommissionerProfileBase
-
+from app.schemas.user_schema import (CommissionerAttestation,
+                                     CommissionerProfileBase)
 from commonLib.repositories.relational_repository import Base, ModelType
 
 

@@ -24,9 +24,12 @@
 #     created_by = relationship("User", foreign_keys=[created_by_id])
 #     jurisdiction = relationship("Jurisdiction", back_populates="head_of_unit")
 from uuid import uuid4
-from sqlalchemy import Integer, Column, String, ForeignKey
+
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
 from commonLib.models.base_class import Base
+
 
 class HeadOfUnit(Base):
     __tablename__ = "head_of_units"
@@ -35,7 +38,12 @@ class HeadOfUnit(Base):
     head_of_unit_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_by_id = Column(String, ForeignKey("users.id"), nullable=False)
 
-    user = relationship("User", foreign_keys=head_of_unit_id, back_populates="head_of_unit", uselist=False)
+    user = relationship(
+        "User",
+        foreign_keys=head_of_unit_id,
+        back_populates="head_of_unit",
+        uselist=False,
+    )
     created_by = relationship("User", foreign_keys=[created_by_id])
     jurisdiction = relationship("Jurisdiction", back_populates="head_of_unit")
 

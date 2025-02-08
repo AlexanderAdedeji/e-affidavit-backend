@@ -1,6 +1,9 @@
 import os
+
 import pytest
-from app.core.settings.configurations import ProductionSettings, LocalSettings
+
+from app.core.settings.configurations import LocalSettings, ProductionSettings
+
 
 def test_settings_local(monkeypatch):
     """Test that local settings load with the correct values."""

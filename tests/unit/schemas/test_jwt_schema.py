@@ -1,7 +1,10 @@
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 from pydantic import ValidationError
-from app.schemas.jwt_schema import JWTUser, JWTEMAIL, JWTInvite, JWTMeta
+
+from app.schemas.jwt_schema import JWTEMAIL, JWTInvite, JWTMeta, JWTUser
+
 
 def test_jwt_user_valid():
     """Test that a valid JWTUser instance is created correctly."""

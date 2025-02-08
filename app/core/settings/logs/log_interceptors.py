@@ -1,8 +1,10 @@
 # app/core/settings/log_interceptor.py
 import logging
 from types import FrameType, TracebackType
-from loguru import logger
 from typing import Any, Optional, Type
+
+from loguru import logger
+
 
 class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
@@ -14,6 +16,9 @@ class InterceptHandler(logging.Handler):
         while frame and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
 
 logging.basicConfig(handlers=[InterceptHandler()], level=logging.INFO)
