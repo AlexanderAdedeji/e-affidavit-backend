@@ -1,4 +1,3 @@
-# tests/unit/schemas/test_authentication_schema.py
 
 import re
 import pytest
