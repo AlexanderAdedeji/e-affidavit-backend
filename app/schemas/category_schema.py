@@ -1,11 +1,16 @@
 import datetime
 from typing import List
 from app.schemas.shared_schema import SlimUserInResponse
-from pydantic import BaseModel,constr
+from pydantic import BaseModel,constr, validator
 
 class Category(BaseModel):
     name: constr(min_length=1, max_length=255)
-
+    @validator("name")
+    def name_must_be_trimmed(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Category name must not be empty or whitespace only.")
+        return trimmed
     class Config:
         orm_mode = True
 

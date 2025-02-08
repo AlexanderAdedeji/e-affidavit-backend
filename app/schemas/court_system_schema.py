@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from pydantic import BaseModel,constr
+from pydantic import BaseModel, constr, validator
 from datetime import datetime
 
 from app.schemas.affidavit_schema import SlimDocumentInResponse
@@ -9,15 +9,23 @@ from app.schemas.shared_schema import SlimUserInResponse
 class CourtSystemBase(BaseModel):
     name: constr(min_length=1, max_length=255)
 
+    @validator('name')
+    def strip_and_validate_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Name must not be empty or whitespace")
+        return value
+
     class Config:
         orm_mode = True
 
+
 class CreateCourt(CourtSystemBase):
-    jurisdiction_id: str
+    jurisdiction_id: str  # Consider adding a UUID validation if needed
 
 
 class CreateJurisdiction(CourtSystemBase):
-    state_id: str
+    state_id: str  # Consider adding a UUID validation if needed
 
 
 class CreateState(CourtSystemBase):
@@ -25,7 +33,7 @@ class CreateState(CourtSystemBase):
 
 
 class CourtSystemInDB(CourtSystemBase):
-    id: Any
+    id: Any  # In production, you might narrow this to str or UUID
 
 
 class FullCourtInDB(CourtSystemBase):
@@ -56,9 +64,16 @@ class JurisdictionInResponse(JurisdictionBase):
 class SlimJurisdictionInResponse(BaseModel):
     id: str
     date_created: datetime
-    head_of_unit:str
+    head_of_unit: str  # This could be a name or identifier string
     courts: int
     name: str
+
+    @validator('name')
+    def strip_and_validate_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Name must not be empty")
+        return value
 
 
 class CourtBase(CourtSystemBase):
