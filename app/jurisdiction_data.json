@@ -1,0 +1,32 @@
+{
+    "states": ["Abuja"],
+    "jurisdictions": [
+      "Gudu",
+      "Mpape",
+      "Kado",
+      "Kubwa",
+      "Zuba",
+      "Gwagwalada",
+      "Jiwa",
+      "Karu"
+    ],
+    "courts": [
+      { "jurisdiction": "Gudu", "court_name": "Upper Area Court Wuse" },
+      { "jurisdiction": "Gudu", "court_name": "Grade 1 Area Court Wuse" },
+      { "jurisdiction": "Mpape", "court_name": "Upper Area Court Mpape" },
+      { "jurisdiction": "Mpape", "court_name": "Grade 1 Area Court Mpape" },
+      { "jurisdiction": "Kado", "court_name": "Upper Area Court Kado" },
+      { "jurisdiction": "Kado", "court_name": "Grade 1 Area Court Kado" },
+      { "jurisdiction": "Kubwa", "court_name": "Upper Area Court Kubwa" },
+      { "jurisdiction": "Kubwa", "court_name": "Grade 1 Area Court Kubwa" },
+      { "jurisdiction": "Zuba", "court_name": "Upper Area Court Zuba" },
+      { "jurisdiction": "Zuba", "court_name": "Grade 1 Area Court Zuba" },
+      { "jurisdiction": "Gwagwalada", "court_name": "Upper Area Court Gwagwalada" },
+      { "jurisdiction": "Gwagwalada", "court_name": "Grade 1 Area Court Gwagwalada" },
+      { "jurisdiction": "Jiwa", "court_name": "Upper Area Court Jiwa" },
+      { "jurisdiction": "Jiwa", "court_name": "Grade 1 Area Court Jiwa" },
+      { "jurisdiction": "Karu", "court_name": "Upper Area Court Karu" },
+      { "jurisdiction": "Karu", "court_name": "Grade 1 Area Court Karu" }
+    ]
+  }
+  

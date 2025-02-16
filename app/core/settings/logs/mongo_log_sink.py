@@ -1,4 +1,4 @@
-# app/core/settings/logs/mongo_log_sink.py
+
 import os
 
 from loguru import logger

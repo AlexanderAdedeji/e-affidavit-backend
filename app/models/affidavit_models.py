@@ -1,11 +1,8 @@
-from datetime import datetime, timedelta
 from typing import Any, Dict
 from uuid import uuid4
 
 from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
-
-from app.core.settings.configurations import settings
 from commonLib.models.base_class import Base
 from commonLib.models.mongo_base_class import MongoBase
 
@@ -16,9 +13,6 @@ class Templates(MongoBase):
 
 class Documents(MongoBase):
     data: Dict[str, Any]
-
-
-# import jwt
 
 
 class AffidavitCategory(Base):

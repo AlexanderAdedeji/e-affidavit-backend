@@ -1,4 +1,5 @@
 from typing import List
+from app.models.user_model import User
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session

@@ -1,4 +1,4 @@
-# app/core/settings/log_interceptor.py
+
 import logging
 from types import FrameType, TracebackType
 from typing import Any, Optional, Type

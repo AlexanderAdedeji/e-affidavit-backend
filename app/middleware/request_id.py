@@ -1,4 +1,4 @@
-# app/middleware/request_id.py
+
 import uuid
 
 from loguru import logger

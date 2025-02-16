@@ -141,8 +141,8 @@ def login(
             handle_verification_email(user.email, db, background_task)
             raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
 
-        if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
-            validate_commissioner_device(user, user_login, db, background_task)
+        # if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+        #     validate_commissioner_device(user, user_login, db, background_task)
 
         token = user.generate_jwt()
         logger.info(f"User {user.email} logged in successfully.")
