@@ -308,11 +308,12 @@ def change_password(
     Change Password endpoint.
     Allows an authenticated user to change their password.
     """
+   
+    logger.info(f"Change password request for user {current_user.email}")
+    if not current_user.verify_password(password_in.old_password):
+        logger.warning("Incorrect old password provided.")
+        raise UnauthorizedEndpointException(detail="Incorrect Old Password")
     try:
-        logger.info(f"Change password request for user {current_user.email}")
-        if not current_user.verify_password(password_in.old_password):
-            logger.warning("Incorrect old password provided.")
-            raise UnauthorizedEndpointException(detail="Incorrect Password")
         user_repo.update(
             db,
             db_obj=current_user,
