@@ -110,7 +110,7 @@ def validate_commissioner_device(user: User, user_login: UserInLogin, db: Sessio
         )
 
 
-@router.post("/login")
+@router.post("/login",status_code=status.HTTP_202_ACCEPTED, response_model=GenericResponse[UserWithToken])
 def login(
     user_login: UserInLogin,
     background_task: BackgroundTasks,

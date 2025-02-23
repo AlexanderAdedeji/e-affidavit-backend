@@ -1,14 +1,14 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Annotated, Any, List, Optional
 
-from pydantic import BaseModel, constr, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.affidavit_schema import SlimDocumentInResponse
 from app.schemas.shared_schema import SlimUserInResponse
 
 
 class CourtSystemBase(BaseModel):
-    name: constr(min_length=1, max_length=255)
+    name: Annotated[str, Field(...,min_length=1, max_length=255)]
 
     @field_validator("name")
     def strip_and_validate_name(cls, value: str) -> str:
@@ -65,7 +65,7 @@ class JurisdictionInResponse(JurisdictionBase):
 class SlimJurisdictionInResponse(BaseModel):
     id: str
     date_created: datetime
-    head_of_unit: str  # This could be a name or identifier string
+    head_of_unit: str 
     courts: int
     name: str
 

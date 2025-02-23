@@ -157,117 +157,7 @@
 #     )
 
 
-# @router.get(
-#     "/general_users",
-#     dependencies=[Depends(admin_permission_dependency)],
-#     # response_model=GenericResponse[List[PublicInResponse]]
-# )
-# async def get_users(
-#     db: Session = Depends(get_db),
-#     skip: int = Query(0, ge=0),
-#     limit: int = Query(0, ge=0),
-# ):
-#     users = user_repo.get_paginated(db, skip=skip, limit=limit)
-#     response = []
-#     for user in users:
-#         pipeline = [
-#             {
-#                 "$match": {
-#                     "created_by_id": user.id,
-#                     "$or": [{"status": "PAID"}, {"is_attested": True}],
-#                 }
-#             },
-#             {
-#                 "$group": {
-#                     "_id": None,
-#                     "total_amount": {"$sum": "$amount_paid"},
-#                 }
-#             },
-#         ]
-#         total_saved = await document_collection.find(
-#             {"created_by_id": user.id, "status": "SAVED"}
-#         ).to_list(length=1000)
-#         total_paid = await document_collection.find(
-#             {"created_by_id": user.id, "status": "PAID"}
-#         ).to_list(length=1000)
-#         total_attested = await document_collection.find(
-#             {"created_by_id": user.id, "status": "ATTESTED"}
-#         ).to_list(length=1000)
-#         total_documents = await document_collection.find(
-#             {"created_by_id": user.id}
-#         ).to_list(length=1000)
-#         total_amount_result = await document_collection.aggregate(pipeline).to_list(
-#             length=100
-#         )
-#         if total_amount_result:
-#             total_amount = total_amount_result[0]["total_amount"]
-#         else:
-#             total_amount = 0
 
-#         new_user = dict(
-#             total_documents=[
-#                 SlimDocumentInResponse(
-#                     id=str(document["_id"]),
-#                     name=document.get("name", ""),
-#                     price=document.get("price", 0),
-#                     attestation_date=document.get("attest", ""),
-#                     created_at=document.get("created_at", ""),
-#                     status=document.get("status", ""),
-#                 )
-#                 for document in total_documents
-#             ],
-#             total_paid=[
-#                 SlimDocumentInResponse(
-#                     id=str(document["_id"]),
-#                     name=document.get("name", ""),
-#                     price=document.get("price", 0),
-#                     attestation_date=document.get("attest", ""),
-#                     created_at=document.get("created_at", ""),
-#                     status=document.get("status", ""),
-#                 )
-#                 for document in total_paid
-#             ],
-#             total_attested=[
-#                 SlimDocumentInResponse(
-#                     id=str(document["_id"]),
-#                     name=document.get("name", ""),
-#                     price=document.get("price", 0),
-#                     attestation_date=document.get("attest", ""),
-#                     created_at=document.get("created_at", ""),
-#                     status=document.get("status", ""),
-#                 )
-#                 for document in total_attested
-#             ],
-#             total_saved=[
-#                 SlimDocumentInResponse(
-#                     id=str(document["_id"]),
-#                     name=document.get("name", ""),
-#                     price=document.get("price", 0),
-#                     attestation_date=document.get("attest", ""),
-#                     created_at=document.get("created_at", ""),
-#                     status=document.get("status", ""),
-#                 )
-#                 for document in total_saved
-#             ],
-#             id=user.id,
-#             total_amount=total_amount,
-#             first_name=user.first_name,
-#             last_name=user.last_name,
-#             email=user.email,
-#             is_active=user.is_active,
-#             user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
-#             date_created=user.CreatedAt,
-#             verify_token="",
-#         )
-#         response.append(new_user)
-#     total_users = user_repo.get_count(db)
-#     metadata = {"total": total_users, "limit": limit, "skip": skip}
-#     return create_response(
-#         status_code=status.HTTP_200_OK,
-#         message=f"Users information retrieved successfully.",
-#         data=response,
-#         metadata=metadata,
-#     )
 
 
 # @router.post(
@@ -1545,7 +1435,7 @@ def get_user_type_or_404(db: Session, type_name: str) -> UserType:
 
 # --- Endpoints ---
 
-@router.get("/get_dashboard_stats", dependencies=[Depends(admin_permission_dependency)])
+@router.get("/get_dashboard_stats",status_code=status.HTTP_200_OK, dependencies=[Depends(admin_permission_dependency)], response_model=GenericResponse[AdminDashboardStat])
 async def get_dashboard_stats(db: Session = Depends(get_db)):
     """
     Return aggregated dashboard statistics.
@@ -1573,7 +1463,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
         raise ServerException(detail="Error fetching dashboard stats.")
 
 
-@router.get("/get_head_of_units", dependencies=[Depends(admin_permission_dependency)])
+@router.get("/get_head_of_units",status_code=status.HTTP_200_OK, response_model=GenericResponse[List[HeadOfUnitInResponse]], dependencies=[Depends(admin_permission_dependency)])
 def get_unit_heads(db: Session = Depends(get_db)):
     """
     Retrieve head-of-unit users with nested jurisdiction, courts, and commissioners.
@@ -1724,115 +1614,246 @@ async def get_commissioners(db: Session = Depends(get_db)):
 
 @router.get(
     "/get_all_jurisdictions",
+    status_code=status.HTTP_200_OK,
     dependencies=[Depends(admin_permission_dependency)],
-    response_model=GenericResponse[List[JurisdictionInResponse]],
+    response_model=GenericResponse[List[SlimJurisdictionInResponse]],
 )
 def get_all_jurisdictions(db: Session = Depends(get_db)):
     """
     Retrieve all jurisdictions with basic details.
     """
-    try:
-        jurisdictions = jurisdiction_repo.get_all(db)
-        data = []
-        for jurisdiction in jurisdictions:
-            data.append(
-                JurisdictionInResponse(
-                    id=jurisdiction.id,
-                    name=jurisdiction.name,
-                    date_created=jurisdiction.CreatedAt,
-                    state=CourtSystemInDB(
-                        id=jurisdiction.state.id, 
-                        name=jurisdiction.state.name
-                    ),
-                    courts=len(jurisdiction.courts),
-                    head_of_unit=(
-                        SlimUserInResponse(
-                            id=jurisdiction.head_of_unit.user.id,
-                            first_name=jurisdiction.head_of_unit.user.first_name,
-                            last_name=jurisdiction.head_of_unit.user.last_name,
-                            email=jurisdiction.head_of_unit.user.email,
-                        )
-                        if jurisdiction.head_of_unit else None
-                    ),
-                )
-            )
-        logger.info("Jurisdictions retrieved successfully")
-        return create_response(
+    # try:
+    jurisdictions = jurisdiction_repo.get_all(db)
+    data = []
+    for jurisdiction in jurisdictions:
+            
+            data.append(SlimJurisdictionInResponse(
+                id=jurisdiction.id,
+                name=jurisdiction.name,
+                 date_created=jurisdiction.CreatedAt,
+                 courts=len(jurisdiction.courts),
+    head_of_unit=f"{jurisdiction.head_of_unit.user.first_name} {jurisdiction.head_of_unit.user.last_name}" if jurisdiction.head_of_unit else 'N/A'
+                    ,
+                
+            ))
+            # data.append(
+            #     JurisdictionInResponse(
+            #         id=jurisdiction.id,
+            #         name=jurisdiction.name,
+            #         date_created=jurisdiction.CreatedAt,
+            #         state=CourtSystemInDB(
+            #             id=jurisdiction.state.id, 
+            #             name=jurisdiction.state.name
+            #         ),
+            #         courts=len(jurisdiction.courts),
+            #         head_of_unit=(
+            #             SlimUserInResponse(
+            #                 id=jurisdiction.head_of_unit.user.id,
+            #                 first_name=jurisdiction.head_of_unit.user.first_name,
+            #                 last_name=jurisdiction.head_of_unit.user.last_name,
+            #                 email=jurisdiction.head_of_unit.user.email,
+            #             )
+            #             if jurisdiction.head_of_unit else None
+            #         ),
+            #     )
+            # )
+    
+    
+    
+    
+    
+    logger.info("Jurisdictions retrieved successfully")
+    return create_response(
             status_code=status.HTTP_200_OK,
             message="Jurisdictions retrieved successfully",
             data=data,
         )
-    except Exception as e:
-        logger.error("Error retrieving jurisdictions", exc_info=True)
-        raise ServerException(detail="Error retrieving jurisdictions.")
+    # except Exception as e:
+    #     logger.error("Error retrieving user data: " + str(e), exc_info=True)
+    #     raise ServerException(detail="Error retrieving jurisdictions.")
 
-@router.post("/general_users", dependencies=[Depends(admin_permission_dependency)])
+
+
+
+@router.get(
+    "/general_users",
+    dependencies=[Depends(admin_permission_dependency)],
+    # response_model=GenericResponse[List[PublicInResponse]]
+)
 async def get_users(
     db: Session = Depends(get_db),
-    # skip: int = Query(0, ge=0),
-    # limit: int = Query(0, ge=0),
+  
 ):
-    """
-    Retrieve paginated list of general users with associated document details.
-    """
-    try:
-        users = user_repo.get_all(db)
-        response = []
-        for user in users:
-            pipeline = [
-                {"$match": {"created_by_id": user.id, "$or": [{"status": "PAID"}, {"is_attested": True}]}},
-                {"$group": {"_id": None, "total_amount": {"$sum": "$amount_paid"}}},
-            ]
-            total_amount_result = await document_collection.aggregate(pipeline).to_list(length=1)
-            total_amount = total_amount_result[0]["total_amount"] if total_amount_result else 0
-
-            async def fetch_docs(status_value: str) -> List[SlimDocumentInResponse]:
-                try:
-                    docs = await document_collection.find({"created_by_id": user.id, "status": status_value}).to_list(length=1000)
-                    return [SlimDocumentInResponse(
-                        id=str(doc["_id"]),
-                        name=doc.get("name", ""),
-                        price=doc.get("price", 0),
-                        attestation_date=doc.get("attest", ""),
-                        created_at=doc.get("created_at", ""),
-                        status=doc.get("status", ""),
-                    ) for doc in docs]
-                except Exception as e:
-                    logger.error(f"Error fetching documents with status {status_value}: {e}")
-                    return []
-
-            new_user = {
-                "id": user.id,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "email": user.email,
-                "is_active": user.is_active,
-                "user_type": UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
-                "date_created": user.CreatedAt,
-                "verify_token": "",
-                "total_documents": await document_collection.find({"created_by_id": user.id}).count(),
-                "total_amount": total_amount,
-                "total_saved": fetch_docs("SAVED"),
-                "total_paid": fetch_docs("PAID"),
-                "total_attested": fetch_docs("ATTESTED"),
-            }
-            response.append(new_user)
-        # metadata = {"total": user_repo.get_count(db), "limit": limit, "skip": skip}
-        logger.info("General user data retrieved successfully")
-        return create_response(
-            status_code=status.HTTP_200_OK,
-            message="Users information retrieved successfully.",
-            data=response,
-            # metadata=metadata,
+    users = user_repo.get_all(db)
+    response = []
+    for user in users:
+        pipeline = [
+            {
+                "$match": {
+                    "created_by_id": user.id,
+                    "$or": [{"status": "PAID"}, {"is_attested": True}],
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "total_amount": {"$sum": "$amount_paid"},
+                }
+            },
+        ]
+        total_saved = await document_collection.find(
+            {"created_by_id": user.id, "status": "SAVED"}
+        ).to_list(length=1000)
+        total_paid = await document_collection.find(
+            {"created_by_id": user.id, "status": "PAID"}
+        ).to_list(length=1000)
+        total_attested = await document_collection.find(
+            {"created_by_id": user.id, "status": "ATTESTED"}
+        ).to_list(length=1000)
+        total_documents = await document_collection.find(
+            {"created_by_id": user.id}
+        ).to_list(length=1000)
+        total_amount_result = await document_collection.aggregate(pipeline).to_list(
+            length=100
         )
-    except Exception as e:
-        logger.error("Error retrieving general users", exc_info=True)
-        raise ServerException(detail="Error retrieving user data.")
+        if total_amount_result:
+            total_amount = total_amount_result[0]["total_amount"]
+        else:
+            total_amount = 0
+
+        new_user = dict(
+            total_documents=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_documents
+            ],
+            total_paid=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_paid
+            ],
+            total_attested=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_attested
+            ],
+            total_saved=[
+                SlimDocumentInResponse(
+                    id=str(document["_id"]),
+                    name=document.get("name", ""),
+                    price=document.get("price", 0),
+                    attestation_date=document.get("attest", ""),
+                    created_at=document.get("created_at", ""),
+                    status=document.get("status", ""),
+                )
+                for document in total_saved
+            ],
+            id=user.id,
+            total_amount=total_amount,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            is_active=user.is_active,
+            user_type=UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+            date_created=user.CreatedAt,
+            verify_token="",
+        )
+        response.append(new_user)
+
+
+    total_users = user_repo.get_count(db)
+    # metadata = {"total": total_users, "limit": limit, "skip": skip}
+    return create_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Users information retrieved successfully.",
+        data=response,
+        # metadata="metadata",
+    )
+# @router.get("/general_users", dependencies=[Depends(admin_permission_dependency)])
+# async def get_general_users(
+#     db: Session = Depends(get_db),
+#     # skip: int = Query(0, ge=0),
+#     # limit: int = Query(0, ge=0),
+# ):
+#     """
+#     Retrieve paginated list of general users with associated document details.
+#     """
+#     try:
+#         users = user_repo.get_all(db)
+#         response = []
+#         for user in users:
+#             pipeline = [
+#                 {"$match": {"created_by_id": user.id, "$or": [{"status": "PAID"}, {"is_attested": True}]}},
+#                 {"$group": {"_id": None, "total_amount": {"$sum": "$amount_paid"}}},
+#             ]
+#             total_amount_result = await document_collection.aggregate(pipeline).to_list(length=1)
+#             total_amount = total_amount_result[0]["total_amount"] if total_amount_result else 0
+
+#             async def fetch_docs(status_value: str) -> List[SlimDocumentInResponse]:
+#                 try:
+#                     docs = await document_collection.find({"created_by_id": user.id, "status": status_value}).to_list(length=1000)
+#                     return [SlimDocumentInResponse(
+#                         id=str(doc["_id"]),
+#                         name=doc.get("name", ""),
+#                         price=doc.get("price", 0),
+#                         attestation_date=doc.get("attest", ""),
+#                         created_at=doc.get("created_at", ""),
+#                         status=doc.get("status", ""),
+#                     ) for doc in docs]
+#                 except Exception as e:
+#                     logger.error(f"Error fetching documents with status {status_value}: {e}")
+#                     return []
+
+#             new_user = {
+#                 "id": user.id,
+#                 "first_name": user.first_name,
+#                 "last_name": user.last_name,
+#                 "email": user.email,
+#                 "is_active": user.is_active,
+#                 "user_type": UserTypeInDB(id=user.user_type.id, name=user.user_type.name),
+#                 "date_created": user.CreatedAt,
+#                 "verify_token": "",
+#                 "total_documents": await document_collection.find({"created_by_id": user.id}).count(),
+#                 "total_amount": total_amount,
+#                 "total_saved": fetch_docs("SAVED"),
+#                 "total_paid": fetch_docs("PAID"),
+#                 "total_attested": fetch_docs("ATTESTED"),
+#             }
+#             response.append(new_user)
+#         # metadata = {"total": user_repo.get_count(db), "limit": limit, "skip": skip}
+#         logger.info("General user data retrieved successfully")
+#         return create_response(
+#             status_code=status.HTTP_200_OK,
+#             message="Users information retrieved successfully.",
+#             data=response,
+#             # metadata=metadata,
+#         )
+#     except Exception as e:
+#         logger.error(e, exc_info=True)
+#         raise ServerException(detail="Error retrieving user data.")
 
 
 @router.post("/invite_personel", dependencies=[Depends(admin_permission_dependency)], status_code=status.HTTP_200_OK)
 async def invite_users(
-    users: List,  # Ideally type-hinted as List[InviteOperationsForm]
+    users: List[InviteOperationsForm],
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_currently_authenticated_user),
     db: Session = Depends(get_db),
@@ -1915,13 +1936,12 @@ def get_public_users(db: Session = Depends(get_db)):
 
 
 @router.get("/get_all_users")
-def get_all_users(db: Session = Depends(get_db), skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100)):
+def get_all_users(db: Session = Depends(get_db)):
     """
     Return paginated list of all users.
     """
     try:
-        users = user_repo.get_paginated(db, skip=skip, limit=limit)
-        total_users = user_repo.get_count(db)
+        users = user_repo.get_all(db)
         response = [
             AllUsers(
                 id=user.id,
@@ -1935,13 +1955,12 @@ def get_all_users(db: Session = Depends(get_db), skip: int = Query(0, ge=0), lim
             )
             for user in users
         ]
-        metadata = {"total": total_users, "limit": limit, "skip": skip}
         logger.info("All users retrieved successfully")
         return create_response(
             status_code=status.HTTP_200_OK,
             message="All Users retrieved successfully.",
             data=response,
-            metadata=metadata,
+       
         )
     except Exception as e:
         logger.error("Error retrieving all users", exc_info=True)
@@ -2061,7 +2080,7 @@ def create_admin(admin_in: OperationsCreateForm, background_tasks: BackgroundTas
         raise ServerException(detail="Error creating admin account.")
 
 
-@router.get("/me", dependencies=[Depends(admin_permission_dependency)], response_model=GenericResponse[UserInResponse])
+@router.get("/me",status_code=status.HTTP_200_OK ,dependencies=[Depends(admin_permission_dependency)], response_model=GenericResponse[UserInResponse])
 def retrieve_current_admin(current_user=Depends(get_currently_authenticated_user)) -> UserInResponse:
     """
     Retrieve the currently logged-in admin's profile.
@@ -2611,7 +2630,7 @@ def get_all_invites(db: Session = Depends(get_db)):
     Retrieve all user invitations.
     """
     try:
-        current_time = datetime.datetime.utcnow().replace(tzinfo=timezone.utc)
+        current_time = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
         invites = (
             db.query(
                 UserInvite.id,
@@ -2629,11 +2648,11 @@ def get_all_invites(db: Session = Depends(get_db)):
         )
         result = []
         for invite in invites:
-            created_at = invite.CreatedAt.replace(tzinfo=timezone.utc) if invite.CreatedAt else None
-            accepted_at = invite.accepted_at.replace(tzinfo=timezone.utc) if invite.accepted_at else None
+            created_at = invite.CreatedAt.replace(tzinfo=datetime.timezone.utc) if invite.CreatedAt else None
+            accepted_at = invite.accepted_at.replace(tzinfo=datetime.timezone.utc) if invite.accepted_at else None
             if invite.is_accepted:
                 invite_status = "ACCEPTED"
-            elif accepted_at is None and created_at and (current_time - created_at) < timedelta(hours=24):
+            elif accepted_at is None and created_at and (current_time - created_at) < datetime.timedelta(hours=24):
                 invite_status = "PENDING"
             else:
                 invite_status = "EXPIRED"
