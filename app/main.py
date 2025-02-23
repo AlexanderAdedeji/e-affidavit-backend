@@ -45,7 +45,16 @@ def create_application_instance() -> FastAPI:
         logger.warning(
             f"Validation error: {request.method} {request.url} - {exc.errors()}"
         )
-        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+        detail = [
+        {
+            "loc": error.get("loc", []),
+            "msg": str(error.get("msg", "")),
+            "type": error.get("type", "")
+        }
+        for error in exc.errors()
+    ]
+        return JSONResponse(status_code=422, content={"detail": detail})
+        # return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):

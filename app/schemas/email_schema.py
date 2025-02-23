@@ -1,6 +1,6 @@
-from typing import Any, Dict, Optional
+from typing import Annotated, Any, Dict, Optional
 
-from pydantic import BaseModel, EmailStr, HttpUrl, constr
+from pydantic import BaseModel, EmailStr, HttpUrl, Field
 
 from app.core.settings.configurations import settings
 
@@ -25,7 +25,7 @@ class EmailUpdate(BaseModel):
 
 
 class EmailTemplateVariables(BaseModel):
-    name: constr(min_length=1, max_length=255)
+    name: Annotated[str, Field(...,min_length=1, max_length=255)]
 
 
 class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
@@ -46,7 +46,7 @@ class UserDeactivationTemplateVariables(EmailTemplateVariables):
 
 
 class UserCreationTemplateVariables(EmailTemplateVariables):
-    action_url: HttpUrl
+    action_url: str
 
 
 class UserVerificationTemplateVariables(UserCreationTemplateVariables):
@@ -55,7 +55,7 @@ class UserVerificationTemplateVariables(UserCreationTemplateVariables):
 
 class OperationsInviteTemplateVariables(BaseModel):
     invite_url: HttpUrl
-    name: constr(min_length=1, max_length=255)
-    invite_sender_name: constr(min_length=1, max_length=255)
-    invite_sender_organization_name: constr(min_length=1, max_length=255)
-    user_role: constr(min_length=1, max_length=100)
+    name: Annotated[str, Field(...,min_length=1, max_length=255)]
+    invite_sender_name: Annotated[str, Field(...,min_length=1, max_length=255)]
+    invite_sender_organization_name: Annotated[str, Field(...,min_length=1, max_length=255)]
+    user_role: Annotated[str, Field(...,min_length=1, max_length=100)]

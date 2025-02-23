@@ -98,7 +98,7 @@ class EmailService:
             db=db,
             obj_in=EmailCreate(
                 template_id=template_id,
-                template_dict=json.dumps(template_dict),
+                template_dict=template_dict,
                 recipient=To,
                 sender=settings.DEFAULT_EMAIL_SENDER,
             ),
@@ -112,21 +112,25 @@ class EmailService:
         )
 
     async def _send_email_with_template(
-        self, db: Session, email: Email, template_dict: Dict[str, Any]
+        self, 
+        db: Session,
+    
+         
+          email: Email, template_dict: Dict[str, Any]
     ):
-        session = get_db()  # Create a new session for background tasks
+        # session:Session = Depends(get_db) get_db()
         try:
             response = self.client.emails.send_with_template(
                 TemplateId=email.template_id,
                 TemplateModel=template_dict,
-                From=settings.DEFAULT_EMAIL_SENDER,
+                From=str(settings.DEFAULT_EMAIL_SENDER),
                 To=email.recipient,
             )
             if not response or "ErrorCode" not in response:
                 raise ValueError("Invalid response from Postmark API.")
 
             if response["ErrorCode"] == 0:
-                email_repo.mark_as_delivered(session, db_obj=email)
+                email_repo.mark_as_delivered(db, db_obj=email)
                 logger.info(f"Email to {email.recipient} marked as delivered.")
             else:
                 logger.error(f"Failed to send email: {response['Message']}")
@@ -138,10 +142,11 @@ class EmailService:
             logger.error(f"Exception occurred while sending email: {str(e)}")
             email_repo.update(
                 db_obj=email,
+                db=db,
                 obj_in=EmailUpdate(delivered=False, extra_data=str(e)),
             )
         finally:
-            session.close()
+            db.close()
 
 
 email_service = EmailService()

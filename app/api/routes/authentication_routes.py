@@ -2,6 +2,7 @@ import string
 from datetime import timedelta
 from typing import List, Optional
 
+from app.api.routes.user_routes import VERIFY_EMAIL_LINK
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
 from postmarker import core
 from sqlalchemy.orm import Session
@@ -14,6 +15,7 @@ from app.core.errors.exceptions import (
     DisallowedLoginException,
     DoesNotExistException,
     IncorrectLoginException,
+    ServerException,
     UnauthorizedEndpointException,
 )
 from app.core.services.email import email_service
@@ -58,45 +60,32 @@ def get_frontend_url(user_type_name: str) -> Optional[str]:
     logger.debug(f"Frontend URL for user type '{user_type_name}': {frontend_url}")
     return frontend_url
 
-
-def resend_email_token(background_task: BackgroundTasks, db: Session, email: str) -> None:
-    """
-    Resends the verification email for the user with the given email.
-    """
-    user = user_repo.get_by_email(db, email=email)
-    if not user:
-        logger.error(f"Resend email failed: User with email {email} does not exist.")
-        raise DoesNotExistException(detail="User does not exist.")
-
-    front_end_url = get_frontend_url(user.user_type.name)
-    if not front_end_url:
-        logger.error(f"No frontend URL configured for user type: {user.user_type.name}")
-        raise ServerException(detail="No frontend URL configured.")
-
-    verify_token = user_repo.create_verification_token(email=user.email, db=db)
-    verification_link = f"{front_end_url}/verify?token={verify_token}"
-    logger.info(f"Resending verification email to {user.email} with link {verification_link}")
-
-    background_task.add_task(
-        email_service.send_email_with_template,
-        template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
-        template_dict={
-            "name": f"{user.first_name} {user.last_name}",
-            "action_url": verification_link,
-        },
-        recipient=user.email,
-    )
-
-
-def handle_verification_email(email: str, db: Session, background_task: BackgroundTasks) -> None:
+def handle_verification_email(user:User, db: Session, background_task: BackgroundTasks) -> None:
     """
     Wrapper for resending the verification email.
     """
     try:
-        resend_email_token(background_task=background_task, db=db, email=email)
+        front_end_url = get_frontend_url(user.user_type.name)
+        logger.info(front_end_url)
+        if not front_end_url:
+            logger.error(f"Frontend URL not found for user type: {user.user_type.name}")
+            raise ServerException(detail="Frontend URL configuration error")
+        verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
+        verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}{verify_jwt_token}"
+        template_dict = UserVerificationTemplateVariables(
+            name=f"{user.first_name} {user.last_name}", action_url=verification_link
+        ).dict()
+        logger.info(f"Verification link generated: {verification_link}")
+        email_service.send_email_with_template(
+            db=db,
+            template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
+            template_dict=template_dict,
+            recipient=user.email,
+            background_tasks=background_task,
+        )
     except Exception as e:
-        logger.error(f"Error handling verification email for {email}: {e}")
-        raise
+        logger.error(f"Error handling verification email for {user.email}: {e}")
+        raise HTTPException(status=500, detail="Something went wrong")
 
 
 def validate_commissioner_device(user: User, user_login: UserInLogin, db: Session, background_task: BackgroundTasks) -> None:
@@ -115,7 +104,7 @@ def validate_commissioner_device(user: User, user_login: UserInLogin, db: Sessio
     else:
         logger.warning("Commissioner has no registered device; deactivating account.")
         user_repo.deactivate(db, db_obj=user)
-        handle_verification_email(user.email, db, background_task)
+        handle_verification_email(user, db, background_task)
         raise DisallowedLoginException(
             "Commissioner must have a registered device to login. Check mail to reactivate."
         )
@@ -130,20 +119,23 @@ def login(
     """
     Login endpoint that verifies the user credentials and returns a JWT token.
     """
-    try:
-        user = user_repo.get_by_email(db, email=user_login.email)
-        if not user or not user.verify_password(user_login.password):
+ 
+    user = user_repo.get_by_email(db, email=user_login.email)
+    if not user or not user.verify_password(user_login.password):
             logger.warning(f"Login failed for email: {user_login.email}")
             raise IncorrectLoginException()
 
-        if not user.is_active:
+    if not user.is_active:
             logger.info(f"User {user.email} is inactive. Resending verification email.")
-            handle_verification_email(user.email, db, background_task)
-            raise DisallowedLoginException(detail=error_strings.UNVERIFIED_USER_ERROR)
+            handle_verification_email(user=user, db=db, background_task=background_task)
+ 
+            raise DisallowedLoginException(
+            detail="Your account is not verified. Check your mail for a new verification email."
+        )
 
         # if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
         #     validate_commissioner_device(user, user_login, db, background_task)
-
+    try:
         token = user.generate_jwt()
         logger.info(f"User {user.email} logged in successfully.")
         return create_response(
@@ -202,7 +194,7 @@ def verify_user(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Verification failed due to internal error.")
 
 
-@router.post("/resend_verification_token", status_code=status.HTTP_200_OK)
+@router.post("/resend_verification_token", status_code=status.HTTP_200_OK, response_model=GenericResponse[UserInResponse])
 def resend_token(
     email: str, background_task: BackgroundTasks, db: Session = Depends(get_db)
 ):
@@ -216,23 +208,7 @@ def resend_token(
         if not user:
             logger.warning(f"Resend token failed: Email {email} not found.")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email not found")
-        front_end_url = get_frontend_url(user.user_type.name)
-        if not front_end_url:
-            logger.error(f"Frontend URL not found for user type: {user.user_type.name}")
-            raise ServerException(detail="Frontend URL configuration error")
-        verify_jwt_token = user_repo.create_verification_token(db, email=user.email)
-        verification_link = f"{front_end_url}{settings.VERIFY_EMAIL_LINK}{verify_jwt_token}"
-        template_dict = UserVerificationTemplateVariables(
-            name=f"{user.first_name} {user.last_name}", action_url=verification_link
-        ).dict()
-        logger.info(f"Verification link generated: {verification_link}")
-        email_service.send_email_with_template(
-            db=db,
-            template_id=settings.VERIFY_EMAIL_TEMPLATE_ID,
-            template_dict=template_dict,
-            recipient=user.email,
-            background_tasks=background_task,
-        )
+        handle_verification_email(user=user, db=db, background_task=background_task)
         return create_response(
             message="Verification link sent successfully",
             status_code=status.HTTP_200_OK,

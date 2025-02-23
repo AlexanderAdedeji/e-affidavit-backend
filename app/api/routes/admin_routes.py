@@ -1581,7 +1581,7 @@ def get_unit_heads(db: Session = Depends(get_db)):
     try:
         user_type = get_user_type_or_404(db, settings.HEAD_OF_UNIT_USER_TYPE)
         head_of_units = user_repo.get_users_by_user_type(db=db, user_type_id=user_type.id)
-        # Build response (you may further factor out nested comprehension if needed)
+        
         response = [
             HeadOfUnitInResponse(
                 id=hu.id,
@@ -1625,18 +1625,158 @@ def get_unit_heads(db: Session = Depends(get_db)):
         logger.error("Error retrieving head of units", exc_info=True)
         raise ServerException(detail="Error retrieving head of unit users.")
 
+@router.get(
+    "/get_latest_affidavits",
+    dependencies=[Depends(admin_permission_dependency)],
+)
+async def get_latest_affidavits(db: Session = Depends(get_db)):
+    """
+    Retrieve the latest 5 affidavits (with status PAID or attested), enriched with court and template details.
+    """
+    try:
+        # Filter for affidavits that are either PAID or attested,
+        # then sort by created_at descending and limit to 5.
+        filter_query = {"$or": [{"status": "PAID"}, {"is_attested": True}]}
+        docs = await document_collection.find(filter_query).sort("created_at", -1).to_list(length=5)
+        
+        if not docs:
+            logger.info("No affidavits found")
+            return create_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="No affidavits found",
+                data=[],
+            )
+        
+        docs = serialize_mongo_document(docs)
+        enriched_docs = []
+        for doc in docs:
+            # Retrieve the court name using court_repo
+            court = court_repo.get(db, id=doc.get("court_id"))
+            # Retrieve the template name from the template collection
+            template = await template_collection.find_one({"_id": ObjectId(doc.get("template_id"))})
+            doc["court"] = court.name if court else "Unknown Court"
+            doc["template"] = template["name"] if template else "Unknown Template"
+            enriched_docs.append(doc)
+        
+        logger.info("Latest affidavits retrieved successfully")
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Latest affidavits retrieved successfully",
+            data=enriched_docs,
+        )
+    except Exception as e:
+        logger.error("Error fetching latest affidavits", exc_info=True)
+        raise ServerException(detail="Error fetching latest affidavits.")
+
+@router.get(
+    "/get_commissioners",
+    dependencies=[Depends(admin_permission_dependency)],
+    response_model=GenericResponse[List[CommissionerInResponse]],
+)
+async def get_commissioners(db: Session = Depends(get_db)):
+    """
+    Retrieve commissioner users along with their attested documents.
+    """
+    try:
+        # Retrieve the commissioner user type; this helper will raise an exception if not found.
+        user_type = get_user_type_or_404(db, settings.COMMISSIONER_USER_TYPE)
+        commissioners = user_repo.get_users_by_user_type(db, user_type_id=user_type.id)
+        
+        result = []
+        for commissioner in commissioners:
+            docs = await document_collection.find({"commissioner_id": commissioner.id}).to_list(length=1000)
+            docs_serialized = [
+                SlimDocumentInResponse(
+                    id=str(doc["_id"]),
+                    name=doc.get("name", ""),
+                    attested_date=doc.get("attestation_date", ""),
+                    created_at=doc.get("created_at", ""),
+                    status=doc.get("status", ""),
+                )
+                for doc in docs
+            ]
+            comm_resp = CommissionerInResponse(
+                id=commissioner.id,
+                first_name=commissioner.first_name,
+                last_name=commissioner.last_name,
+                email=commissioner.email,
+                user_type=UserTypeInDB(id=commissioner.user_type.id, name=commissioner.user_type.name),
+                verify_token="some_verify_token",
+                court=CourtSystemInDB(
+                    id=commissioner.commissioner_profile.court.id,
+                    name=commissioner.commissioner_profile.court.name,
+                ),
+                is_active=commissioner.is_active,
+                attested_documents=docs_serialized,
+                date_created=commissioner.CreatedAt,
+            )
+            result.append(comm_resp)
+        
+        logger.info("Commissioners retrieved successfully")
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Commissioners retrieved successfully",
+            data=result,
+        )
+    except Exception as e:
+        logger.error("Error retrieving commissioners", exc_info=True)
+        raise ServerException(detail="Error retrieving commissioners.")
+
+@router.get(
+    "/get_all_jurisdictions",
+    dependencies=[Depends(admin_permission_dependency)],
+    response_model=GenericResponse[List[JurisdictionInResponse]],
+)
+def get_all_jurisdictions(db: Session = Depends(get_db)):
+    """
+    Retrieve all jurisdictions with basic details.
+    """
+    try:
+        jurisdictions = jurisdiction_repo.get_all(db)
+        data = []
+        for jurisdiction in jurisdictions:
+            data.append(
+                JurisdictionInResponse(
+                    id=jurisdiction.id,
+                    name=jurisdiction.name,
+                    date_created=jurisdiction.CreatedAt,
+                    state=CourtSystemInDB(
+                        id=jurisdiction.state.id, 
+                        name=jurisdiction.state.name
+                    ),
+                    courts=len(jurisdiction.courts),
+                    head_of_unit=(
+                        SlimUserInResponse(
+                            id=jurisdiction.head_of_unit.user.id,
+                            first_name=jurisdiction.head_of_unit.user.first_name,
+                            last_name=jurisdiction.head_of_unit.user.last_name,
+                            email=jurisdiction.head_of_unit.user.email,
+                        )
+                        if jurisdiction.head_of_unit else None
+                    ),
+                )
+            )
+        logger.info("Jurisdictions retrieved successfully")
+        return create_response(
+            status_code=status.HTTP_200_OK,
+            message="Jurisdictions retrieved successfully",
+            data=data,
+        )
+    except Exception as e:
+        logger.error("Error retrieving jurisdictions", exc_info=True)
+        raise ServerException(detail="Error retrieving jurisdictions.")
 
 @router.post("/general_users", dependencies=[Depends(admin_permission_dependency)])
 async def get_users(
     db: Session = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(0, ge=0),
+    # skip: int = Query(0, ge=0),
+    # limit: int = Query(0, ge=0),
 ):
     """
     Retrieve paginated list of general users with associated document details.
     """
     try:
-        users = user_repo.get_paginated(db, skip=skip, limit=limit)
+        users = user_repo.get_all(db)
         response = []
         for user in users:
             pipeline = [
@@ -1677,13 +1817,13 @@ async def get_users(
                 "total_attested": fetch_docs("ATTESTED"),
             }
             response.append(new_user)
-        metadata = {"total": user_repo.get_count(db), "limit": limit, "skip": skip}
+        # metadata = {"total": user_repo.get_count(db), "limit": limit, "skip": skip}
         logger.info("General user data retrieved successfully")
         return create_response(
             status_code=status.HTTP_200_OK,
             message="Users information retrieved successfully.",
             data=response,
-            metadata=metadata,
+            # metadata=metadata,
         )
     except Exception as e:
         logger.error("Error retrieving general users", exc_info=True)

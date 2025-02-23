@@ -86,9 +86,9 @@ class User(Base):
         self, expires_delta: timedelta = None, **kwargs
     ) -> str:
         """Generate JSON Web Token for a user"""
-
+        # Default to 15 minutes for email verification tokens if not provided.
         if expires_delta is None:
-            expires_delta = timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+            expires_delta = timedelta(minutes=15)
         now = datetime.now()
         expires_at = now + expires_delta
         jwt_content = JWTEMAIL(email=self.email).dict()

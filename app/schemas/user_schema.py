@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, constr, field_validator
 
@@ -12,8 +12,8 @@ from app.schemas.user_type_schema import UserTypeInDB
 
 # Base user details shared across many models.
 class UserBase(BaseModel):
-    first_name: constr(min_length=3, max_length=50)
-    last_name: constr(min_length=3, max_length=50)
+    first_name: Annotated[str, Field(...,min_length=3, max_length=50)]
+    last_name: Annotated[str, Field(...,min_length=3, max_length=50)]
 
     @field_validator("first_name", "last_name", mode="before")
     def trim_names(cls, v: str) -> str:
@@ -31,7 +31,7 @@ class UserBase(BaseModel):
 # Models used for user creation and update.
 class UserCreateForm(UserBase):
     email: EmailStr
-    password: constr(min_length=8)
+    password: Annotated[str, Field(..., min_length=8)]
 
     @field_validator("password")
     def validate_password(cls, v: str) -> str:
@@ -41,6 +41,8 @@ class UserCreateForm(UserBase):
             raise ValueError("Password must contain at least one uppercase letter")
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one digit")
+        if not any(c in "!@#$%^&*(),.?\":{}|<>" for c in v):
+            raise ValueError("Password must contain at least one special character")
         return v
 
 
@@ -50,11 +52,11 @@ class UserCreate(UserCreateForm):
 
 class UserUpdate(UserBase):
     email: Optional[EmailStr] = None
-    first_name: Optional[constr(min_length=3, max_length=50)] = None
-    last_name: Optional[constr(min_length=3, max_length=50)] = None
+    first_name: Optional[Annotated[str, Field(...,min_length=3, max_length=50)]] = None
+    last_name: Optional[Annotated[str,Field(...,min_length=3, max_length=50)]] = None
     address: Optional[str] = None
     phone: Optional[str] = None
-    password: Optional[constr(min_length=8)] = None
+    password: Optional[Annotated[str, Field(...,min_length=8)]] = None
 
     @field_validator("password")
     def validate_password_optional(cls, v: Optional[str]) -> Optional[str]:
