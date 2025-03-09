@@ -133,7 +133,7 @@ def login(
             detail="Your account is not verified. Check your mail for a new verification email."
         )
 
-        if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
+    if user.user_type.name == settings.COMMISSIONER_USER_TYPE:
             validate_commissioner_device(user, user_login, db, background_task)
     try:
         token = user.generate_jwt()
