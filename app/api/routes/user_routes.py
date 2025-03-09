@@ -4,7 +4,7 @@ import uuid
 from typing import Any, Dict, List
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks,  Depends, HTTPException, status 
+from fastapi import APIRouter, BackgroundTasks,  Depends, HTTPException, status , Query
 from loguru import logger
 from postmarker import core
 from sqlalchemy.exc import IntegrityError
@@ -226,136 +226,88 @@ def retrieve_current_user(
     )
 
 
-# @router.get("/my_documents", dependencies=[Depends(authenticated_user_dependencies)])
-# async def get_my_documents(
-#     current_user: User = Depends(get_currently_authenticated_user),
-#     page: int = Query(1, ge=1),
-#     limit: int = Query(20, ge=1, le=100)
-# ):
-#     """
-#     Retrieve non-archived documents for the current user using an indexed query with pagination.
-#     """
-#     # Ensure the index exists to optimize sorting by 'created_at'
-#     await document_collection.create_index([
-#         ("created_by_id", 1),
-#         ("is_archived", 1),
-#         ("created_at", -1)
-#     ])
-    
-#     # Calculate how many documents to skip based on the current page and limit
-#     skip = (page - 1) * limit
-    
-#     # Use a find query that leverages the index along with skip and limit for pagination
-#     docs_cursor = document_collection.find(
-#         {
-#             "created_by_id": current_user.id,
-#             "is_archived": False
-#         },
-#         {
-#             "name": 1,
-#             "preview_text": 1,
-#             "created_at": 1,
-#             "status": 1
-#         }
-#     ).sort("created_at", -1).skip(skip).limit(limit)
-    
-#     documents = await docs_cursor.to_list(length=limit)
-#     total_count = await document_collection.count_documents({
-#         "created_by_id": current_user.id,
-#         "is_archived": False
-#     })
-    
-#     # Create pagination metadata (assuming your PaginationMeta has these fields)
-#     pagination_meta = {
-#         "total": total_count,
-#         "page": page,
-#         "limit": limit,
-#         "total_pages": (total_count + limit - 1) // limit  # Ceiling division
-#     }
-    
-#     logger.info(f"{len(documents)} documents retrieved for user {current_user.email} (Page {page})")
-    
-#     return create_response(
-#         status_code=status.HTTP_200_OK,
-#         message="Documents retrieved successfully with pagination",
-#         data=serialize_mongo_document(documents),
-#         pagination= pagination_meta
-#     )
 
 @router.get("/my_documents", dependencies=[Depends(authenticated_user_dependencies)])
-async def get_documents_index(current_user: User = Depends(get_currently_authenticated_user)):
+async def get_my_documents(
+    current_user: User = Depends(get_currently_authenticated_user),
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100)  # Now defaulting to 25 documents per page
+):
     """
-    Retrieve non-archived documents for the current user using an indexed query.
-    This solution ensures a compound index is used so that sorting by 'created_at'
-    does not exceed MongoDB's in-memory sort limit.
+    Retrieve non-archived documents for the current user using pagination.
     """
+    # Ensure index exists to optimize the query
     await document_collection.create_index([
         ("created_by_id", 1),
         ("is_archived", 1),
         ("created_at", -1)
     ])
     
-    # Use a simple find query that leverages the index.
+    skip = (page - 1) * limit
     docs_cursor = document_collection.find(
-    {
+        {"created_by_id": current_user.id, "is_archived": False},
+        {"name": 1, "preview_text": 1, "created_at": 1, "status": 1}
+    ).sort("created_at", -1).skip(skip).limit(limit)
+    
+    documents = await docs_cursor.to_list(length=limit)
+    total_count = await document_collection.count_documents({
         "created_by_id": current_user.id,
         "is_archived": False
-    },
-    {
-        "name": 1,
-        "preview_text": 1,
-        "created_at": 1,
-        "status": 1
-    }
-).sort("created_at", -1)
+    })
     
-    documents = await docs_cursor.to_list(length=1000)
-    logger.info(f"{len(documents)} documents retrieved for user {current_user.email} using indexed query")
+    pagination_meta = {
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total_count + limit - 1) // limit  # Ceiling division
+    }
+    
+    logger.info(f"{len(documents)} documents retrieved for user {current_user.email} (Page {page})")
     
     return create_response(
         status_code=status.HTTP_200_OK,
-        message="Documents retrieved successfully using index",
-        data=serialize_mongo_document(documents)
+        message="Documents retrieved successfully with pagination",
+        data=serialize_mongo_document(documents),
+        pagination=pagination_meta
     )
 
-
 # @router.get("/my_documents", dependencies=[Depends(authenticated_user_dependencies)])
-# async def get_documents(
-#     current_user: User = Depends(get_currently_authenticated_user),
-#     page: int = 1,
-#     page_limit: int = 100
-# ):
+# async def get_documents_index(current_user: User = Depends(get_currently_authenticated_user)):
 #     """
-#     Retrieve non-archived documents for the current user using a paginated find query.
-#     This method relies on the index to efficiently sort by 'created_at' and avoid the sort memory limit.
+#     Retrieve non-archived documents for the current user using an indexed query.
+#     This solution ensures a compound index is used so that sorting by 'created_at'
+#     does not exceed MongoDB's in-memory sort limit.
 #     """
-#     skip = (page - 1) * page_limit
-#     filter_query = {
+#     await document_collection.create_index([
+#         ("created_by_id", 1),
+#         ("is_archived", 1),
+#         ("created_at", -1)
+#     ])
+    
+#     # Use a simple find query that leverages the index.
+#     docs_cursor = document_collection.find(
+#     {
 #         "created_by_id": current_user.id,
 #         "is_archived": False
+#     },
+#     {
+#         "name": 1,
+#         "preview_text": 1,
+#         "created_at": 1,
+#         "status": 1
 #     }
+# ).sort("created_at", -1)
     
-#     # Use the find query with sort, skip, and limit so that MongoDB can use the index.
-#     docs_cursor = document_collection.find(filter_query) \
-#         .sort("created_at", -1) \
-#         .skip(skip) \
-#         .limit(page_limit)
-    
-#     documents = await docs_cursor.to_list(length=page_limit)
-#     total_count = await document_collection.count_documents(filter_query)
-    
-#     logger.info(f"{len(documents)} documents retrieved for user {current_user.email} (page {page})")
+#     documents = await docs_cursor.to_list(length=1000)
+#     logger.info(f"{len(documents)} documents retrieved for user {current_user.email} using indexed query")
     
 #     return create_response(
 #         status_code=status.HTTP_200_OK,
-#         message="Documents retrieved successfully using indexed paginated query",
-#         data={
-#             "documents": serialize_mongo_document(documents),
-#             "total_count": total_count,
-#             "page": page,
-#             "page_limit": page_limit
-#         }
+#         message="Documents retrieved successfully using index",
+#         data=serialize_mongo_document(documents)
 #     )
+
+
 
 @router.get("/get_archived_documents", dependencies=[Depends(authenticated_user_dependencies)])
 async def get_archived_documents(current_user: User = Depends(get_currently_authenticated_user)):
