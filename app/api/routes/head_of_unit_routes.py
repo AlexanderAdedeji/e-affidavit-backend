@@ -568,6 +568,7 @@ async def get_all_commissioners_report(
 
 @router.post(
     "/get_commissioner_report/{commissioner_id}",
+
     dependencies=[Depends(head_of_unit_permission_dependency)],
 )
 async def get_commissioner_report(
@@ -627,3 +628,160 @@ async def get_commissioner_report(
     except Exception as e:
         logger.error(f"Error in get_commissioner_report: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error generating commissioner report")
+
+
+
+
+
+####################Dashboard Information########
+
+
+@router.get("/top-commissioners")
+async def get_top_commissioners(month: int, year: int,     current_user: User = Depends(get_currently_authenticated_user),):
+    """
+    Retrieve the top performing commissioners for the specified month based on the number of attested affidavits.
+    Since the documents do not include a jurisdiction_id, we perform a $lookup to join each document with the 
+    commissioners collection using the commissioner_id. This allows us to filter by the HoU's jurisdiction.
+    """
+    try:
+        # Calculate the start and end dates for the specified month
+        start_date = datetime(year, month, 1, tzinfo=datetime.timezone.utc)
+        if month == 12:
+            end_date = datetime(year + 1, 1, 1, tzinfo=datetime.timezone.utc)
+        else:
+            end_date = datetime(year, month + 1, 1, tzinfo=datetime.timezone.utc)
+
+        # Extract the HoU's jurisdiction from the current user (JWT payload)
+        jurisdiction_id = current_user.jurisdiction_id
+
+        # Define the aggregation pipeline
+        pipeline = [
+            # 1. Filter affidavits that have been attested within the specified month
+            {
+                "$match": {
+                    "isAttested": True,
+                    "attestation_date": {"$gte": start_date, "$lt": end_date},
+                }
+            },
+            # 2. Join with the commissioners collection using commissioner_id
+            {
+                "$lookup": {
+                    "from": "commissioners",         # Name of the commissioners collection
+                    "localField": "commissioner_id",   # Field in documents representing who attested
+                    "foreignField": "id",              # Field in commissioners collection (assumed to be 'id')
+                    "as": "commissioner_info"
+                }
+            },
+            # 3. Unwind the joined array to work with individual commissioner objects
+            {"$unwind": "$commissioner_info"},
+            # 4. Filter documents to only include those where the commissioner belongs to the current jurisdiction
+            {
+                "$match": {
+                    "commissioner_info.jurisdiction_id": jurisdiction_id
+                }
+            },
+            # 5. Group by commissioner_id and count the total affidavits per commissioner
+            {
+                "$group": {
+                    "_id": "$commissioner_id",
+                    "totalAffidavits": {"$sum": 1},
+                    "commissioner_info": {"$first": "$commissioner_info"}
+                }
+            },
+            # 6. Sort the results in descending order by the total number of affidavits
+            {"$sort": {"totalAffidavits": -1}},
+            # 7. Limit the output to the top 5 commissioners
+            {"$limit": 5}
+        ]
+
+        # Execute the aggregation pipeline
+        results = list(db.documents.aggregate(pipeline))
+        if not results:
+            raise HTTPException(status_code=404, detail="No attested affidavits found for the specified period.")
+
+        return {"top_commissioners": results}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+    
+
+
+
+
+
+@router.get("/recent-activities")
+async def get_recent_activities(current_user = Depends(get_currently_authenticated_user)):
+    """
+    Retrieve the top 5 most recent affidavit activities in the current HoU's jurisdiction.
+    Activities include creation, payment, and attestation events. For attestation events,
+    we also show which commissioner attested the affidavit.
+    """
+    try:
+        # Build the aggregation pipeline:
+        pipeline = [
+            # 1. Add a field 'last_activity_date' which is the maximum of created_at, payment_date, and attestation_date.
+            {
+                "$addFields": {
+                    "last_activity_date": {
+                        "$max": [
+                            "$created_at",
+                            "$payment_date",
+                            "$attestation_date"
+                        ]
+                    }
+                }
+            },
+            # 2. Optionally, filter to include only documents with a valid last_activity_date (if needed)
+            {
+                "$match": {
+                    "last_activity_date": {"$ne": None}
+                }
+            },
+            # 3. Join with the commissioners collection using the commissioner_id.
+            #    This is mainly useful for attested documents where commissioner details are available.
+            {
+                "$lookup": {
+                    "from": "commissioners",         # Name of the commissioners collection
+                    "localField": "commissioner_id",   # Field in the document representing the attesting commissioner
+                    "foreignField": "id",              # Field in commissioners collection (adjust if needed)
+                    "as": "commissioner_info"
+                }
+            },
+            # 4. Unwind the joined commissioner array. This step ensures we work with individual commissioner objects.
+            {"$unwind": "$commissioner_info"},
+            # 5. Filter documents to only include those where the commissioner belongs to the current HoU's jurisdiction.
+            {
+                "$match": {
+                    "commissioner_info.jurisdiction_id": current_user.jurisdiction_id
+                }
+            },
+            # 6. Sort documents by last_activity_date in descending order (most recent first).
+            {"$sort": {"last_activity_date": -1}},
+            # 7. Limit the output to the top 5 recent activities.
+            {"$limit": 5},
+            # 8. Optionally, project only the required fields for clarity.
+            {
+                "$project": {
+                    "_id": 1,
+                    "name": 1,
+                    "status": 1,
+                    "created_at": 1,
+                    "payment_date": 1,
+                    "attestation_date": 1,
+                    "last_activity_date": 1,
+                    "commissioner_id": 1,
+                    "commissioner_info.full_name": 1,
+                    "commissioner_info.email": 1
+                }
+            }
+        ]
+
+        # Execute the aggregation pipeline
+        results = list(db.documents.aggregate(pipeline))
+        if not results:
+            raise HTTPException(status_code=404, detail="No recent activities found in the specified jurisdiction.")
+
+        return {"recent_activities": results}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
