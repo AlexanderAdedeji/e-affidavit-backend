@@ -785,3 +785,117 @@ async def get_recent_activities(current_user = Depends(get_currently_authenticat
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
+
+
+
+
+from fastapi import APIRouter, Depends, HTTPException
+from pymongo import MongoClient
+from datetime import datetime, timezone
+from app.dependencies import get_current_user  # Assumes this returns a user with a 'jurisdiction_id' attribute
+
+router = APIRouter()
+
+# Setup MongoDB client and database (adjust connection details and database name as needed)
+client = MongoClient("mongodb://localhost:27017")
+db = client.affidavit_db  # Replace with your actual database name
+
+def get_month_date_range(year: int, month: int):
+    """
+    Returns a tuple of (start_date, end_date) for the given year and month in UTC.
+    For example, if year=2025 and month=3, start_date = 2025-03-01T00:00:00Z
+    and end_date = 2025-04-01T00:00:00Z.
+    """
+    start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+    return start_date, end_date
+
+@router.get("/dashboard-stats")
+async def get_dashboard_stats(
+    year: int,
+    month: int,
+    current_user = Depends(get_current_user)
+):
+    """
+    Returns a set of dashboard statistics for the HoU’s jurisdiction, including:
+    - Total commissioners (active vs. inactive)
+    - Total courts
+    - Pending affidavits
+    - Completed affidavits
+    - Completed affidavits for the specified month
+    Growth metrics are placeholders; implement your own logic to compare current data
+    to a previous period if you need them.
+    """
+    try:
+        # 1) Identify commissioners in the HoU's jurisdiction
+        jurisdiction_id = current_user.jurisdiction_id
+        commissioner_cursor = db.commissioners.find(
+            {"jurisdiction_id": jurisdiction_id},
+            {"_id": 0, "id": 1, "isActive": 1}  # Return only 'id' and 'isActive' for efficiency
+        )
+        commissioners_in_jurisdiction = list(commissioner_cursor)
+
+        # Extract commissioner IDs and track active vs. inactive
+        commissioner_ids = [c["id"] for c in commissioners_in_jurisdiction]
+        total_commissioners = len(commissioners_in_jurisdiction)
+        active_commissioners = sum(1 for c in commissioners_in_jurisdiction if c.get("isActive"))
+        inactive_commissioners = total_commissioners - active_commissioners
+
+        # 2) Total courts in this jurisdiction
+        total_courts = db.courts.count_documents({"jurisdiction_id": jurisdiction_id})
+
+        # 3) Count pending affidavits
+        #    Assume "pending" means status="PENDING" (adjust if needed)
+        pending_affidavits = db.documents.count_documents({
+            "commissioner_id": {"$in": commissioner_ids},
+            "status": "PENDING"
+        })
+
+        # 4) Count completed (attested) affidavits
+        completed_affidavits = db.documents.count_documents({
+            "commissioner_id": {"$in": commissioner_ids},
+            "status": "ATTESTED"
+        })
+
+        # 5) Count completed (attested) affidavits for the specified month/year
+        start_date, end_date = get_month_date_range(year, month)
+        completed_this_month = db.documents.count_documents({
+            "commissioner_id": {"$in": commissioner_ids},
+            "status": "ATTESTED",
+            "attestation_date": {"$gte": start_date, "$lt": end_date}
+        })
+
+        # (Optional) Growth metrics - placeholders for demonstration
+        # In a real system, you'd compare current data vs. a previous period
+        commissioners_growth = "+12%"
+        courts_growth = "+29%"
+        pending_growth = "+28%"
+        # Similarly, you can calculate a growth rate for completed affidavits if desired
+
+        return {
+            "total_commissioners": {
+                "count": total_commissioners,
+                "active": active_commissioners,
+                "inactive": inactive_commissioners,
+                "growth": commissioners_growth
+            },
+            "total_courts": {
+                "count": total_courts,
+                "growth": courts_growth
+            },
+            "pending_affidavits": {
+                "count": pending_affidavits,
+                "growth": pending_growth
+            },
+            "completed_affidavits": {
+                "count": completed_affidavits,
+                "this_month": completed_this_month
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
