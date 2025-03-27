@@ -790,16 +790,7 @@ async def get_recent_activities(current_user = Depends(get_currently_authenticat
 
 
 
-from fastapi import APIRouter, Depends, HTTPException
-from pymongo import MongoClient
-from datetime import datetime, timezone
-from app.dependencies import get_current_user  # Assumes this returns a user with a 'jurisdiction_id' attribute
 
-router = APIRouter()
-
-# Setup MongoDB client and database (adjust connection details and database name as needed)
-client = MongoClient("mongodb://localhost:27017")
-db = client.affidavit_db  # Replace with your actual database name
 
 def get_month_date_range(year: int, month: int):
     """
@@ -807,18 +798,19 @@ def get_month_date_range(year: int, month: int):
     For example, if year=2025 and month=3, start_date = 2025-03-01T00:00:00Z
     and end_date = 2025-04-01T00:00:00Z.
     """
-    start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+    start_date = datetime(year, month, 1, tzinfo=datetime.timezone.utc)
     if month == 12:
-        end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        end_date = datetime(year + 1, 1, 1, tzinfo=datetime.timezone.utc)
     else:
-        end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+        end_date = datetime(year, month + 1, 1, tzinfo=datetime.timezone.utc)
     return start_date, end_date
 
 @router.get("/dashboard-stats")
 async def get_dashboard_stats(
     year: int,
     month: int,
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_currently_authenticated_user)
 ):
     """
     Returns a set of dashboard statistics for the HoU’s jurisdiction, including:
@@ -899,3 +891,110 @@ async def get_dashboard_stats(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+
+
+@router.get("/most-active-courts")
+async def get_most_active_courts(
+    year: int,
+    month: int,
+    current_user = Depends(get_currently_authenticated_user)
+):
+    """
+    Retrieve the top 5 courts in the current HoU's jurisdiction for the specified month,
+    based on the completion rate. The completion rate is calculated as:
+        (number of ATTESTED affidavits / number of paid affidavits) * 100
+    for affidavits in that court within the specified month.
+    """
+    try:
+        start_date, end_date = get_month_date_range(year, month)
+        jurisdiction_id = current_user.jurisdiction_id
+
+        pipeline = [
+            # 1. Join with the courts collection to get jurisdiction info for each document
+            {
+                "$lookup": {
+                    "from": "courts",         # The courts collection
+                    "localField": "court_id",   # Field in documents linking to the court
+                    "foreignField": "id",      # Field in the courts collection (assumed to be "id")
+                    "as": "court_info"
+                }
+            },
+            # 2. Unwind the joined array (each document should belong to one court)
+            { "$unwind": "$court_info" },
+            # 3. Filter to only include documents where the court belongs to the current HoU's jurisdiction
+            {
+                "$match": {
+                    "court_info.jurisdiction_id": jurisdiction_id
+                }
+            },
+            # 4. Group by court_id and conditionally count attested and paid affidavits for the specified month
+            {
+                "$group": {
+                    "_id": "$court_id",
+                    "attestedCount": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$and": [
+                                        { "$eq": ["$status", "ATTESTED"] },
+                                        { "$gte": ["$attestation_date", start_date] },
+                                        { "$lt": ["$attestation_date", end_date] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    "paidCount": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$and": [
+                                        { "$ne": ["$payment_date", None] },
+                                        { "$gte": ["$payment_date", start_date] },
+                                        { "$lt": ["$payment_date", end_date] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    "court_info": { "$first": "$court_info" }
+                }
+            },
+            # 5. Project the ratio of attested to paid affidavits in percentages
+            {
+                "$project": {
+                    "attestedCount": 1,
+                    "paidCount": 1,
+                    "completionRate": {
+                        "$cond": [
+                            { "$eq": ["$paidCount", 0] },
+                            0,
+                            { "$multiply": [{ "$divide": ["$attestedCount", "$paidCount"] }, 100] }
+                        ]
+                    },
+                    "court_info": 1
+                }
+            },
+            # 6. Sort by the completionRate in descending order
+            { "$sort": { "completionRate": -1 } },
+            # 7. Limit the output to the top 5 courts
+            { "$limit": 5 }
+        ]
+
+        results = list(db.documents.aggregate(pipeline))
+        if not results:
+            raise HTTPException(status_code=404, detail="No affidavit data found for the specified period.")
+
+        return {"most_active_courts": results}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")

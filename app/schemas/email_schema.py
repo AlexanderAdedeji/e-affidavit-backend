@@ -29,7 +29,7 @@ class EmailTemplateVariables(BaseModel):
 
 
 class ResetPasswordEmailTemplateVariables(EmailTemplateVariables):
-    reset_link: HttpUrl
+    reset_link: str
     # Convert the RESET_TOKEN_EXPIRE_MINUTES to a number (here as an integer division)
     valid_for: Optional[int] = int(settings.RESET_TOKEN_EXPIRE_MINUTES) // 1000
 

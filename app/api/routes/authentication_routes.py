@@ -119,6 +119,8 @@ def login(
     """
     Login endpoint that verifies the user credentials and returns a JWT token.
     """
+
+
  
     user = user_repo.get_by_email(db, email=user_login.email)
     if not user or not user.verify_password(user_login.password):
@@ -246,6 +248,7 @@ def forgot_password(
             name=f"{user.first_name} {user.last_name}",
             reset_link=f"{front_end_url}{settings.RESET_PASSWORD_URL}{reset_jwt_token}",
         ).dict()
+        print(f"{front_end_url}{settings.RESET_PASSWORD_URL}{reset_jwt_token}")
         email_service.send_email_with_template(
             template_id=settings.RESET_PASSWORD_TEMPLATE_ID,
             db=db,
