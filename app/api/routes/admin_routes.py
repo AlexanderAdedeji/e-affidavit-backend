@@ -196,7 +196,10 @@ def get_unit_heads(db: Session = Depends(get_db)):
 
 @router.get(
     "/get_latest_affidavits",
+    status_code=status.HTTP_200_OK,
+
     dependencies=[Depends(admin_permission_dependency)],
+
 )
 async def get_latest_affidavits(db: Session = Depends(get_db)):
     """
@@ -239,6 +242,7 @@ async def get_latest_affidavits(db: Session = Depends(get_db)):
 
 @router.get(
     "/get_commissioners",
+     status_code=status.HTTP_200_OK,
     dependencies=[Depends(admin_permission_dependency)],
     response_model=GenericResponse[List[CommissionerInResponse]],
 )

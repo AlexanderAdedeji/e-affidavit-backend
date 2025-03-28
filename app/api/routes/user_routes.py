@@ -149,7 +149,7 @@ async def get_dashboard_stats(current_user: User = Depends(get_currently_authent
 
 
 @router.post("/user",status_code=status.HTTP_201_CREATED,
-            #   response_model=GenericResponse[UserInResponse]
+              response_model=GenericResponse[UserInResponse]
               )
 def create_user(
     user_in: UserCreateForm,

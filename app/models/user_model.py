@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import jwt
@@ -89,7 +89,7 @@ class User(Base):
         # Default to 15 minutes for email verification tokens if not provided.
         if expires_delta is None:
             expires_delta = timedelta(minutes=15)
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         expires_at = now + expires_delta
         jwt_content = JWTEMAIL(email=self.email).dict()
         jwt_content.update(kwargs)
