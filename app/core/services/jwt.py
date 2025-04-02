@@ -32,7 +32,13 @@ class JWTService:
             decoded_payload = jwt.decode(
                 token, self.secret_key, algorithms=[self.algorithm]
             )
-            if decoded_payload["exp"] < datetime.now(timezone.utc):
+            logger.error(decoded_payload['exp'])
+            exp_timestamp = decoded_payload.get("exp")
+            if exp_timestamp is None:
+                raise InvalidTokenException(detail="Token missing expiration claim.")
+            exp_datetime = datetime.fromtimestamp(exp_timestamp, tz=timezone.utc)
+            
+            if exp_datetime < datetime.now(timezone.utc):
                 raise InvalidTokenException(detail="Token has expired.")
             return decoded_payload
         except jwt.PyJWTError as decode_error:

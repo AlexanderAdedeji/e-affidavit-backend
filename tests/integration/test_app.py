@@ -121,3 +121,7 @@ def test_create_user():
     data = response.json()
     assert "id" in data["data"]
     assert data["data"]["email"] == "john.doe@example.com"
+
+
+
+

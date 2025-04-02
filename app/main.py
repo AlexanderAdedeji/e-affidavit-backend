@@ -7,12 +7,11 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.routes.routes import router as global_router
 from app.core.settings.configurations import settings
-from app.core.settings.logs.handler import logger  # Our centralized logger
+from app.core.settings.logs.handler import logger  
 from app.database.base import Base
 from app.database.sessions.mongo_client import client
 from app.database.sessions.session import engine
-from app.middleware.request_id import \
-    RequestIDMiddleware  # New middleware for request IDs
+from app.middleware.request_id import RequestIDMiddleware  # New middleware for request IDs
 
 # Create database schema (for SQLAlchemy)
 Base.metadata.create_all(engine)
@@ -54,7 +53,7 @@ def create_application_instance() -> FastAPI:
         for error in exc.errors()
     ]
         return JSONResponse(status_code=422, content={"detail": detail})
-        # return JSONResponse(status_code=422, content={"detail": exc.errors()})
+  
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
@@ -65,10 +64,10 @@ def create_application_instance() -> FastAPI:
             status_code=500, content={"detail": f"An unexpected error occurred: {exc}"}
         )
 
-    # Optional: Logging middleware to log incoming/outgoing requests.
+   
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
-        # Optionally bind additional context here if needed
+    
         logger.info(f"Incoming request: {request.method} {request.url}")
         response = await call_next(request)
         logger.info(
